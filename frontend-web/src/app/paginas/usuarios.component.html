@@ -1,0 +1,82 @@
+<section class="page-heading">
+  <p class="eyebrow">Administracion</p>
+  <h1>Usuarios</h1>
+  <p>Crea, edita y controla el acceso de las cuentas.</p>
+</section>
+@if (mensaje()) {
+  <p class="notice success">{{ mensaje() }}</p>
+}
+@if (error()) {
+  <p class="notice error">{{ error() }}</p>
+}
+<div class="admin-grid">
+  <section class="card table-card">
+    <div class="card-title">
+      <h2>Directorio</h2>
+      <span>{{ usuarios().length }} cuentas</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Usuario</th>
+            <th>Roles</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (usuario of usuarios(); track usuario.id) {
+            <tr>
+              <td>
+                <strong>{{ usuario.nombres }} {{ usuario.apellidos }}</strong
+                ><small>{{ usuario.correo }}</small>
+              </td>
+              <td>{{ usuario.roles.join(', ') }}</td>
+              <td>
+                <span class="status" [class.off]="usuario.estado === 'INACTIVO'">{{
+                  usuario.estado
+                }}</span>
+              </td>
+              <td class="actions">
+                <button type="button" (click)="editar(usuario)">Editar</button
+                ><button type="button" (click)="alternarEstado(usuario)">
+                  {{ usuario.estado === 'ACTIVO' ? 'Inactivar' : 'Activar' }}
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section class="card">
+    <h2>{{ editando() ? 'Editar usuario' : 'Nueva cuenta' }}</h2>
+    <form [formGroup]="formulario" (ngSubmit)="guardar()" class="form-grid">
+      <label>Nombres <input formControlName="nombres" /></label
+      ><label>Apellidos <input formControlName="apellidos" /></label>
+      <label class="full">Correo <input type="email" formControlName="correo" /></label>
+      @if (!editando()) {
+        <label class="full">Clave inicial <input type="password" formControlName="clave" /></label>
+      }
+      <label class="full"
+        >Roles <input formControlName="roles" list="roles-disponibles" /><small
+          >Separa varios roles con comas.</small
+        ></label
+      >
+      <datalist id="roles-disponibles">
+        @for (rol of roles(); track rol.id) {
+          <option [value]="rol.nombre"></option>
+        }
+      </datalist>
+      <div class="button-row">
+        <button class="primary" type="submit" [disabled]="formulario.invalid">
+          {{ editando() ? 'Actualizar' : 'Crear usuario' }}
+        </button>
+        @if (editando()) {
+          <button type="button" (click)="cancelar()">Cancelar</button>
+        }
+      </div>
+    </form>
+  </section>
+</div>

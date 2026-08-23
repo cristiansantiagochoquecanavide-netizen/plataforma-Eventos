@@ -1,0 +1,25 @@
+<main class="auth-layout">
+  <section class="auth-hero">
+    <p class="eyebrow">Plataforma de gestion de eventos</p>
+    <h1>Operacion clara.<br />Acceso seguro.</h1>
+    <p>Administra identidades, roles y permisos desde un solo panel.</p>
+  </section>
+  <section class="auth-card">
+    <div>
+      <p class="eyebrow">Acceso administrativo</p>
+      <h2>Iniciar sesion</h2>
+    </div>
+    <form [formGroup]="formulario" (ngSubmit)="enviar()">
+      <label>Correo <input type="email" formControlName="correo" autocomplete="email" /></label>
+      <label
+        >Clave <input type="password" formControlName="clave" autocomplete="current-password"
+      /></label>
+      @if (error()) {
+        <p class="form-error">{{ error() }}</p>
+      }
+      <button class="primary" type="submit" [disabled]="formulario.invalid || enviando()">
+        {{ enviando() ? 'Verificando...' : 'Entrar al panel' }}
+      </button>
+    </form>
+  </section>
+</main>

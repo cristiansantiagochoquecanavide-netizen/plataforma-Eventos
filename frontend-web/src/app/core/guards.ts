@@ -1,0 +1,23 @@
+import { CanActivateFn, Router } from '@angular/router';
+import { inject } from '@angular/core';
+import { catchError, map, of } from 'rxjs';
+import { SesionService } from './sesion.service';
+
+export const autenticacionGuard: CanActivateFn = () => {
+  const sesion = inject(SesionService);
+  const router = inject(Router);
+  return sesion
+    .restaurar()
+    .pipe(map((autenticado) => autenticado || router.createUrlTree(['/iniciar-sesion'])));
+};
+
+export const administradorGuard: CanActivateFn = () => {
+  const sesion = inject(SesionService);
+  const router = inject(Router);
+  return sesion.restaurar().pipe(
+    map((autenticado) =>
+      autenticado && sesion.esAdministrador() ? true : router.createUrlTree(['/perfil']),
+    ),
+    catchError(() => of(router.createUrlTree(['/iniciar-sesion']))),
+  );
+};

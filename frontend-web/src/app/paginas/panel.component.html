@@ -1,0 +1,24 @@
+<div class="shell">
+  <aside class="sidebar">
+    <a class="brand" routerLink="/perfil">eventos<span>.</span></a>
+    <nav>
+      <a routerLink="/perfil" routerLinkActive="active">Mi perfil</a>
+      @if (sesion.esAdministrador()) {
+        <p class="nav-label">Administracion</p>
+        <a routerLink="/usuarios" routerLinkActive="active">Usuarios</a>
+        <a routerLink="/roles" routerLinkActive="active">Roles y permisos</a>
+      }
+    </nav>
+    <button class="logout" type="button" (click)="sesion.cerrar()">Cerrar sesion</button>
+  </aside>
+  <main class="workspace">
+    <header>
+      <div>
+        <p class="eyebrow">Sesion activa</p>
+        <strong>{{ sesion.usuario()?.nombres }} {{ sesion.usuario()?.apellidos }}</strong>
+      </div>
+      <span class="role-chip">{{ sesion.usuario()?.roles?.join(' · ') }}</span>
+    </header>
+    <router-outlet />
+  </main>
+</div>

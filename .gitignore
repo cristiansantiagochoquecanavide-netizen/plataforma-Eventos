@@ -1,0 +1,28 @@
+# Variables locales y secretos
+.env
+.env.*
+!.env.example
+
+# Java y Maven
+backend/target/
+*.log
+
+# Angular y Node.js
+frontend-web/node_modules/
+frontend-web/dist/
+
+# Flutter y Dart
+aplicacion-movil/.dart_tool/
+aplicacion-movil/build/
+aplicacion-movil/.flutter-plugins
+aplicacion-movil/.flutter-plugins-dependencies
+
+# Python
+servicio-ia/.venv/
+servicio-ia/__pycache__/
+servicio-ia/**/*.pyc
+
+# Herramientas e IDE
+.idea/
+.vscode/
+*.iml

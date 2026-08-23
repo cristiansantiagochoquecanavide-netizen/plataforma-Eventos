@@ -1,0 +1,82 @@
+services:
+  base-datos:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - datos_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      POSTGRES_HOST: base-datos
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESO_EXPIRACION_MINUTOS: ${JWT_ACCESO_EXPIRACION_MINUTOS:-15}
+      JWT_REFRESH_EXPIRACION_DIAS: ${JWT_REFRESH_EXPIRACION_DIAS:-7}
+      ADMIN_CORREO: ${ADMIN_CORREO}
+      ADMIN_CLAVE: ${ADMIN_CLAVE}
+      CORS_ORIGENES: ${CORS_ORIGENES:-http://localhost:4200}
+      URL_FRONTEND_WEB: ${URL_FRONTEND_WEB:-http://localhost:4200}
+      SMTP_HOST: ${SMTP_HOST:-localhost}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-no-reply@eventos.local}
+      RECUPERACION_CLAVE_EXPIRACION_MINUTOS: ${RECUPERACION_CLAVE_EXPIRACION_MINUTOS:-30}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      base-datos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 25s
+    restart: unless-stopped
+
+  frontend-web:
+    build:
+      context: ./frontend-web
+    ports:
+      - "${FRONTEND_PORT:-4200}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  servicio-ia:
+    build:
+      context: ./servicio-ia
+    ports:
+      - "${SERVICIO_IA_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"from urllib.request import urlopen; urlopen('http://localhost:8000/api/salud')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  datos_postgres:

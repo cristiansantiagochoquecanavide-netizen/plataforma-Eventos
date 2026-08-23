@@ -1,0 +1,107 @@
+{
+  "info": {
+    "_postman_id": "be0c4b56-4e95-45dc-9cf4-dc5e8a72d3aa",
+    "name": "Plataforma Gestion Eventos - Sprint 0",
+    "description": "Pruebas de autenticacion, perfil, usuarios, roles y permisos. Seleccionar el entorno local y configurar adminClave antes de ejecutar.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "participanteCorreo", "value": "participante.prueba@eventos.local" },
+    { "key": "participanteClave", "value": "Clave1234" }
+  ],
+  "item": [
+    {
+      "name": "Operacion",
+      "item": [
+        {
+          "name": "Salud backend",
+          "request": { "method": "GET", "url": "{{baseUrl}}/salud" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Estado 200', () => pm.response.to.have.status(200));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "Autenticacion",
+      "item": [
+        {
+          "name": "Registro publico de participante",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombres\": \"Participante\",\n  \"apellidos\": \"Prueba\",\n  \"correo\": \"{{participanteCorreo}}\",\n  \"clave\": \"{{participanteClave}}\"\n}" },
+            "url": "{{baseUrl}}/autenticacion/registro"
+          }
+        },
+        {
+          "name": "Iniciar sesion administrador",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"correo\": \"{{adminCorreo}}\",\n  \"clave\": \"{{adminClave}}\"\n}" },
+            "url": "{{baseUrl}}/autenticacion/iniciar-sesion"
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Estado 200', () => pm.response.to.have.status(200));", "const sesion = pm.response.json();", "pm.environment.set('accessToken', sesion.accessToken);", "pm.environment.set('refreshToken', sesion.refreshToken);"] } }]
+        },
+        {
+          "name": "Usuario actual",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/autenticacion/usuario-actual" }
+        },
+        {
+          "name": "Renovar sesion",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"tokenRefresco\": \"{{refreshToken}}\"\n}" }, "url": "{{baseUrl}}/autenticacion/refrescar" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Estado 200', () => pm.response.to.have.status(200));", "const sesion = pm.response.json();", "pm.environment.set('accessToken', sesion.accessToken);", "pm.environment.set('refreshToken', sesion.refreshToken);"] } }]
+        },
+        {
+          "name": "Solicitar recuperacion de clave",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"correo\": \"{{participanteCorreo}}\"\n}" }, "url": "{{baseUrl}}/autenticacion/solicitar-recuperacion-clave" }
+        },
+        {
+          "name": "Restablecer clave",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"token\": \"TOKEN_RECIBIDO_POR_CORREO\",\n  \"nuevaClave\": \"Nueva1234\"\n}" }, "url": "{{baseUrl}}/autenticacion/restablecer-clave" }
+        },
+        {
+          "name": "Cerrar sesion",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"tokenRefresco\": \"{{refreshToken}}\"\n}" }, "url": "{{baseUrl}}/autenticacion/cerrar-sesion" }
+        }
+      ]
+    },
+    {
+      "name": "Perfil",
+      "item": [
+        { "name": "Consultar perfil", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/perfil" } },
+        { "name": "Actualizar perfil", "request": { "method": "PUT", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"nombres\": \"Administrador\",\n  \"apellidos\": \"Inicial\",\n  \"correo\": \"{{adminCorreo}}\"\n}" }, "url": "{{baseUrl}}/perfil" } },
+        { "name": "Cambiar clave propia", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"claveActual\": \"{{adminClave}}\",\n  \"nuevaClave\": \"NuevaClave1234\"\n}" }, "url": "{{baseUrl}}/perfil/clave" } }
+      ]
+    },
+    {
+      "name": "Usuarios",
+      "item": [
+        { "name": "Listar usuarios", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/usuarios?pagina=0&tamano=20" } },
+        {
+          "name": "Crear usuario",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"nombres\": \"Laura\",\n  \"apellidos\": \"Lopez\",\n  \"correo\": \"laura.admin@eventos.local\",\n  \"clave\": \"Clave1234\",\n  \"roles\": [\"ORGANIZADOR\"]\n}" }, "url": "{{baseUrl}}/usuarios" },
+          "event": [{ "listen": "test", "script": { "exec": ["if (pm.response.code === 201) pm.environment.set('usuarioId', pm.response.json().id);"] } }]
+        },
+        { "name": "Consultar usuario", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/usuarios/{{usuarioId}}" } },
+        { "name": "Actualizar usuario", "request": { "method": "PUT", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"nombres\": \"Laura\",\n  \"apellidos\": \"Lopez Actualizada\",\n  \"correo\": \"laura.admin@eventos.local\",\n  \"roles\": [\"ORGANIZADOR\"]\n}" }, "url": "{{baseUrl}}/usuarios/{{usuarioId}}" } },
+        { "name": "Inactivar usuario", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"estado\": \"INACTIVO\"\n}" }, "url": "{{baseUrl}}/usuarios/{{usuarioId}}/estado" } }
+      ]
+    },
+    {
+      "name": "Roles y permisos",
+      "item": [
+        { "name": "Listar roles", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/roles" } },
+        {
+          "name": "Crear rol",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"COORDINADOR\",\n  \"descripcion\": \"Rol de prueba administrativa\"\n}" }, "url": "{{baseUrl}}/roles" },
+          "event": [{ "listen": "test", "script": { "exec": ["if (pm.response.code === 201) pm.environment.set('rolId', pm.response.json().id);"] } }]
+        },
+        { "name": "Consultar rol", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/roles/{{rolId}}" } },
+        { "name": "Actualizar rol", "request": { "method": "PUT", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"COORDINADOR\",\n  \"descripcion\": \"Rol actualizado\",\n  \"estado\": \"ACTIVO\"\n}" }, "url": "{{baseUrl}}/roles/{{rolId}}" } },
+        { "name": "Catalogo de permisos", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/permisos" } },
+        { "name": "Permisos del rol", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/roles/{{rolId}}/permisos" } },
+        { "name": "Asignar permisos al rol", "request": { "method": "PUT", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"permisos\": [\"PERFIL_VER\", \"PERFIL_EDITAR\"]\n}" }, "url": "{{baseUrl}}/roles/{{rolId}}/permisos" } }
+      ]
+    }
+  ]
+}

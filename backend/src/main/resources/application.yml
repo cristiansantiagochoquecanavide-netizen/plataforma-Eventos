@@ -1,0 +1,52 @@
+spring:
+  application:
+    name: plataforma-gestion-eventos
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USER:}
+    password: ${SMTP_PASSWORD:}
+
+server:
+  port: ${PUERTO_BACKEND:8080}
+
+management:
+  health:
+    mail:
+      enabled: false
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+seguridad:
+  jwt:
+    secreto: ${JWT_SECRET}
+    acceso-expiracion-minutos: ${JWT_ACCESO_EXPIRACION_MINUTOS:15}
+    refresco-expiracion-dias: ${JWT_REFRESH_EXPIRACION_DIAS:7}
+  cors:
+    origenes: ${CORS_ORIGENES:http://localhost:4200}
+  recuperacion:
+    expiracion-minutos: ${RECUPERACION_CLAVE_EXPIRACION_MINUTOS:30}
+    url-frontend-web: ${URL_FRONTEND_WEB:http://localhost:4200}
+    correo-remitente: ${SMTP_FROM:no-reply@plataformaeventos.local}

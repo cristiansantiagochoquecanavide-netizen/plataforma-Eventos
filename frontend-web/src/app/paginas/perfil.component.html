@@ -1,0 +1,31 @@
+<section class="page-heading">
+  <p class="eyebrow">Cuenta</p>
+  <h1>Mi perfil</h1>
+  <p>Gestiona tus datos de acceso y seguridad.</p>
+</section>
+@if (mensaje()) {
+  <p class="notice success">{{ mensaje() }}</p>
+}
+@if (error()) {
+  <p class="notice error">{{ error() }}</p>
+}
+<div class="two-columns">
+  <section class="card">
+    <h2>Datos personales</h2>
+    <form [formGroup]="perfil" (ngSubmit)="guardarPerfil()" class="form-grid">
+      <label>Nombres <input formControlName="nombres" /></label>
+      <label>Apellidos <input formControlName="apellidos" /></label>
+      <label class="full">Correo <input type="email" formControlName="correo" /></label>
+      <button class="primary" type="submit" [disabled]="perfil.invalid">Guardar cambios</button>
+    </form>
+  </section>
+  <section class="card dark-card">
+    <h2>Actualizar clave</h2>
+    <form [formGroup]="clave" (ngSubmit)="cambiarClave()" class="form-grid">
+      <label>Clave actual <input type="password" formControlName="claveActual" /></label>
+      <label>Nueva clave <input type="password" formControlName="nuevaClave" /></label>
+      <p class="hint">Al menos 8 caracteres, con letras y numeros.</p>
+      <button class="secondary" type="submit" [disabled]="clave.invalid">Cambiar clave</button>
+    </form>
+  </section>
+</div>
