@@ -5,8 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record SolicitudRecuperacionClave(
-        @NotBlank(message = "El correo es obligatorio")
-        @Email(message = "El correo no tiene un formato valido")
+        @NotBlank(message = "Ingresa un correo electr\u00f3nico v\u00e1lido.")
+        @Email(message = "Ingresa un correo electr\u00f3nico v\u00e1lido.")
         @Size(max = 254, message = "El correo no debe superar 254 caracteres")
         String correo
 ) {

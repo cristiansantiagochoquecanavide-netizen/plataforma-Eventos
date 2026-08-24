@@ -15,6 +15,17 @@ export class ApiService {
     });
   }
 
+  recuperarClave(correo: string) {
+    return this.http.post<void>(`${this.url}/autenticacion/recuperar-clave`, { correo });
+  }
+
+  restablecerClave(token: string, nuevaClave: string) {
+    return this.http.post<void>(`${this.url}/autenticacion/restablecer-clave`, {
+      token,
+      nuevaClave,
+    });
+  }
+
   refrescar(tokenRefresco: string) {
     return this.http.post<SesionRespuesta>(`${this.url}/autenticacion/refrescar`, {
       tokenRefresco,

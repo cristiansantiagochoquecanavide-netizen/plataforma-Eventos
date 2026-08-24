@@ -1,0 +1,74 @@
+<main class="auth-layout">
+  <section class="auth-hero">
+    <a class="auth-brand" href="/iniciar-sesion">eventos<span>.</span></a>
+    <div class="hero-copy">
+      <p class="eyebrow">Plataforma de gestion de eventos</p>
+      <h1>Gestion segura para cada evento.</h1>
+      <p>Controla accesos, perfiles y permisos con una experiencia clara desde el primer ingreso.</p>
+    </div>
+    <div class="hero-metrics" aria-label="Resumen de seguridad">
+      <span><strong>JWT</strong><small>Sesiones protegidas</small></span>
+      <span><strong>Roles</strong><small>Acceso por perfil</small></span>
+      <span><strong>IA</strong><small>Servicio listo</small></span>
+    </div>
+  </section>
+  <section class="auth-panel">
+    <article class="auth-card">
+      <div class="auth-heading">
+        <p class="eyebrow">Seguridad de cuenta</p>
+        <h2>Restablecer clave</h2>
+        <p>Define una nueva contrase&ntilde;a para volver a iniciar sesion.</p>
+      </div>
+      <form [formGroup]="formulario" (ngSubmit)="restablecer()" novalidate>
+        @if (tokenDesdeUrl()) {
+          <input type="hidden" formControlName="token" />
+        } @else {
+          <label [class.invalid]="tokenConError()"
+            >Codigo de recuperacion
+            <input
+              type="text"
+              formControlName="token"
+              autocomplete="one-time-code"
+              [attr.aria-invalid]="tokenConError() ? 'true' : 'false'"
+            />
+            @if (tokenConError()) {
+              <small class="field-error">{{ mensajeToken() }}</small>
+            }
+          </label>
+        }
+        <label [class.invalid]="nuevaClaveConError()"
+          >Nueva contrase&ntilde;a
+          <input
+            type="password"
+            formControlName="nuevaClave"
+            autocomplete="new-password"
+            [attr.aria-invalid]="nuevaClaveConError() ? 'true' : 'false'"
+          />
+          @if (nuevaClaveConError()) {
+            <small class="field-error">{{ mensajeNuevaClave() }}</small>
+          }
+        </label>
+        <label [class.invalid]="confirmacionConError()"
+          >Confirmar contrase&ntilde;a
+          <input
+            type="password"
+            formControlName="confirmarClave"
+            autocomplete="new-password"
+            [attr.aria-invalid]="confirmacionConError() ? 'true' : 'false'"
+          />
+          @if (confirmacionConError()) {
+            <small class="field-error">{{ mensajeConfirmacion() }}</small>
+          }
+        </label>
+        <app-requisitos-clave [clave]="formulario.controls.nuevaClave.value"></app-requisitos-clave>
+        @if (error()) {
+          <p class="form-error">{{ error() }}</p>
+        }
+        <button class="primary wide" type="submit" [disabled]="enviando()">
+          {{ enviando() ? 'Actualizando...' : 'Restablecer clave' }}
+        </button>
+        <a class="auth-link" routerLink="/iniciar-sesion">Volver a iniciar sesion</a>
+      </form>
+    </article>
+  </section>
+</main>

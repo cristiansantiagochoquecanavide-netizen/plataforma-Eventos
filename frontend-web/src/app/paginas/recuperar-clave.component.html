@@ -1,0 +1,49 @@
+<main class="auth-layout">
+  <section class="auth-hero">
+    <a class="auth-brand" href="/iniciar-sesion">eventos<span>.</span></a>
+    <div class="hero-copy">
+      <p class="eyebrow">Plataforma de gestion de eventos</p>
+      <h1>Gestion segura para cada evento.</h1>
+      <p>Controla accesos, perfiles y permisos con una experiencia clara desde el primer ingreso.</p>
+    </div>
+    <div class="hero-metrics" aria-label="Resumen de seguridad">
+      <span><strong>JWT</strong><small>Sesiones protegidas</small></span>
+      <span><strong>Roles</strong><small>Acceso por perfil</small></span>
+      <span><strong>IA</strong><small>Servicio listo</small></span>
+    </div>
+  </section>
+  <section class="auth-panel">
+    <article class="auth-card">
+      <div class="auth-heading">
+        <p class="eyebrow">Acceso administrativo</p>
+        <h2>Recuperar acceso</h2>
+        <p>Ingresa tu correo y te enviaremos instrucciones para recuperar tu cuenta.</p>
+      </div>
+      <form [formGroup]="formulario" (ngSubmit)="enviar()" novalidate>
+        <label [class.invalid]="correoConError()"
+          >Correo electr&oacute;nico
+          <input
+            type="email"
+            formControlName="correo"
+            autocomplete="email"
+            placeholder="admin@eventos.local"
+            [attr.aria-invalid]="correoConError() ? 'true' : 'false'"
+          />
+          @if (correoConError()) {
+            <small class="field-error">{{ mensajeCorreo() }}</small>
+          }
+        </label>
+        @if (error()) {
+          <p class="form-error">{{ error() }}</p>
+        }
+        @if (mensaje()) {
+          <p class="notice success">{{ mensaje() }}</p>
+        }
+        <button class="primary wide" type="submit" [disabled]="enviando()">
+          {{ enviando() ? 'Enviando...' : 'Enviar solicitud' }}
+        </button>
+        <a class="auth-link" routerLink="/iniciar-sesion">Volver a iniciar sesion</a>
+      </form>
+    </article>
+  </section>
+</main>

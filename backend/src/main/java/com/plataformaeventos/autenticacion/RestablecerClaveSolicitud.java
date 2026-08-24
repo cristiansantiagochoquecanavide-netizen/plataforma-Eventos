@@ -9,7 +9,7 @@ public record RestablecerClaveSolicitud(
         String token,
         @NotBlank(message = "La nueva clave es obligatoria")
         @Size(max = 72, message = "La nueva clave no debe superar 72 caracteres")
-        @ClaveSegura
+        @ClaveSegura(message = "La contrase\u00f1a no cumple los requisitos.")
         String nuevaClave
 ) {
 }

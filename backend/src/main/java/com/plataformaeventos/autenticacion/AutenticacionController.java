@@ -59,9 +59,10 @@ public class AutenticacionController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/solicitar-recuperacion-clave")
-    @Operation(summary = "Solicitar recuperacion de clave", description = "Envia un enlace solo si existe una cuenta activa, sin revelar su existencia.")
+    @PostMapping({"/recuperar-clave", "/solicitar-recuperacion-clave"})
+    @Operation(summary = "Solicitar recuperacion de clave", description = "Valida el correo y envia instrucciones de recuperacion.")
     @ApiResponse(responseCode = "204", description = "Solicitud procesada")
+    @ApiResponse(responseCode = "400", description = "Correo no registrado o datos invalidos", content = @Content)
     public ResponseEntity<Void> solicitarRecuperacionClave(@Valid @RequestBody SolicitudRecuperacionClave solicitud) {
         autenticacionService.solicitarRecuperacionClave(solicitud);
         return ResponseEntity.noContent().build();

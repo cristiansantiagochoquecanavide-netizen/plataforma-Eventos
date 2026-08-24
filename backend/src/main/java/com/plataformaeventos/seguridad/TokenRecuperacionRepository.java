@@ -18,7 +18,7 @@ public interface TokenRecuperacionRepository extends JpaRepository<TokenRecupera
     Optional<TokenRecuperacion> findByTokenHashForUpdate(@Param("tokenHash") String tokenHash);
 
     @Modifying
-    @Query("update TokenRecuperacion token set token.utilizado = true, token.fechaUso = CURRENT_TIMESTAMP "
-            + "where token.usuario.id = :idUsuario and token.utilizado = false")
+    @Query("update TokenRecuperacion token set token.activo = false, token.fechaInactivacion = CURRENT_TIMESTAMP "
+            + "where token.usuario.id = :idUsuario and token.activo = true and token.utilizado = false")
     void invalidarTokensPendientesPorUsuario(@Param("idUsuario") Long idUsuario);
 }

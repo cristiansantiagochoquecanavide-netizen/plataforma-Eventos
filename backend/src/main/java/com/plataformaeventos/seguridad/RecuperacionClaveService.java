@@ -18,6 +18,8 @@ import java.util.Base64;
 public class RecuperacionClaveService {
 
     private static final SecureRandom GENERADOR_SEGURO = new SecureRandom();
+    private static final String MENSAJE_SOLICITUD_EXPIRADA = "La solicitud expir\u00f3.";
+    private static final String MENSAJE_ENLACE_UTILIZADO = "El enlace ya fue utilizado.";
 
     private final TokenRecuperacionRepository tokenRecuperacionRepository;
     private final JavaMailSender correoSender;
@@ -48,11 +50,17 @@ public class RecuperacionClaveService {
     @Transactional
     public Usuario consumirToken(String token) {
         TokenRecuperacion tokenRecuperacion = tokenRecuperacionRepository.findByTokenHashForUpdate(calcularHash(token))
-                .orElseThrow(() -> new IllegalArgumentException("El token de recuperacion es invalido o vencio"));
-        if (!tokenRecuperacion.estaDisponible()) {
-            throw new IllegalArgumentException("El token de recuperacion es invalido o vencio");
+                .orElseThrow(() -> new IllegalArgumentException(MENSAJE_SOLICITUD_EXPIRADA));
+
+        OffsetDateTime ahora = OffsetDateTime.now();
+        if (tokenRecuperacion.fueUtilizado() || !tokenRecuperacion.estaActivo()) {
+            throw new IllegalArgumentException(MENSAJE_ENLACE_UTILIZADO);
         }
-        tokenRecuperacion.marcarComoUtilizado();
+        if (tokenRecuperacion.estaExpirado(ahora)) {
+            tokenRecuperacion.invalidar(ahora);
+            throw new IllegalArgumentException(MENSAJE_SOLICITUD_EXPIRADA);
+        }
+        tokenRecuperacion.marcarComoUtilizado(ahora);
         return tokenRecuperacion.getUsuario();
     }
 
@@ -70,9 +78,11 @@ public class RecuperacionClaveService {
         SimpleMailMessage mensaje = new SimpleMailMessage();
         mensaje.setFrom(propiedades.correoRemitente());
         mensaje.setTo(usuario.getCorreo());
-        mensaje.setSubject("Recuperacion de clave");
-        mensaje.setText("Recibimos una solicitud para restablecer tu clave. Usa este enlace dentro de "
+        mensaje.setSubject("Recuperacion de acceso - Plataforma de Gestion de Eventos");
+        mensaje.setText("Plataforma de Gestion de Eventos\n\n"
+                + "Recibimos una solicitud para restablecer tu clave. Usa este enlace dentro de "
                 + propiedades.expiracionMinutos() + " minutos:\n\n" + enlace
+                + "\n\nCodigo de recuperacion:\n" + token
                 + "\n\nSi no solicitaste este cambio, puedes ignorar este correo.");
         correoSender.send(mensaje);
     }

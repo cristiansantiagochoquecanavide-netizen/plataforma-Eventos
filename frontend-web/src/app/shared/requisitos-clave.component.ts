@@ -7,7 +7,7 @@ import { obtenerRequisitosClave } from '../core/validacion-clave';
     <ul class="password-checklist" aria-live="polite">
       @for (requisito of requisitos(); track requisito.id) {
         <li [class.ok]="requisito.valido">
-          <span aria-hidden="true">{{ requisito.valido ? '✓' : 'x' }}</span>
+          <span aria-hidden="true">{{ marca(requisito.valido) }}</span>
           {{ requisito.texto }}
         </li>
       }
@@ -20,5 +20,9 @@ export class RequisitosClaveComponent {
 
   requisitos() {
     return obtenerRequisitosClave(this.clave());
+  }
+
+  marca(valido: boolean) {
+    return valido ? '\u2713' : 'x';
   }
 }

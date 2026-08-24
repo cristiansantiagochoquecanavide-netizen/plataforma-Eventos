@@ -37,10 +37,16 @@ public class TokenRecuperacion {
     private OffsetDateTime fechaExpiracion;
 
     @Column(nullable = false)
-    private boolean utilizado;
+    private boolean utilizado = false;
 
     @Column(name = "fecha_uso")
     private OffsetDateTime fechaUso;
+
+    @Column(nullable = false)
+    private boolean activo = true;
+
+    @Column(name = "fecha_inactivacion")
+    private OffsetDateTime fechaInactivacion;
 
     protected TokenRecuperacion() {
     }
@@ -56,13 +62,27 @@ public class TokenRecuperacion {
         fechaCreacion = OffsetDateTime.now();
     }
 
-    public boolean estaDisponible() {
-        return !utilizado && fechaExpiracion.isAfter(OffsetDateTime.now());
+    public boolean fueUtilizado() {
+        return utilizado;
     }
 
-    public void marcarComoUtilizado() {
+    public boolean estaActivo() {
+        return activo;
+    }
+
+    public boolean estaExpirado(OffsetDateTime ahora) {
+        return !fechaExpiracion.isAfter(ahora);
+    }
+
+    public void invalidar(OffsetDateTime ahora) {
+        activo = false;
+        fechaInactivacion = ahora;
+    }
+
+    public void marcarComoUtilizado(OffsetDateTime ahora) {
         utilizado = true;
-        fechaUso = OffsetDateTime.now();
+        fechaUso = ahora;
+        invalidar(ahora);
     }
 
     public Usuario getUsuario() {

@@ -101,9 +101,10 @@ public class AutenticacionService {
 
     @Transactional
     public void solicitarRecuperacionClave(SolicitudRecuperacionClave solicitud) {
-        usuarioRepository.findByCorreo(normalizarCorreo(solicitud.correo()))
-                .filter(usuario -> usuario.getEstado() == EstadoUsuario.ACTIVO)
-                .ifPresent(recuperacionClaveService::crearYEnviarToken);
+        Usuario usuario = usuarioRepository.findByCorreo(normalizarCorreo(solicitud.correo()))
+                .filter(cuenta -> cuenta.getEstado() == EstadoUsuario.ACTIVO)
+                .orElseThrow(() -> new IllegalArgumentException("No existe una cuenta asociada a este correo."));
+        recuperacionClaveService.crearYEnviarToken(usuario);
     }
 
     @Transactional

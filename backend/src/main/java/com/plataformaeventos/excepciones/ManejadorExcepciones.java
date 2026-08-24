@@ -3,6 +3,7 @@ package com.plataformaeventos.excepciones;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.mail.MailException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -76,6 +77,19 @@ public class ManejadorExcepciones {
             HttpServletRequest solicitud
     ) {
         return crearRespuesta(HttpStatus.NOT_FOUND, excepcion.getMessage(), solicitud);
+    }
+
+    @ExceptionHandler(MailException.class)
+    public ResponseEntity<ErrorRespuesta> manejarErrorCorreo(
+            MailException excepcion,
+            HttpServletRequest solicitud
+    ) {
+        LOGGER.warn("No fue posible enviar correo en {}", solicitud.getRequestURI(), excepcion);
+        return crearRespuesta(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "No fue posible enviar las instrucciones de recuperaci\u00f3n.",
+                solicitud
+        );
     }
 
     @ExceptionHandler(Exception.class)

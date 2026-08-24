@@ -291,6 +291,23 @@ small {
   gap: 18px;
 }
 
+.auth-link {
+  width: fit-content;
+  color: var(--brand);
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-decoration: none;
+  transition:
+    color 140ms ease,
+    text-decoration-color 140ms ease;
+}
+
+.auth-link:hover {
+  color: var(--brand-strong);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
 .form-error,
 .notice.error {
   color: var(--danger);

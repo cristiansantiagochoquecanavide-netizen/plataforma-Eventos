@@ -1,13 +1,13 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { obtenerMensajeError } from '../core/mensajes-error';
 import { SesionService } from '../core/sesion.service';
 import { ToastService } from '../core/toast.service';
 
 @Component({
   selector: 'app-inicio-sesion',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './inicio-sesion.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

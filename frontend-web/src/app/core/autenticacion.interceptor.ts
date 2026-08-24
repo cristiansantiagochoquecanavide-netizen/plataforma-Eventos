@@ -9,6 +9,7 @@ export const autenticacionInterceptor: HttpInterceptorFn = (solicitud, siguiente
     '/autenticacion/registro',
     '/autenticacion/iniciar-sesion',
     '/autenticacion/refrescar',
+    '/autenticacion/recuperar-clave',
     '/autenticacion/solicitar-recuperacion-clave',
     '/autenticacion/restablecer-clave',
   ].some((ruta) => solicitud.url.includes(ruta));
