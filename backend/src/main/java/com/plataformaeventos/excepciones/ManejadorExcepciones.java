@@ -26,7 +26,7 @@ public class ManejadorExcepciones {
     ) {
         String mensaje = excepcion.getBindingResult().getFieldErrors().stream()
                 .findFirst()
-                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .map(error -> error.getDefaultMessage())
                 .orElse("La solicitud contiene datos invalidos");
 
         return crearRespuesta(HttpStatus.BAD_REQUEST, mensaje, solicitud);

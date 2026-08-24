@@ -1,7 +1,7 @@
 <section class="page-heading">
   <p class="eyebrow">Administracion</p>
   <h1>Usuarios</h1>
-  <p>Crea, edita y controla el acceso de las cuentas.</p>
+  <p>Cuentas, roles asignados y estado operativo.</p>
 </section>
 @if (mensaje()) {
   <p class="notice success">{{ mensaje() }}</p>
@@ -11,7 +11,7 @@
 }
 <div class="admin-grid">
   <section class="card table-card">
-    <div class="card-title">
+    <div class="card-title compact">
       <h2>Directorio</h2>
       <span>{{ usuarios().length }} cuentas</span>
     </div>
@@ -40,8 +40,18 @@
               </td>
               <td class="actions">
                 <button type="button" (click)="editar(usuario)">Editar</button
-                ><button type="button" (click)="alternarEstado(usuario)">
-                  {{ usuario.estado === 'ACTIVO' ? 'Inactivar' : 'Activar' }}
+                ><button
+                  type="button"
+                  (click)="alternarEstado(usuario)"
+                  [disabled]="idCambiandoEstado() === usuario.id"
+                >
+                  {{
+                    idCambiandoEstado() === usuario.id
+                      ? 'Procesando...'
+                      : usuario.estado === 'ACTIVO'
+                        ? 'Inactivar'
+                        : 'Activar'
+                  }}
                 </button>
               </td>
             </tr>
@@ -51,18 +61,53 @@
     </div>
   </section>
   <section class="card">
-    <h2>{{ editando() ? 'Editar usuario' : 'Nueva cuenta' }}</h2>
-    <form [formGroup]="formulario" (ngSubmit)="guardar()" class="form-grid">
-      <label>Nombres <input formControlName="nombres" /></label
-      ><label>Apellidos <input formControlName="apellidos" /></label>
-      <label class="full">Correo <input type="email" formControlName="correo" /></label>
+    <div class="card-header">
+      <h2>{{ editando() ? 'Editar usuario' : 'Nueva cuenta' }}</h2>
+      <span>{{ editando() ? 'Edicion' : 'Alta' }}</span>
+    </div>
+    <form [formGroup]="formulario" (ngSubmit)="guardar()" class="form-grid" novalidate>
+      <label [class.invalid]="campoConError('nombres')"
+        >Nombres
+        <input formControlName="nombres" />
+        @if (campoConError('nombres')) {
+          <small class="field-error">{{ mensajeCampo('nombres') }}</small>
+        }
+      </label>
+      <label [class.invalid]="campoConError('apellidos')"
+        >Apellidos
+        <input formControlName="apellidos" />
+        @if (campoConError('apellidos')) {
+          <small class="field-error">{{ mensajeCampo('apellidos') }}</small>
+        }
+      </label>
+      <label class="full" [class.invalid]="campoConError('correo')"
+        >Correo
+        <input type="email" formControlName="correo" />
+        @if (campoConError('correo')) {
+          <small class="field-error">{{ mensajeCampo('correo') }}</small>
+        }
+      </label>
       @if (!editando()) {
-        <label class="full">Clave inicial <input type="password" formControlName="clave" /></label>
+        <label class="full" [class.invalid]="campoConError('clave')"
+          >Clave inicial
+          <input type="password" formControlName="clave" autocomplete="new-password" />
+          @if (campoConError('clave')) {
+            <small class="field-error">{{ mensajeCampo('clave') }}</small>
+          }
+        </label>
+        <app-requisitos-clave
+          class="full"
+          [clave]="formulario.controls.clave.value"
+        ></app-requisitos-clave>
       }
-      <label class="full"
+      <label class="full" [class.invalid]="campoConError('roles')"
         >Roles <input formControlName="roles" list="roles-disponibles" /><small
           >Separa varios roles con comas.</small
-        ></label
+        >
+        @if (campoConError('roles')) {
+          <small class="field-error">{{ mensajeCampo('roles') }}</small>
+        }
+      </label
       >
       <datalist id="roles-disponibles">
         @for (rol of roles(); track rol.id) {
@@ -70,8 +115,14 @@
         }
       </datalist>
       <div class="button-row">
-        <button class="primary" type="submit" [disabled]="formulario.invalid">
-          {{ editando() ? 'Actualizar' : 'Crear usuario' }}
+        <button class="primary" type="submit" [disabled]="guardando()">
+          {{
+            guardando()
+              ? 'Guardando...'
+              : editando()
+                ? 'Actualizar'
+                : 'Crear usuario'
+          }}
         </button>
         @if (editando()) {
           <button type="button" (click)="cancelar()">Cancelar</button>

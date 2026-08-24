@@ -1,9 +1,9 @@
 package com.plataformaeventos.usuarios;
 
+import com.plataformaeventos.seguridad.ClaveSegura;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.util.Set;
@@ -20,8 +20,8 @@ public record CrearUsuarioSolicitud(
         @Size(max = 254, message = "El correo no debe superar 254 caracteres")
         String correo,
         @NotBlank(message = "La clave es obligatoria")
-        @Size(min = 8, max = 72, message = "La clave debe tener entre 8 y 72 caracteres")
-        @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).+$", message = "La clave debe incluir letras y numeros")
+        @Size(max = 72, message = "La clave no debe superar 72 caracteres")
+        @ClaveSegura
         String clave,
         @NotEmpty(message = "Debe asignarse al menos un rol")
         Set<@NotBlank(message = "El nombre del rol es obligatorio") String> roles

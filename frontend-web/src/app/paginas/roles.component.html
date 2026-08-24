@@ -1,7 +1,7 @@
 <section class="page-heading">
   <p class="eyebrow">Administracion</p>
   <h1>Roles y permisos</h1>
-  <p>Define conjuntos de acceso y asigna sus capacidades.</p>
+  <p>Perfiles de acceso y capacidades asignadas.</p>
 </section>
 @if (mensaje()) {
   <p class="notice success">{{ mensaje() }}</p>
@@ -11,7 +11,7 @@
 }
 <div class="roles-layout">
   <section class="card">
-    <div class="card-title">
+    <div class="card-title compact">
       <h2>Roles disponibles</h2>
       <span>{{ roles().length }}</span>
     </div>
@@ -32,9 +32,12 @@
     </div>
   </section>
   <section class="card">
-    <h2>{{ editando() ? 'Editar rol' : 'Nuevo rol' }}</h2>
-    <form [formGroup]="formulario" (ngSubmit)="guardarRol()" class="form-grid">
-      <label
+    <div class="card-header">
+      <h2>{{ editando() ? 'Editar rol' : 'Nuevo rol' }}</h2>
+      <span>{{ editando() ? 'Edicion' : 'Alta' }}</span>
+    </div>
+    <form [formGroup]="formulario" (ngSubmit)="guardarRol()" class="form-grid" novalidate>
+      <label [class.invalid]="campoConError('nombre')"
         >Nombre
         <input
           formControlName="nombre"
@@ -44,20 +47,28 @@
             editando()?.nombre === 'STAFF' ||
             editando()?.nombre === 'PARTICIPANTE'
           "
-      /></label>
-      <label
+        />
+        @if (campoConError('nombre')) {
+          <small class="field-error">{{ mensajeCampo('nombre') }}</small>
+        }
+      </label>
+      <label [class.invalid]="campoConError('estado')"
         >Estado
         <select formControlName="estado">
           <option value="ACTIVO">ACTIVO</option>
           <option value="INACTIVO">INACTIVO</option>
-        </select></label
+        </select>
+        @if (campoConError('estado')) {
+          <small class="field-error">{{ mensajeCampo('estado') }}</small>
+        }
+      </label
       >
       <label class="full"
         >Descripcion <textarea formControlName="descripcion" rows="3"></textarea>
       </label>
       <div class="button-row">
-        <button class="primary" type="submit" [disabled]="formulario.invalid">
-          {{ editando() ? 'Actualizar' : 'Crear rol' }}
+        <button class="primary" type="submit" [disabled]="guardandoRol()">
+          {{ guardandoRol() ? 'Guardando...' : editando() ? 'Actualizar' : 'Crear rol' }}
         </button>
         @if (editando()) {
           <button type="button" (click)="cancelar()">Cancelar</button>
@@ -74,8 +85,13 @@
         </div>
         <div class="button-row">
           <button type="button" (click)="editar(rol)">Editar rol</button
-          ><button class="primary" type="button" (click)="guardarPermisos()">
-            Guardar permisos
+          ><button
+            class="primary"
+            type="button"
+            (click)="guardarPermisos()"
+            [disabled]="guardandoPermisos()"
+          >
+            {{ guardandoPermisos() ? 'Guardando...' : 'Guardar permisos' }}
           </button>
         </div>
       </div>

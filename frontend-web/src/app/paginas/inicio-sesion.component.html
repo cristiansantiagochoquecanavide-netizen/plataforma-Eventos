@@ -1,25 +1,58 @@
 <main class="auth-layout">
   <section class="auth-hero">
-    <p class="eyebrow">Plataforma de gestion de eventos</p>
-    <h1>Operacion clara.<br />Acceso seguro.</h1>
-    <p>Administra identidades, roles y permisos desde un solo panel.</p>
-  </section>
-  <section class="auth-card">
-    <div>
-      <p class="eyebrow">Acceso administrativo</p>
-      <h2>Iniciar sesion</h2>
+    <a class="auth-brand" href="/iniciar-sesion">eventos<span>.</span></a>
+    <div class="hero-copy">
+      <p class="eyebrow">Plataforma de gestion de eventos</p>
+      <h1>Gestion segura para cada evento.</h1>
+      <p>Controla accesos, perfiles y permisos con una experiencia clara desde el primer ingreso.</p>
     </div>
-    <form [formGroup]="formulario" (ngSubmit)="enviar()">
-      <label>Correo <input type="email" formControlName="correo" autocomplete="email" /></label>
-      <label
-        >Clave <input type="password" formControlName="clave" autocomplete="current-password"
-      /></label>
-      @if (error()) {
-        <p class="form-error">{{ error() }}</p>
-      }
-      <button class="primary" type="submit" [disabled]="formulario.invalid || enviando()">
-        {{ enviando() ? 'Verificando...' : 'Entrar al panel' }}
-      </button>
-    </form>
+    <div class="hero-metrics" aria-label="Resumen de seguridad">
+      <span><strong>JWT</strong><small>Sesiones protegidas</small></span>
+      <span><strong>Roles</strong><small>Acceso por perfil</small></span>
+      <span><strong>IA</strong><small>Servicio listo</small></span>
+    </div>
+  </section>
+  <section class="auth-panel">
+    <article class="auth-card">
+      <div class="auth-heading">
+        <p class="eyebrow">Acceso administrativo</p>
+        <h2>Iniciar sesion</h2>
+        <p>Usa tu correo institucional y clave actual.</p>
+      </div>
+      <form [formGroup]="formulario" (ngSubmit)="enviar()" novalidate>
+        <label [class.invalid]="correoConError()"
+          >Correo
+          <input
+            type="email"
+            formControlName="correo"
+            autocomplete="email"
+            placeholder="admin@eventos.local"
+            [attr.aria-invalid]="correoConError() ? 'true' : 'false'"
+          />
+          @if (correoConError()) {
+            <small class="field-error">{{ mensajeCorreo() }}</small>
+          }
+        </label>
+        <label [class.invalid]="claveConError()"
+          >Clave
+          <input
+            type="password"
+            formControlName="clave"
+            autocomplete="current-password"
+            placeholder="Tu clave"
+            [attr.aria-invalid]="claveConError() ? 'true' : 'false'"
+          />
+          @if (claveConError()) {
+            <small class="field-error">{{ mensajeClave() }}</small>
+          }
+        </label>
+        @if (error()) {
+          <p class="form-error">{{ error() }}</p>
+        }
+        <button class="primary wide" type="submit" [disabled]="enviando()">
+          {{ enviando() ? 'Verificando...' : 'Entrar al panel' }}
+        </button>
+      </form>
+    </article>
   </section>
 </main>

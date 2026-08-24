@@ -1,7 +1,7 @@
 <section class="page-heading">
   <p class="eyebrow">Cuenta</p>
   <h1>Mi perfil</h1>
-  <p>Gestiona tus datos de acceso y seguridad.</p>
+  <p>Datos de acceso, identidad y seguridad.</p>
 </section>
 @if (mensaje()) {
   <p class="notice success">{{ mensaje() }}</p>
@@ -11,21 +11,64 @@
 }
 <div class="two-columns">
   <section class="card">
-    <h2>Datos personales</h2>
-    <form [formGroup]="perfil" (ngSubmit)="guardarPerfil()" class="form-grid">
-      <label>Nombres <input formControlName="nombres" /></label>
-      <label>Apellidos <input formControlName="apellidos" /></label>
-      <label class="full">Correo <input type="email" formControlName="correo" /></label>
-      <button class="primary" type="submit" [disabled]="perfil.invalid">Guardar cambios</button>
+    <div class="card-header">
+      <h2>Datos personales</h2>
+      <span>Perfil</span>
+    </div>
+    <form [formGroup]="perfil" (ngSubmit)="guardarPerfil()" class="form-grid" novalidate>
+      <label [class.invalid]="campoPerfilConError('nombres')"
+        >Nombres
+        <input formControlName="nombres" />
+        @if (campoPerfilConError('nombres')) {
+          <small class="field-error">{{ mensajeCampoPerfil('nombres') }}</small>
+        }
+      </label>
+      <label [class.invalid]="campoPerfilConError('apellidos')"
+        >Apellidos
+        <input formControlName="apellidos" />
+        @if (campoPerfilConError('apellidos')) {
+          <small class="field-error">{{ mensajeCampoPerfil('apellidos') }}</small>
+        }
+      </label>
+      <label class="full" [class.invalid]="campoPerfilConError('correo')"
+        >Correo
+        <input type="email" formControlName="correo" />
+        @if (campoPerfilConError('correo')) {
+          <small class="field-error">{{ mensajeCampoPerfil('correo') }}</small>
+        }
+      </label>
+      <button class="primary" type="submit" [disabled]="guardandoPerfil()">
+        {{ guardandoPerfil() ? 'Guardando...' : 'Guardar cambios' }}
+      </button>
     </form>
   </section>
-  <section class="card dark-card">
-    <h2>Actualizar clave</h2>
-    <form [formGroup]="clave" (ngSubmit)="cambiarClave()" class="form-grid">
-      <label>Clave actual <input type="password" formControlName="claveActual" /></label>
-      <label>Nueva clave <input type="password" formControlName="nuevaClave" /></label>
-      <p class="hint">Al menos 8 caracteres, con letras y numeros.</p>
-      <button class="secondary" type="submit" [disabled]="clave.invalid">Cambiar clave</button>
+  <section class="card accent-card">
+    <div class="card-header">
+      <h2>Actualizar clave</h2>
+      <span>Seguridad</span>
+    </div>
+    <form [formGroup]="clave" (ngSubmit)="cambiarClave()" class="form-grid" novalidate>
+      <label [class.invalid]="claveActualConError()"
+        >Clave actual
+        <input type="password" formControlName="claveActual" autocomplete="current-password" />
+        @if (claveActualConError()) {
+          <small class="field-error">La clave actual es obligatoria.</small>
+        }
+      </label>
+      <label [class.invalid]="nuevaClaveConError()"
+        >Nueva clave
+        <input type="password" formControlName="nuevaClave" autocomplete="new-password" />
+        @if (nuevaClaveConError()) {
+          <small class="field-error">{{ mensajeNuevaClave() }}</small>
+        }
+      </label>
+      <app-requisitos-clave
+        class="full"
+        [clave]="clave.controls.nuevaClave.value"
+      ></app-requisitos-clave>
+      <button class="secondary" type="submit" [disabled]="actualizandoClave()">
+        {{ actualizandoClave() ? 'Actualizando...' : 'Cambiar clave' }}
+      </button>
     </form>
   </section>
 </div>
