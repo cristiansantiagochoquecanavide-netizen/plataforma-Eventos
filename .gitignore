@@ -26,3 +26,6 @@ servicio-ia/**/*.pyc
 .idea/
 .vscode/
 *.iml
+
+# Credenciales y datos del despliegue AWS
+documentacion/despliegue-aws.local.md

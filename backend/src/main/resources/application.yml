@@ -48,5 +48,7 @@ seguridad:
     origenes: ${CORS_ORIGENES:http://localhost:4200}
   recuperacion:
     expiracion-minutos: ${RECUPERACION_CLAVE_EXPIRACION_MINUTOS:30}
+    intervalo-solicitud-segundos: ${RECUPERACION_CLAVE_INTERVALO_SOLICITUD_SEGUNDOS:60}
     url-frontend-web: ${URL_FRONTEND_WEB:http://localhost:4200}
+    url-aplicacion-movil: ${URL_APLICACION_MOVIL:eventos://recuperar-clave}
     correo-remitente: ${SMTP_FROM:no-reply@plataformaeventos.local}

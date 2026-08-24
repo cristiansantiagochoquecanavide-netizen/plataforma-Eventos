@@ -25,7 +25,13 @@ class RecuperacionClaveServiceTest {
     private final RecuperacionClaveService servicio = new RecuperacionClaveService(
             tokenRepository,
             correoSender,
-            new RecuperacionClavePropiedades(30, "http://localhost:4200", "no-reply@eventos.local")
+            new RecuperacionClavePropiedades(
+                    30,
+                    60,
+                    "http://localhost:4200",
+                    "eventos://recuperar-clave",
+                    "no-reply@eventos.local"
+            )
     );
 
     @Test
@@ -37,7 +43,7 @@ class RecuperacionClaveServiceTest {
         servicio.crearYEnviarToken(usuario);
 
         verify(tokenRepository).invalidarTokensPendientesPorUsuario(7L);
-        verify(tokenRepository).save(tokenCaptor.capture());
+        verify(tokenRepository).saveAndFlush(tokenCaptor.capture());
         verify(correoSender).send(mensajeCaptor.capture());
 
         assertThat(tokenCaptor.getValue().estaActivo()).isTrue();
@@ -46,8 +52,8 @@ class RecuperacionClaveServiceTest {
         assertThat(mensaje.getTo()).containsExactly("persona@eventos.local");
         assertThat(mensaje.getText())
                 .contains("Plataforma de Gestion de Eventos")
-                .contains("/restablecer-clave?token=")
-                .contains("Codigo de recuperacion")
+                .contains("eventos://recuperar-clave?token=")
+                .contains("pega este token")
                 .contains("30 minutos");
     }
 

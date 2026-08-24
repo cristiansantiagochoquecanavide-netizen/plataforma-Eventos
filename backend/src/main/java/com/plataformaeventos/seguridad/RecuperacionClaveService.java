@@ -13,6 +13,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.OffsetDateTime;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class RecuperacionClaveService {
@@ -24,6 +26,7 @@ public class RecuperacionClaveService {
     private final TokenRecuperacionRepository tokenRecuperacionRepository;
     private final JavaMailSender correoSender;
     private final RecuperacionClavePropiedades propiedades;
+    private final Map<Long, OffsetDateTime> ultimaSolicitudPorUsuario = new HashMap<>();
 
     public RecuperacionClaveService(
             TokenRecuperacionRepository tokenRecuperacionRepository,
@@ -36,15 +39,24 @@ public class RecuperacionClaveService {
     }
 
     @Transactional
-    public void crearYEnviarToken(Usuario usuario) {
+    public synchronized void crearYEnviarToken(Usuario usuario) {
+        OffsetDateTime ahora = OffsetDateTime.now();
+        ultimaSolicitudPorUsuario.entrySet().removeIf(entrada -> entrada.getValue()
+                .plusSeconds(propiedades.intervaloSolicitudSegundos())
+                .isBefore(ahora));
+        OffsetDateTime ultimaSolicitud = ultimaSolicitudPorUsuario.get(usuario.getId());
+        if (ultimaSolicitud != null && ultimaSolicitud.plusSeconds(propiedades.intervaloSolicitudSegundos()).isAfter(ahora)) {
+            return;
+        }
         tokenRecuperacionRepository.invalidarTokensPendientesPorUsuario(usuario.getId());
         String token = generarToken();
-        tokenRecuperacionRepository.save(new TokenRecuperacion(
+        tokenRecuperacionRepository.saveAndFlush(new TokenRecuperacion(
                 usuario,
                 calcularHash(token),
-                OffsetDateTime.now().plusMinutes(propiedades.expiracionMinutos())
+                ahora.plusMinutes(propiedades.expiracionMinutos())
         ));
         enviarCorreo(usuario, token);
+        ultimaSolicitudPorUsuario.put(usuario.getId(), ahora);
     }
 
     @Transactional
@@ -71,8 +83,7 @@ public class RecuperacionClaveService {
     }
 
     private void enviarCorreo(Usuario usuario, String token) {
-        String enlace = UriComponentsBuilder.fromUriString(propiedades.urlFrontendWeb())
-                .path("/restablecer-clave")
+        String enlaceMovil = UriComponentsBuilder.fromUriString(propiedades.urlAplicacionMovil())
                 .queryParam("token", token)
                 .toUriString();
         SimpleMailMessage mensaje = new SimpleMailMessage();
@@ -80,10 +91,10 @@ public class RecuperacionClaveService {
         mensaje.setTo(usuario.getCorreo());
         mensaje.setSubject("Recuperacion de acceso - Plataforma de Gestion de Eventos");
         mensaje.setText("Plataforma de Gestion de Eventos\n\n"
-                + "Recibimos una solicitud para restablecer tu clave. Usa este enlace dentro de "
-                + propiedades.expiracionMinutos() + " minutos:\n\n" + enlace
-                + "\n\nCodigo de recuperacion:\n" + token
-                + "\n\nSi no solicitaste este cambio, puedes ignorar este correo.");
+                + "Recibimos una solicitud para restablecer tu clave. Abre este enlace dentro de "
+                + propiedades.expiracionMinutos() + " minutos:\n\n" + enlaceMovil
+                + "\n\nSi el enlace no abre la aplicacion, abre Eventos, selecciona 'Olvide mi clave' y pega este token:\n"
+                + token + "\n\nSi no solicitaste este cambio, puedes ignorar este correo.");
         correoSender.send(mensaje);
     }
 

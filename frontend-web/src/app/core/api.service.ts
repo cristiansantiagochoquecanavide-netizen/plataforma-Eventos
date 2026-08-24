@@ -16,7 +16,7 @@ export class ApiService {
   }
 
   recuperarClave(correo: string) {
-    return this.http.post<void>(`${this.url}/autenticacion/recuperar-clave`, { correo });
+    return this.http.post<void>(`${this.url}/autenticacion/solicitar-recuperacion-clave`, { correo });
   }
 
   restablecerClave(token: string, nuevaClave: string) {
