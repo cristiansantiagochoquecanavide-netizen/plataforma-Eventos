@@ -53,7 +53,7 @@
         },
         {
           "name": "Solicitar recuperacion de clave",
-          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"correo\": \"{{participanteCorreo}}\"\n}" }, "url": "{{baseUrl}}/autenticacion/solicitar-recuperacion-clave" }
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"correo\": \"{{participanteCorreo}}\"\n}" }, "url": "{{baseUrl}}/autenticacion/recuperar-clave" }
         },
         {
           "name": "Restablecer clave",

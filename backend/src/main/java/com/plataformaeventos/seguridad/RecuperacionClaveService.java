@@ -83,7 +83,8 @@ public class RecuperacionClaveService {
     }
 
     private void enviarCorreo(Usuario usuario, String token) {
-        String enlaceMovil = UriComponentsBuilder.fromUriString(propiedades.urlAplicacionMovil())
+        String enlace = UriComponentsBuilder.fromUriString(urlFrontendNormalizada())
+                .path("/restablecer-clave")
                 .queryParam("token", token)
                 .toUriString();
         SimpleMailMessage mensaje = new SimpleMailMessage();
@@ -91,11 +92,18 @@ public class RecuperacionClaveService {
         mensaje.setTo(usuario.getCorreo());
         mensaje.setSubject("Recuperacion de acceso - Plataforma de Gestion de Eventos");
         mensaje.setText("Plataforma de Gestion de Eventos\n\n"
-                + "Recibimos una solicitud para restablecer tu clave. Abre este enlace dentro de "
-                + propiedades.expiracionMinutos() + " minutos:\n\n" + enlaceMovil
-                + "\n\nSi el enlace no abre la aplicacion, abre Eventos, selecciona 'Olvide mi clave' y pega este token:\n"
-                + token + "\n\nSi no solicitaste este cambio, puedes ignorar este correo.");
+                + "Recibimos una solicitud para restablecer tu clave. Usa este enlace dentro de "
+                + propiedades.expiracionMinutos() + " minutos:\n\n" + enlace
+                + "\n\nSi no solicitaste este cambio, puedes ignorar este correo.");
         correoSender.send(mensaje);
+    }
+
+    private String urlFrontendNormalizada() {
+        String url = propiedades.urlFrontendWeb().trim();
+        while (url.endsWith("/")) {
+            url = url.substring(0, url.length() - 1);
+        }
+        return url;
     }
 
     private String calcularHash(String token) {

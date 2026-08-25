@@ -37,7 +37,7 @@ Importar los dos archivos de `documentacion/postman` en Postman y seleccionar el
 2. Configurar `adminClave` con el valor de `ADMIN_CLAVE` usado en el backend.
 3. Ejecutar `Iniciar sesion administrador`; la coleccion guarda los tokens.
 4. Ejecutar las solicitudes de usuarios y roles en orden para que se guarden `usuarioId` y `rolId`.
-5. La recuperacion de clave requiere un SMTP funcional; reemplazar `TOKEN_RECIBIDO_POR_CORREO` por el token recibido.
+5. La recuperacion de clave requiere un SMTP funcional; en local puede ser Mailpit y en AWS debe ser un SMTP transaccional real configurado segun `documentacion/despliegue-aws-correo.md`.
 
 ## Seguridad revisada
 
