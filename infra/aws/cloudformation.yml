@@ -319,6 +319,14 @@ Resources:
               Value: !Sub email-smtp.${AWS::Region}.amazonaws.com
             - Name: SMTP_PORT
               Value: '587'
+            - Name: SMTP_AUTH
+              Value: 'true'
+            - Name: SMTP_STARTTLS_ENABLE
+              Value: 'true'
+            - Name: SMTP_STARTTLS_REQUIRED
+              Value: 'true'
+            - Name: SMTP_SSL_ENABLE
+              Value: 'false'
             - Name: SMTP_USER
               Value: !Ref SmtpUser
             - Name: SMTP_PASSWORD
