@@ -7,6 +7,7 @@ import { RecuperarClaveComponent } from './paginas/recuperar-clave.component';
 import { RestablecerClaveComponent } from './paginas/restablecer-clave.component';
 import { RolesComponent } from './paginas/roles.component';
 import { UsuariosComponent } from './paginas/usuarios.component';
+import { EventosComponent } from './paginas/eventos.component';
 
 export const routes: Routes = [
   { path: 'iniciar-sesion', component: InicioSesionComponent },
@@ -18,6 +19,7 @@ export const routes: Routes = [
     canActivate: [autenticacionGuard],
     children: [
       { path: 'perfil', component: PerfilComponent },
+      { path: 'eventos', component: EventosComponent, canActivate: [administradorGuard] },
       { path: 'usuarios', component: UsuariosComponent, canActivate: [administradorGuard] },
       { path: 'roles', component: RolesComponent, canActivate: [administradorGuard] },
       { path: '', pathMatch: 'full', redirectTo: 'perfil' },

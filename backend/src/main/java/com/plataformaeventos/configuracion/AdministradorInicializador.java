@@ -53,12 +53,27 @@ public class AdministradorInicializador {
         }
 
         String correo = correoAdministrador.trim().toLowerCase(Locale.ROOT);
-        if (usuarioRepository.existsByCorreo(correo)) {
-            return;
-        }
-
         Rol rolAdministrador = rolRepository.findByNombre("ADMINISTRADOR")
                 .orElseThrow(() -> new IllegalStateException("No existe el rol ADMINISTRADOR"));
+        usuarioRepository.findByCorreoConRoles(correo).ifPresentOrElse(
+                administradorExistente -> {
+                    administradorExistente.actualizarClaveHash(codificadorClave.encode(claveAdministrador));
+                    administradorExistente.actualizarEstado(EstadoUsuario.ACTIVO);
+                    administradorExistente.getRoles().add(rolAdministrador);
+                    usuarioRepository.save(administradorExistente);
+                    LOGGER.info("Administrador inicial sincronizado");
+                },
+                () -> crearNuevoAdministrador(usuarioRepository, codificadorClave, correo, claveAdministrador, rolAdministrador)
+        );
+    }
+
+    private void crearNuevoAdministrador(
+            UsuarioRepository usuarioRepository,
+            PasswordEncoder codificadorClave,
+            String correo,
+            String claveAdministrador,
+            Rol rolAdministrador
+    ) {
         Usuario administrador = new Usuario(
                 "Administrador",
                 "Inicial",

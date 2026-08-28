@@ -5,6 +5,7 @@
       <a routerLink="/perfil" routerLinkActive="active">Mi perfil</a>
       @if (sesion.esAdministrador()) {
         <p class="nav-label">Administracion</p>
+        <a routerLink="/eventos" routerLinkActive="active">Eventos</a>
         <a routerLink="/usuarios" routerLinkActive="active">Usuarios</a>
         <a routerLink="/roles" routerLinkActive="active">Roles y permisos</a>
       }

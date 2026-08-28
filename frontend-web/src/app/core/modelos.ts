@@ -40,6 +40,24 @@ export interface RolPermisos {
   permisos: Permiso[];
 }
 
+export interface ResponsableEvento {
+  id: number;
+  nombres: string;
+  apellidos: string;
+  correo: string;
+  roles: string[];
+}
+
+export interface Evento {
+  id: number;
+  nombre: string;
+  descripcion: string | null;
+  fechaInicio: string;
+  fechaFin: string | null;
+  estado: 'PLANIFICADO' | 'CANCELADO' | 'FINALIZADO';
+  responsables: ResponsableEvento[];
+}
+
 export interface ErrorApi {
   status: number;
   message: string;

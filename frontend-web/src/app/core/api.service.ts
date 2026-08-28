@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../environments/environment';
-import { PaginaUsuarios, Permiso, Rol, RolPermisos, SesionRespuesta, Usuario } from './modelos';
+import { Evento, PaginaUsuarios, Permiso, Rol, RolPermisos, SesionRespuesta, Usuario } from './modelos';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -90,5 +90,21 @@ export class ApiService {
 
   asignarPermisos(idRol: number, permisos: string[]) {
     return this.http.put<RolPermisos>(`${this.url}/roles/${idRol}/permisos`, { permisos });
+  }
+
+  listarEventos() {
+    return this.http.get<Evento[]>(`${this.url}/eventos`);
+  }
+
+  crearEvento(datos: object) {
+    return this.http.post<Evento>(`${this.url}/eventos`, datos);
+  }
+
+  actualizarEvento(id: number, datos: object) {
+    return this.http.put<Evento>(`${this.url}/eventos/${id}`, datos);
+  }
+
+  asignarResponsablesEvento(id: number, responsables: number[]) {
+    return this.http.put<Evento>(`${this.url}/eventos/${id}/responsables`, { responsables });
   }
 }

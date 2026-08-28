@@ -617,6 +617,12 @@ td strong {
   grid-template-columns: minmax(220px, 0.72fr) minmax(290px, 0.9fr) minmax(330px, 1.18fr);
 }
 
+.eventos-layout {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: minmax(0, 1.28fr) minmax(340px, 0.82fr);
+}
+
 .role-list,
 .permission-list {
   display: grid;
@@ -659,6 +665,51 @@ td strong {
   width: 16px;
   min-height: 16px;
   margin-top: 3px;
+}
+
+.selectable-row {
+  cursor: pointer;
+}
+
+.selectable-row:hover {
+  background: #f7faf7;
+}
+
+.selectable-row.selected {
+  background: var(--brand-soft);
+}
+
+.inline-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 999px;
+  background: #eef4f1;
+  color: #42534d;
+  font-size: 0.72rem;
+  font-weight: 800;
+  margin: 2px 4px 2px 0;
+  padding: 4px 8px;
+}
+
+.inline-title {
+  padding: 0 0 12px;
+}
+
+.responsable-list {
+  display: grid;
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 12px;
+}
+
+.empty-inline {
+  color: var(--muted);
+  margin: 14px 0;
+  font-size: 0.86rem;
+  font-weight: 700;
 }
 
 .empty-state {
@@ -804,6 +855,7 @@ td strong {
 
   .two-columns,
   .admin-grid,
+  .eventos-layout,
   .roles-layout {
     grid-template-columns: 1fr;
   }
