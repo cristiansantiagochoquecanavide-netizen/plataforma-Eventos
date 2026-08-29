@@ -4,9 +4,13 @@
     <nav>
       <a routerLink="/perfil" routerLinkActive="active">Mi perfil</a>
       @if (sesion.esAdministrador()) {
-        <p class="nav-label">Administracion</p>
+        <p class="nav-label">Administración</p>
         <a routerLink="/usuarios" routerLinkActive="active">Usuarios</a>
         <a routerLink="/roles" routerLinkActive="active">Roles y permisos</a>
+      }
+      @if (sesion.tieneAccesoRecursos()) {
+        <p class="nav-label">Gestión de Eventos, Programación y Recursos</p>
+        <a routerLink="/recursos" routerLinkActive="active">Recursos</a>
       }
     </nav>
     <button class="logout" type="button" (click)="sesion.cerrar()">Cerrar sesion</button>

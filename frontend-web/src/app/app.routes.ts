@@ -1,10 +1,11 @@
 import { Routes } from '@angular/router';
-import { administradorGuard, autenticacionGuard } from './core/guards';
+import { administradorGuard, autenticacionGuard, recursosGuard } from './core/guards';
 import { InicioSesionComponent } from './features/auth/inicio-sesion.component';
 import { RecuperarClaveComponent } from './features/auth/recuperar-clave.component';
 import { RestablecerClaveComponent } from './features/auth/restablecer-clave.component';
 import { PanelComponent } from './features/panel/panel.component';
 import { PerfilComponent } from './features/perfil/perfil.component';
+import { RecursosComponent } from './features/recursos/recursos.component';
 import { RolesComponent } from './features/roles/roles.component';
 import { UsuariosComponent } from './features/usuarios/usuarios.component';
 
@@ -20,6 +21,7 @@ export const routes: Routes = [
       { path: 'perfil', component: PerfilComponent },
       { path: 'usuarios', component: UsuariosComponent, canActivate: [administradorGuard] },
       { path: 'roles', component: RolesComponent, canActivate: [administradorGuard] },
+      { path: 'recursos', component: RecursosComponent, canActivate: [recursosGuard] },
       { path: '', pathMatch: 'full', redirectTo: 'perfil' },
     ],
   },

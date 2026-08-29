@@ -51,6 +51,11 @@ export class SesionService {
     return this.usuario()?.roles.includes('ADMINISTRADOR') ?? false;
   }
 
+  tieneAccesoRecursos() {
+    const roles = this.usuario()?.roles ?? [];
+    return roles.includes('ADMINISTRADOR') || roles.includes('ORGANIZADOR');
+  }
+
   cerrar() {
     const token = this.sesion?.refreshToken;
     this.limpiarSesion();
