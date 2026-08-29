@@ -121,6 +121,33 @@ export interface CrearAsignacionSolicitud {
   observaciones?: string | null;
 }
 
+// --- CU15: Gestion de Convocatorias de Staff y Voluntarios ---
+// Modela el registro asociado a un evento, su necesidad de personal, fecha limite
+// y ciclo de vida. Una convocatoria nace ABIERTA y puede finalizar CERRADA o CANCELADA.
+export type TipoPersonalConvocatoria = 'STAFF' | 'VOLUNTARIO';
+export type EstadoConvocatoria = 'ABIERTA' | 'CERRADA' | 'CANCELADA';
+
+export interface Convocatoria {
+  id: number;
+  idEvento: number;
+  nombreEvento: string;
+  tipoPersonal: TipoPersonalConvocatoria;
+  descripcion: string;
+  cantidadRequerida: number;
+  fechaLimite: string;
+  estado: EstadoConvocatoria;
+  fechaCreacion: string;
+  fechaActualizacion: string;
+}
+
+export interface CrearConvocatoriaSolicitud {
+  idEvento: number;
+  tipoPersonal: TipoPersonalConvocatoria;
+  descripcion: string;
+  cantidadRequerida: number;
+  fechaLimite: string;
+}
+
 export interface ErrorApi {
   status: number;
   message: string;

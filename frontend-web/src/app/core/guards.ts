@@ -32,3 +32,16 @@ export const recursosGuard: CanActivateFn = () => {
     catchError(() => of(router.createUrlTree(['/iniciar-sesion']))),
   );
 };
+
+export const convocatoriasGuard: CanActivateFn = () => {
+  const sesion = inject(SesionService);
+  const router = inject(Router);
+  return sesion.restaurar().pipe(
+    map((autenticado) =>
+      autenticado && sesion.tieneAccesoConvocatorias()
+        ? true
+        : router.createUrlTree(['/perfil']),
+    ),
+    catchError(() => of(router.createUrlTree(['/iniciar-sesion']))),
+  );
+};

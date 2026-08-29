@@ -12,6 +12,10 @@
         <p class="nav-label">Gestión de Eventos, Programación y Recursos</p>
         <a routerLink="/recursos" routerLinkActive="active">Recursos</a>
       }
+      @if (sesion.tieneAccesoConvocatorias()) {
+        <p class="nav-label">Gestión de Staff y Organización</p>
+        <a routerLink="/convocatorias" routerLinkActive="active">Convocatorias</a>
+      }
     </nav>
     <button class="logout" type="button" (click)="sesion.cerrar()">Cerrar sesion</button>
   </aside>
