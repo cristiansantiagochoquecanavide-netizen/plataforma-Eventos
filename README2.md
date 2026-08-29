@@ -53,7 +53,7 @@ docker compose exec base-datos psql -U eventos_app -d eventos -c "\dt"
 
 | Servicio | URL | Credenciales por Defecto |
 | :--- | :--- | :--- |
-| **Frontend Web** | [http://localhost:4200](http://localhost:4200) | `admin@eventos.local` / *(ADMIN_CLAVE en .env)* |
+| **Frontend Web** | [http://localhost:4200](http://localhost:4200) | **Administrador:** `AdminEventos@gmail.com` / `Admin123`<br>**Organizador:** `organizador@eventos.local` / `Organizador123`<br>**Staff:** `staff@eventos.local` / `Staff123`<br>**Participante:** `participante@eventos.local` / `Participante123` |
 | **Documentación Swagger / OpenAPI** | [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) | — |
 | **Bandeja de Correos Local (Mailpit)** | [http://localhost:8025](http://localhost:8025) | — |
 | **Health Check (Actuator)** | [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health) | — |

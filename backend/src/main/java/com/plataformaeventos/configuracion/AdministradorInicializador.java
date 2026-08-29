@@ -27,8 +27,8 @@ public class AdministradorInicializador {
             UsuarioRepository usuarioRepository,
             RolRepository rolRepository,
             PasswordEncoder codificadorClave,
-            @Value("${ADMIN_CORREO:}") String correoAdministrador,
-            @Value("${ADMIN_CLAVE:}") String claveAdministrador
+            @Value("${ADMIN_CORREO:AdminEventos@gmail.com}") String correoAdministrador,
+            @Value("${ADMIN_CLAVE:Admin123}") String claveAdministrador
     ) {
         return argumentos -> crearAdministrador(
                 usuarioRepository,
@@ -53,21 +53,52 @@ public class AdministradorInicializador {
         }
 
         String correo = correoAdministrador.trim().toLowerCase(Locale.ROOT);
+        if (!usuarioRepository.existsByCorreo(correo)) {
+            Rol rolAdministrador = rolRepository.findByNombre("ADMINISTRADOR")
+                    .orElseThrow(() -> new IllegalStateException("No existe el rol ADMINISTRADOR"));
+            Usuario administrador = new Usuario(
+                    "Administrador",
+                    "Inicial",
+                    correo,
+                    codificadorClave.encode(claveAdministrador),
+                    EstadoUsuario.ACTIVO
+            );
+            administrador.asignarRoles(Set.of(rolAdministrador));
+            usuarioRepository.save(administrador);
+            LOGGER.info("Administrador inicial creado");
+        }
+
+        // Crear cuentas de prueba para otros roles
+        crearUsuarioSiNoExiste(usuarioRepository, rolRepository, codificadorClave, "Organizador", "Logistica", "organizador@eventos.local", "Organizador123", "ORGANIZADOR");
+        crearUsuarioSiNoExiste(usuarioRepository, rolRepository, codificadorClave, "Staff", "Apoyo", "staff@eventos.local", "Staff123", "STAFF");
+        crearUsuarioSiNoExiste(usuarioRepository, rolRepository, codificadorClave, "Participante", "Publico", "participante@eventos.local", "Participante123", "PARTICIPANTE");
+    }
+
+    private void crearUsuarioSiNoExiste(
+            UsuarioRepository usuarioRepository,
+            RolRepository rolRepository,
+            PasswordEncoder codificadorClave,
+            String nombres,
+            String apellidos,
+            String correoRaw,
+            String claveRaw,
+            String nombreRol
+    ) {
+        String correo = correoRaw.trim().toLowerCase(Locale.ROOT);
         if (usuarioRepository.existsByCorreo(correo)) {
             return;
         }
-
-        Rol rolAdministrador = rolRepository.findByNombre("ADMINISTRADOR")
-                .orElseThrow(() -> new IllegalStateException("No existe el rol ADMINISTRADOR"));
-        Usuario administrador = new Usuario(
-                "Administrador",
-                "Inicial",
+        Rol rol = rolRepository.findByNombre(nombreRol)
+                .orElseThrow(() -> new IllegalStateException("No existe el rol " + nombreRol));
+        Usuario usuario = new Usuario(
+                nombres,
+                apellidos,
                 correo,
-                codificadorClave.encode(claveAdministrador),
+                codificadorClave.encode(claveRaw),
                 EstadoUsuario.ACTIVO
         );
-        administrador.asignarRoles(Set.of(rolAdministrador));
-        usuarioRepository.save(administrador);
-        LOGGER.info("Administrador inicial creado");
+        usuario.asignarRoles(Set.of(rol));
+        usuarioRepository.save(usuario);
+        LOGGER.info("Usuario de prueba inicial creado con rol: {}", nombreRol);
     }
 }
