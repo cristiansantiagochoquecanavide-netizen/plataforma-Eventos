@@ -1,4 +1,6 @@
 package com.plataformaeventos.perfil;
+ 
+import com.plataformaeventos.perfil.dto.*;
 
 import com.plataformaeventos.excepciones.ExcepcionNoAutorizado;
 import com.plataformaeventos.roles.Rol;

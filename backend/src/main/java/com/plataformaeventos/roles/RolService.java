@@ -1,4 +1,6 @@
 package com.plataformaeventos.roles;
+ 
+import com.plataformaeventos.roles.dto.*;
 
 import com.plataformaeventos.excepciones.ExcepcionNoEncontrado;
 import org.springframework.data.domain.Sort;

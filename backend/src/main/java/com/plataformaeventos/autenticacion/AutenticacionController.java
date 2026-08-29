@@ -1,4 +1,6 @@
 package com.plataformaeventos.autenticacion;
+ 
+import com.plataformaeventos.autenticacion.dto.*;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;

@@ -1,12 +1,12 @@
 import { Routes } from '@angular/router';
 import { administradorGuard, autenticacionGuard } from './core/guards';
-import { InicioSesionComponent } from './paginas/inicio-sesion.component';
-import { PanelComponent } from './paginas/panel.component';
-import { PerfilComponent } from './paginas/perfil.component';
-import { RecuperarClaveComponent } from './paginas/recuperar-clave.component';
-import { RestablecerClaveComponent } from './paginas/restablecer-clave.component';
-import { RolesComponent } from './paginas/roles.component';
-import { UsuariosComponent } from './paginas/usuarios.component';
+import { InicioSesionComponent } from './features/auth/inicio-sesion.component';
+import { RecuperarClaveComponent } from './features/auth/recuperar-clave.component';
+import { RestablecerClaveComponent } from './features/auth/restablecer-clave.component';
+import { PanelComponent } from './features/panel/panel.component';
+import { PerfilComponent } from './features/perfil/perfil.component';
+import { RolesComponent } from './features/roles/roles.component';
+import { UsuariosComponent } from './features/usuarios/usuarios.component';
 
 export const routes: Routes = [
   { path: 'iniciar-sesion', component: InicioSesionComponent },

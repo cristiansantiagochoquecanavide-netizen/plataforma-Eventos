@@ -1,4 +1,6 @@
 package com.plataformaeventos.permisos;
+ 
+import com.plataformaeventos.permisos.dto.*;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
