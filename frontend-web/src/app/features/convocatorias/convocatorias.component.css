@@ -1,0 +1,102 @@
+.convocatoria-heading {
+  display: flex;
+  max-width: none;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.convocatoria-heading > div {
+  max-width: 760px;
+}
+
+.filtros-convocatoria {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.35fr) repeat(3, minmax(145px, 0.75fr)) auto;
+  gap: 14px;
+  align-items: end;
+  margin-bottom: 22px;
+}
+
+.acciones-filtro {
+  display: flex;
+  gap: 8px;
+}
+
+.descripcion-cell {
+  min-width: 250px;
+  max-width: 430px;
+  line-height: 1.5;
+  white-space: normal;
+}
+
+.tipo-chip,
+.estado-convocatoria {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  border-radius: 999px;
+  padding: 5px 8px;
+  font: 700 0.66rem 'DM Mono', monospace;
+  white-space: nowrap;
+}
+
+.tipo-chip {
+  color: var(--blue);
+  background: var(--blue-soft);
+}
+
+.estado-convocatoria.abierta {
+  color: var(--success);
+  background: var(--success-soft);
+}
+
+.estado-convocatoria.cerrada {
+  color: var(--blue);
+  background: var(--blue-soft);
+}
+
+.estado-convocatoria.cancelada {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.btn-danger {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.btn-danger:hover {
+  background: #ffd7cf;
+}
+
+.modal-actions {
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.empty-state p {
+  margin: 8px 0 0;
+}
+
+@media (max-width: 1180px) {
+  .filtros-convocatoria {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .convocatoria-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .filtros-convocatoria {
+    grid-template-columns: 1fr;
+  }
+
+  .acciones-filtro,
+  .acciones-filtro button {
+    width: 100%;
+  }
+}

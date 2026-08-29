@@ -4,9 +4,12 @@ import { environment } from '../../environments/environment';
 import {
   ActualizarRecursoSolicitud,
   AsignacionRecurso,
+  Convocatoria,
   CrearAsignacionSolicitud,
+  CrearConvocatoriaSolicitud,
   CrearRecursoSolicitud,
   EstadoAsignacion,
+  EstadoConvocatoria,
   EstadoRecurso,
   Evento,
   PaginaUsuarios,
@@ -16,6 +19,7 @@ import {
   RolPermisos,
   SesionRespuesta,
   TipoRecurso,
+  TipoPersonalConvocatoria,
   Usuario,
 } from './modelos';
 
@@ -169,5 +173,34 @@ export class ApiService {
 
   liberarAsignacion(id: number) {
     return this.http.patch<AsignacionRecurso>(`${this.url}/asignaciones-recursos/${id}/liberar`, {});
+  }
+
+  // --- CU15: Gestion de Convocatorias de Staff y Voluntarios ---
+  // Consulta con filtros, registra necesidades de personal y ejecuta las dos
+  // transiciones finales permitidas por el caso de uso: cerrar y cancelar.
+  listarConvocatorias(
+    idEvento?: number,
+    tipoPersonal?: TipoPersonalConvocatoria | '',
+    estado?: EstadoConvocatoria | '',
+    termino?: string,
+  ) {
+    let params = new HttpParams();
+    if (idEvento) params = params.set('idEvento', idEvento.toString());
+    if (tipoPersonal) params = params.set('tipoPersonal', tipoPersonal);
+    if (estado) params = params.set('estado', estado);
+    if (termino?.trim()) params = params.set('termino', termino.trim());
+    return this.http.get<Convocatoria[]>(`${this.url}/convocatorias`, { params });
+  }
+
+  crearConvocatoria(datos: CrearConvocatoriaSolicitud) {
+    return this.http.post<Convocatoria>(`${this.url}/convocatorias`, datos);
+  }
+
+  cerrarConvocatoria(id: number) {
+    return this.http.patch<Convocatoria>(`${this.url}/convocatorias/${id}/cerrar`, {});
+  }
+
+  cancelarConvocatoria(id: number) {
+    return this.http.patch<Convocatoria>(`${this.url}/convocatorias/${id}/cancelar`, {});
   }
 }
