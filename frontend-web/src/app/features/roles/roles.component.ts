@@ -16,6 +16,7 @@ export class RolesComponent implements OnInit {
   readonly permisos = signal<Permiso[]>([]);
   readonly rolSeleccionado = signal<Rol | null>(null);
   readonly permisosSeleccionados = signal<Set<string>>(new Set());
+  readonly modalAbierto = signal(false);
   readonly editando = signal<Rol | null>(null);
   readonly mensaje = signal('');
   readonly error = signal('');
@@ -58,11 +59,23 @@ export class RolesComponent implements OnInit {
       });
   }
 
+  abrirModalCrear() {
+    this.cancelar();
+    this.limpiarAvisos();
+    this.modalAbierto.set(true);
+  }
+
+  cerrarModal() {
+    this.modalAbierto.set(false);
+    this.cancelar();
+  }
+
   editar(rol: Rol) {
     this.limpiarAvisos();
     this.intentoEnvio.set(false);
     this.editando.set(rol);
     this.formulario.patchValue({ ...rol, descripcion: rol.descripcion ?? '' });
+    this.modalAbierto.set(true);
   }
 
   cancelar() {
@@ -94,7 +107,7 @@ export class RolesComponent implements OnInit {
         const mensaje = editando ? 'Rol actualizado correctamente.' : 'Rol creado correctamente.';
         this.mensaje.set(mensaje);
         this.toast.exito(mensaje);
-        this.cancelar();
+        this.cerrarModal();
         this.cargar();
       },
       error: (error) => {

@@ -14,6 +14,7 @@ import { RequisitosClaveComponent } from '../../shared/requisitos-clave.componen
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PerfilComponent implements OnInit {
+  readonly pestanaActiva = signal<'perfil' | 'seguridad'>('perfil');
   readonly mensaje = signal('');
   readonly error = signal('');
   readonly guardandoPerfil = signal(false);
@@ -48,6 +49,11 @@ export class PerfilComponent implements OnInit {
         this.toast.error(mensaje);
       },
     });
+  }
+
+  cambiarPestana(pestana: 'perfil' | 'seguridad') {
+    this.pestanaActiva.set(pestana);
+    this.limpiarAvisos();
   }
 
   guardarPerfil() {

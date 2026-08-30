@@ -3,16 +3,17 @@
   Consulta convocatorias, filtra por evento/tipo/estado, registra necesidades de
   personal con datos obligatorios y permite cerrar o cancelar registros abiertos.
 -->
-<section class="page-heading convocatoria-heading">
-  <div>
-    <p class="eyebrow">CU15 · Staff y voluntariado</p>
-    <h1>Convocatorias</h1>
-    <p>Organiza las necesidades de personal de cada evento y controla su estado.</p>
-  </div>
+<section class="page-heading">
+  <p class="eyebrow">Gestión de Staff y Organización</p>
+  <h1>Convocatorias</h1>
+  <p>Organiza las necesidades de personal de cada evento y controla su estado.</p>
   @if (puedeGestionar()) {
-    <button class="primary" type="button" (click)="abrirModal()">
-      Nueva convocatoria
-    </button>
+    <div style="margin-top: 14px;">
+      <button class="primary" type="button" (click)="abrirModal()" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px; color: #ffffff;">
+        <span style="font-weight: 800; font-size: 1.15rem; line-height: 1; color: #ffffff;">+</span>
+        <span style="color: #ffffff; font-weight: 700;">Nueva Convocatoria</span>
+      </button>
+    </div>
   }
 </section>
 

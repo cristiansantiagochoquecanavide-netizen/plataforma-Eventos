@@ -18,6 +18,7 @@ export class UsuariosComponent implements OnInit {
   readonly roles = signal<Rol[]>([]);
   readonly error = signal('');
   readonly mensaje = signal('');
+  readonly modalAbierto = signal(false);
   readonly editando = signal<Usuario | null>(null);
   readonly guardando = signal(false);
   readonly idCambiandoEstado = signal<number | null>(null);
@@ -58,6 +59,17 @@ export class UsuariosComponent implements OnInit {
     });
   }
 
+  abrirModalCrear() {
+    this.cancelar();
+    this.limpiarAvisos();
+    this.modalAbierto.set(true);
+  }
+
+  cerrarModal() {
+    this.modalAbierto.set(false);
+    this.cancelar();
+  }
+
   editar(usuario: Usuario) {
     this.limpiarAvisos();
     this.intentoEnvio.set(false);
@@ -65,6 +77,7 @@ export class UsuariosComponent implements OnInit {
     this.formulario.patchValue({ ...usuario, clave: '', roles: usuario.roles.join(', ') });
     this.formulario.controls.clave.clearValidators();
     this.formulario.controls.clave.updateValueAndValidity();
+    this.modalAbierto.set(true);
   }
 
   cancelar() {
@@ -119,7 +132,7 @@ export class UsuariosComponent implements OnInit {
           : 'Usuario creado correctamente.';
         this.mensaje.set(mensaje);
         this.toast.exito(mensaje);
-        this.cancelar();
+        this.cerrarModal();
         this.cargar();
       },
       error: (error) => {
