@@ -1,19 +1,28 @@
 <section class="page-heading">
-  <p class="eyebrow">Administracion</p>
+  <p class="eyebrow">Gestión de Usuarios, Seguridad y Auditoría</p>
   <h1>Roles y permisos</h1>
   <p>Perfiles de acceso y capacidades asignadas.</p>
+  <div style="margin-top: 14px;">
+    <button class="primary" type="button" (click)="abrirModalCrear()" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px; color: #ffffff;">
+      <span style="font-weight: 800; font-size: 1.15rem; line-height: 1; color: #ffffff;">+</span>
+      <span style="color: #ffffff; font-weight: 700;">Crear Nuevo Rol</span>
+    </button>
+  </div>
 </section>
+
 @if (mensaje()) {
   <p class="notice success">{{ mensaje() }}</p>
 }
-@if (error()) {
+@if (error() && !modalAbierto()) {
   <p class="notice error">{{ error() }}</p>
 }
-<div class="roles-layout">
+
+<div class="roles-layout" style="grid-template-columns: minmax(280px, 360px) 1fr;">
+  <!-- COLUMNA 1: LISTA DE ROLES DISPONIBLES -->
   <section class="card">
-    <div class="card-title compact">
+    <div class="card-title compact" style="display: flex; justify-content: space-between; align-items: center;">
       <h2>Roles disponibles</h2>
-      <span>{{ roles().length }}</span>
+      <span class="role-chip">{{ roles().length }} roles</span>
     </div>
     <div class="role-list">
       @for (rol of roles(); track rol.id) {
@@ -23,73 +32,32 @@
           [class.selected]="rolSeleccionado()?.id === rol.id"
           (click)="seleccionarRol(rol)"
         >
-          <span
-            ><strong>{{ rol.nombre }}</strong
-            ><small>{{ rol.descripcion || 'Sin descripcion' }}</small></span
-          ><i [class.off]="rol.estado === 'INACTIVO'">{{ rol.estado }}</i>
+          <span>
+            <strong>{{ rol.nombre }}</strong>
+            <small>{{ rol.descripcion || 'Sin descripción' }}</small>
+          </span>
+          <i [class.off]="rol.estado === 'INACTIVO'">{{ rol.estado }}</i>
         </button>
       }
     </div>
   </section>
-  <section class="card">
-    <div class="card-header">
-      <h2>{{ editando() ? 'Editar rol' : 'Nuevo rol' }}</h2>
-      <span>{{ editando() ? 'Edicion' : 'Alta' }}</span>
-    </div>
-    <form [formGroup]="formulario" (ngSubmit)="guardarRol()" class="form-grid" novalidate>
-      <label [class.invalid]="campoConError('nombre')"
-        >Nombre
-        <input
-          formControlName="nombre"
-          [readonly]="
-            editando()?.nombre === 'ADMINISTRADOR' ||
-            editando()?.nombre === 'ORGANIZADOR' ||
-            editando()?.nombre === 'STAFF' ||
-            editando()?.nombre === 'PARTICIPANTE'
-          "
-        />
-        @if (campoConError('nombre')) {
-          <small class="field-error">{{ mensajeCampo('nombre') }}</small>
-        }
-      </label>
-      <label [class.invalid]="campoConError('estado')"
-        >Estado
-        <select formControlName="estado">
-          <option value="ACTIVO">ACTIVO</option>
-          <option value="INACTIVO">INACTIVO</option>
-        </select>
-        @if (campoConError('estado')) {
-          <small class="field-error">{{ mensajeCampo('estado') }}</small>
-        }
-      </label
-      >
-      <label class="full"
-        >Descripcion <textarea formControlName="descripcion" rows="3"></textarea>
-      </label>
-      <div class="button-row">
-        <button class="primary" type="submit" [disabled]="guardandoRol()">
-          {{ guardandoRol() ? 'Guardando...' : editando() ? 'Actualizar' : 'Crear rol' }}
-        </button>
-        @if (editando()) {
-          <button type="button" (click)="cancelar()">Cancelar</button>
-        }
-      </div>
-    </form>
-  </section>
+
+  <!-- COLUMNA 2: DETALLE Y PERMISOS DEL ROL SELECCIONADO -->
   <section class="card permissions-card">
     @if (rolSeleccionado(); as rol) {
-      <div class="card-title">
+      <div class="card-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
         <div>
           <p class="eyebrow">Permisos del rol</p>
           <h2>{{ rol.nombre }}</h2>
         </div>
         <div class="button-row">
-          <button type="button" (click)="editar(rol)">Editar rol</button
-          ><button
+          <button type="button" (click)="editar(rol)">Editar rol</button>
+          <button
             class="primary"
             type="button"
             (click)="guardarPermisos()"
             [disabled]="guardandoPermisos()"
+            style="color: #ffffff;"
           >
             {{ guardandoPermisos() ? 'Guardando...' : 'Guardar permisos' }}
           </button>
@@ -97,22 +65,90 @@
       </div>
       <div class="permission-list">
         @for (permiso of permisos(); track permiso.id) {
-          <label class="permission-option"
-            ><input
+          <label class="permission-option">
+            <input
               type="checkbox"
               [checked]="permisosSeleccionados().has(permiso.nombre)"
               (change)="alternarPermiso(permiso.nombre, $any($event.target).checked)"
-            /><span
-              ><strong>{{ permiso.nombre }}</strong
-              ><small>{{ permiso.descripcion }}</small></span
-            ></label
-          >
+            />
+            <span>
+              <strong>{{ permiso.nombre }}</strong>
+              <small>{{ permiso.descripcion || 'Sin descripción detallada' }}</small>
+            </span>
+          </label>
         }
       </div>
     } @else {
-      <div class="empty-state">
-        <p>Selecciona un rol para consultar y actualizar sus permisos.</p>
+      <div class="empty-state" style="text-align: center; padding: 48px 24px; color: var(--muted);">
+        <p style="font-size: 1.05rem; font-weight: 600; margin-bottom: 8px;">Ningún rol seleccionado</p>
+        <small>Haz clic en uno de los roles disponibles de la izquierda para consultar y actualizar sus permisos.</small>
       </div>
     }
   </section>
 </div>
+
+<!-- MODAL FLOTANTE: CREAR / EDITAR ROL -->
+@if (modalAbierto()) {
+  <div class="modal-overlay" (click)="cerrarModal()">
+    <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h2>{{ editando() ? 'Editar Rol' : 'Crear Nuevo Rol' }}</h2>
+          <small style="color: var(--muted);">
+            {{ editando() ? 'Modifica el nombre, estado o descripción del rol' : 'Ingresa los datos para registrar un nuevo rol en el sistema' }}
+          </small>
+        </div>
+        <button class="btn-close" type="button" (click)="cerrarModal()" title="Cerrar">✕</button>
+      </div>
+
+      <div class="modal-body">
+        @if (error()) {
+          <p class="notice error" style="margin-top: 0; margin-bottom: 16px;">{{ error() }}</p>
+        }
+
+        <form [formGroup]="formulario" (ngSubmit)="guardarRol()" class="form-grid" novalidate>
+          <label [class.invalid]="campoConError('nombre')">
+            Nombre del Rol *
+            <input
+              formControlName="nombre"
+              placeholder="Ej: SUPERVISOR_LOGISTICA"
+              style="text-transform: uppercase;"
+              [readonly]="
+                editando()?.nombre === 'ADMINISTRADOR' ||
+                editando()?.nombre === 'ORGANIZADOR' ||
+                editando()?.nombre === 'STAFF' ||
+                editando()?.nombre === 'PARTICIPANTE'
+              "
+            />
+            @if (campoConError('nombre')) {
+              <small class="field-error">{{ mensajeCampo('nombre') }}</small>
+            }
+          </label>
+
+          <label [class.invalid]="campoConError('estado')">
+            Estado Operativo *
+            <select formControlName="estado">
+              <option value="ACTIVO">ACTIVO</option>
+              <option value="INACTIVO">INACTIVO</option>
+            </select>
+            @if (campoConError('estado')) {
+              <small class="field-error">{{ mensajeCampo('estado') }}</small>
+            }
+          </label>
+
+          <label class="full">
+            Descripción
+            <textarea formControlName="descripcion" rows="3" placeholder="Describe las responsabilidades principales de este rol..."></textarea>
+          </label>
+
+          <div class="button-row" style="margin-top: 16px;">
+            <button type="button" (click)="cerrarModal()">Cancelar</button>
+            <button class="primary" type="submit" [disabled]="guardandoRol()" style="color: #ffffff;">
+              {{ guardandoRol() ? 'Guardando...' : editando() ? 'Actualizar Rol' : 'Crear Rol' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}

@@ -1,133 +1,157 @@
 <section class="page-heading">
-  <p class="eyebrow">Administracion</p>
+  <p class="eyebrow">Gestión de Usuarios, Seguridad y Auditoría</p>
   <h1>Usuarios</h1>
-  <p>Cuentas, roles asignados y estado operativo.</p>
+  <p>Cuentas, roles asignados y estado operativo del sistema.</p>
+  <div style="margin-top: 14px;">
+    <button class="primary" type="button" (click)="abrirModalCrear()" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px; color: #ffffff;">
+      <span style="font-weight: 800; font-size: 1.15rem; line-height: 1; color: #ffffff;">+</span>
+      <span style="color: #ffffff; font-weight: 700;">Crear Nuevo Usuario</span>
+    </button>
+  </div>
 </section>
+
 @if (mensaje()) {
   <p class="notice success">{{ mensaje() }}</p>
 }
-@if (error()) {
+@if (error() && !modalAbierto()) {
   <p class="notice error">{{ error() }}</p>
 }
-<div class="admin-grid">
-  <section class="card table-card">
-    <div class="card-title compact">
-      <h2>Directorio</h2>
-      <span>{{ usuarios().length }} cuentas</span>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
+
+<section class="card table-card">
+  <div class="card-title compact" style="display: flex; justify-content: space-between; align-items: center;">
+    <h2>Directorio de Cuentas</h2>
+    <span class="role-chip">{{ usuarios().length }} usuarios</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Usuario</th>
+          <th>Correo Electrónico</th>
+          <th>Roles Asignados</th>
+          <th>Estado</th>
+          <th style="text-align: right;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (usuario of usuarios(); track usuario.id) {
           <tr>
-            <th>Usuario</th>
-            <th>Roles</th>
-            <th>Estado</th>
-            <th></th>
+            <td>
+              <strong>{{ usuario.nombres }} {{ usuario.apellidos }}</strong>
+            </td>
+            <td>
+              <span style="color: var(--muted);">{{ usuario.correo }}</span>
+            </td>
+            <td>
+              @for (rol of usuario.roles; track rol) {
+                <span class="role-chip" style="margin-right: 4px; font-size: 0.76rem;">{{ rol }}</span>
+              }
+            </td>
+            <td>
+              <span class="status" [class.off]="usuario.estado === 'INACTIVO'">
+                {{ usuario.estado }}
+              </span>
+            </td>
+            <td class="actions" style="text-align: right; display: flex; justify-content: flex-end; gap: 8px;">
+              <button type="button" (click)="editar(usuario)">Editar</button>
+              <button
+                type="button"
+                (click)="alternarEstado(usuario)"
+                [disabled]="idCambiandoEstado() === usuario.id"
+              >
+                {{
+                  idCambiandoEstado() === usuario.id
+                    ? 'Procesando...'
+                    : usuario.estado === 'ACTIVO'
+                      ? 'Inactivar'
+                      : 'Activar'
+                }}
+              </button>
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          @for (usuario of usuarios(); track usuario.id) {
-            <tr>
-              <td>
-                <strong>{{ usuario.nombres }} {{ usuario.apellidos }}</strong
-                ><small>{{ usuario.correo }}</small>
-              </td>
-              <td>{{ usuario.roles.join(', ') }}</td>
-              <td>
-                <span class="status" [class.off]="usuario.estado === 'INACTIVO'">{{
-                  usuario.estado
-                }}</span>
-              </td>
-              <td class="actions">
-                <button type="button" (click)="editar(usuario)">Editar</button
-                ><button
-                  type="button"
-                  (click)="alternarEstado(usuario)"
-                  [disabled]="idCambiandoEstado() === usuario.id"
-                >
-                  {{
-                    idCambiandoEstado() === usuario.id
-                      ? 'Procesando...'
-                      : usuario.estado === 'ACTIVO'
-                        ? 'Inactivar'
-                        : 'Activar'
-                  }}
-                </button>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-  </section>
-  <section class="card">
-    <div class="card-header">
-      <h2>{{ editando() ? 'Editar usuario' : 'Nueva cuenta' }}</h2>
-      <span>{{ editando() ? 'Edicion' : 'Alta' }}</span>
-    </div>
-    <form [formGroup]="formulario" (ngSubmit)="guardar()" class="form-grid" novalidate>
-      <label [class.invalid]="campoConError('nombres')"
-        >Nombres
-        <input formControlName="nombres" />
-        @if (campoConError('nombres')) {
-          <small class="field-error">{{ mensajeCampo('nombres') }}</small>
         }
-      </label>
-      <label [class.invalid]="campoConError('apellidos')"
-        >Apellidos
-        <input formControlName="apellidos" />
-        @if (campoConError('apellidos')) {
-          <small class="field-error">{{ mensajeCampo('apellidos') }}</small>
-        }
-      </label>
-      <label class="full" [class.invalid]="campoConError('correo')"
-        >Correo
-        <input type="email" formControlName="correo" />
-        @if (campoConError('correo')) {
-          <small class="field-error">{{ mensajeCampo('correo') }}</small>
-        }
-      </label>
-      @if (!editando()) {
-        <label class="full" [class.invalid]="campoConError('clave')"
-          >Clave inicial
-          <input type="password" formControlName="clave" autocomplete="new-password" />
-          @if (campoConError('clave')) {
-            <small class="field-error">{{ mensajeCampo('clave') }}</small>
-          }
-        </label>
-        <app-requisitos-clave
-          class="full"
-          [clave]="formulario.controls.clave.value"
-        ></app-requisitos-clave>
-      }
-      <label class="full" [class.invalid]="campoConError('roles')"
-        >Roles <input formControlName="roles" list="roles-disponibles" /><small
-          >Separa varios roles con comas.</small
-        >
-        @if (campoConError('roles')) {
-          <small class="field-error">{{ mensajeCampo('roles') }}</small>
-        }
-      </label
-      >
-      <datalist id="roles-disponibles">
-        @for (rol of roles(); track rol.id) {
-          <option [value]="rol.nombre"></option>
-        }
-      </datalist>
-      <div class="button-row">
-        <button class="primary" type="submit" [disabled]="guardando()">
-          {{
-            guardando()
-              ? 'Guardando...'
-              : editando()
-                ? 'Actualizar'
-                : 'Crear usuario'
-          }}
-        </button>
-        @if (editando()) {
-          <button type="button" (click)="cancelar()">Cancelar</button>
-        }
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- MODAL FLOTANTE: CREAR / EDITAR USUARIO -->
+@if (modalAbierto()) {
+  <div class="modal-overlay" (click)="cerrarModal()">
+    <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h2>{{ editando() ? 'Editar Usuario' : 'Crear Nuevo Usuario' }}</h2>
+          <small style="color: var(--muted);">
+            {{ editando() ? 'Modifica los datos personales y roles asignados' : 'Registra una nueva cuenta con sus roles y credenciales iniciales' }}
+          </small>
+        </div>
+        <button class="btn-close" type="button" (click)="cerrarModal()" title="Cerrar">✕</button>
       </div>
-    </form>
-  </section>
-</div>
+
+      <div class="modal-body">
+        @if (error()) {
+          <p class="notice error" style="margin-top: 0; margin-bottom: 16px;">{{ error() }}</p>
+        }
+
+        <form [formGroup]="formulario" (ngSubmit)="guardar()" class="form-grid" novalidate>
+          <label [class.invalid]="campoConError('nombres')">
+            Nombres *
+            <input formControlName="nombres" placeholder="Ej: Juan Carlos" />
+            @if (campoConError('nombres')) {
+              <small class="field-error">{{ mensajeCampo('nombres') }}</small>
+            }
+          </label>
+
+          <label [class.invalid]="campoConError('apellidos')">
+            Apellidos *
+            <input formControlName="apellidos" placeholder="Ej: Pérez Gómez" />
+            @if (campoConError('apellidos')) {
+              <small class="field-error">{{ mensajeCampo('apellidos') }}</small>
+            }
+          </label>
+
+          <label class="full" [class.invalid]="campoConError('correo')">
+            Correo Electrónico *
+            <input type="email" formControlName="correo" placeholder="ejemplo@eventos.com" />
+            @if (campoConError('correo')) {
+              <small class="field-error">{{ mensajeCampo('correo') }}</small>
+            }
+          </label>
+
+          @if (!editando()) {
+            <label class="full" [class.invalid]="campoConError('clave')">
+              Contraseña inicial *
+              <input type="password" formControlName="clave" autocomplete="new-password" placeholder="Contraseña segura" />
+              @if (campoConError('clave')) {
+                <small class="field-error">{{ mensajeCampo('clave') }}</small>
+              }
+            </label>
+            <app-requisitos-clave
+              class="full"
+              [clave]="formulario.controls.clave.value"
+            ></app-requisitos-clave>
+          }
+
+          <label class="full" [class.invalid]="campoConError('roles')">
+            Roles Asignados *
+            <input formControlName="roles" placeholder="Ej: ADMINISTRADOR, ORGANIZADOR, STAFF, PARTICIPANTE" />
+            <small style="display: block; color: var(--muted); margin-top: 4px;">
+              Separa varios roles con comas (ADMINISTRADOR, ORGANIZADOR, STAFF, PARTICIPANTE).
+            </small>
+            @if (campoConError('roles')) {
+              <small class="field-error">{{ mensajeCampo('roles') }}</small>
+            }
+          </label>
+
+          <div class="button-row" style="margin-top: 16px;">
+            <button type="button" (click)="cerrarModal()">Cancelar</button>
+            <button class="primary" type="submit" [disabled]="guardando()" style="color: #ffffff;">
+              {{ guardando() ? 'Guardando...' : editando() ? 'Actualizar Usuario' : 'Crear Usuario' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}

@@ -1,14 +1,4 @@
-.convocatoria-heading {
-  display: flex;
-  max-width: none;
-  align-items: end;
-  justify-content: space-between;
-  gap: 24px;
-}
 
-.convocatoria-heading > div {
-  max-width: 760px;
-}
 
 .filtros-convocatoria {
   display: grid;

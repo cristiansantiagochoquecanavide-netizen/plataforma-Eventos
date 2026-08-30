@@ -2,9 +2,9 @@
   <aside class="sidebar">
     <a class="brand" routerLink="/perfil">eventos<span>.</span></a>
     <nav>
+      <p class="nav-label">Gestión de Usuarios, Seguridad y Auditoría</p>
       <a routerLink="/perfil" routerLinkActive="active">Mi perfil</a>
       @if (sesion.esAdministrador()) {
-        <p class="nav-label">Administración</p>
         <a routerLink="/usuarios" routerLinkActive="active">Usuarios</a>
         <a routerLink="/roles" routerLinkActive="active">Roles y permisos</a>
       }
