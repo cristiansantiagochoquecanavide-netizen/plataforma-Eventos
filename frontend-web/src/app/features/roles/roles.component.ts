@@ -68,6 +68,7 @@ export class RolesComponent implements OnInit {
   cerrarModal() {
     this.modalAbierto.set(false);
     this.cancelar();
+    this.limpiarAvisos();
   }
 
   editar(rol: Rol) {

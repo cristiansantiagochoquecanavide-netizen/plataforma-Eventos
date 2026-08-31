@@ -18,6 +18,7 @@ export class EventosComponent implements OnInit {
   readonly usuarios = signal<Usuario[]>([]);
   readonly responsablesSeleccionados = signal<Set<number>>(new Set());
   readonly eventoSeleccionado = signal<Evento | null>(null);
+  readonly modalAbierto = signal(false);
   readonly guardando = signal(false);
   readonly error = signal('');
   readonly mensaje = signal('');
@@ -33,7 +34,9 @@ export class EventosComponent implements OnInit {
     nombre: ['', [Validators.required, Validators.maxLength(150)]],
     descripcion: ['', Validators.maxLength(500)],
     fechaInicio: ['', Validators.required],
+    horaInicio: ['09:00', Validators.required],
     fechaFin: [''],
+    horaFin: ['18:00'],
     lugarPrincipal: ['', Validators.maxLength(150)],
     estado: ['PLANIFICADO' as EstadoEvento],
   });
@@ -70,16 +73,43 @@ export class EventosComponent implements OnInit {
     });
   }
 
+  abrirModalCrear() {
+    this.nuevo();
+    this.limpiarAvisos();
+    this.intentoEnvio.set(false);
+    this.modalAbierto.set(true);
+  }
+
+  cerrarModal() {
+    this.modalAbierto.set(false);
+    this.eventoSeleccionado.set(null);
+    this.limpiarAvisos();
+    this.intentoEnvio.set(false);
+  }
+
+  editar(evento: Evento, event?: Event) {
+    if (event) {
+      event.stopPropagation();
+    }
+    this.limpiarAvisos();
+    this.seleccionar(evento);
+    this.modalAbierto.set(true);
+  }
+
   seleccionar(evento: Evento) {
     this.limpiarAvisos();
     this.intentoEnvio.set(false);
     this.eventoSeleccionado.set(evento);
     this.responsablesSeleccionados.set(new Set(evento.responsables.map((responsable) => responsable.id)));
+    const dInicio = new Date(evento.fechaInicio);
+    const dFin = evento.fechaFin ? new Date(evento.fechaFin) : null;
     this.formulario.reset({
       nombre: evento.nombre,
       descripcion: evento.descripcion ?? '',
-      fechaInicio: this.formatearFechaControl(evento.fechaInicio),
-      fechaFin: evento.fechaFin ? this.formatearFechaControl(evento.fechaFin) : '',
+      fechaInicio: this.obtenerFechaISO(dInicio),
+      horaInicio: this.obtenerHoraISO(dInicio),
+      fechaFin: dFin ? this.obtenerFechaISO(dFin) : '',
+      horaFin: dFin ? this.obtenerHoraISO(dFin) : '18:00',
       lugarPrincipal: evento.lugarPrincipal ?? '',
       estado: evento.estado,
     });
@@ -94,7 +124,9 @@ export class EventosComponent implements OnInit {
       nombre: '',
       descripcion: '',
       fechaInicio: '',
+      horaInicio: '09:00',
       fechaFin: '',
+      horaFin: '18:00',
       lugarPrincipal: '',
       estado: 'PLANIFICADO',
     });
@@ -124,8 +156,14 @@ export class EventosComponent implements OnInit {
     }
 
     const valor = this.formulario.getRawValue();
-    const fechaInicio = this.convertirFecha(valor.fechaInicio);
-    const fechaFin = valor.fechaFin ? this.convertirFecha(valor.fechaFin) : null;
+    const horaIni = valor.horaInicio ? valor.horaInicio : '00:00';
+    const fechaInicio = new Date(`${valor.fechaInicio}T${horaIni}:00`);
+    let fechaFin: Date | null = null;
+    if (valor.fechaFin) {
+      const horaF = valor.horaFin ? valor.horaFin : '23:59';
+      fechaFin = new Date(`${valor.fechaFin}T${horaF}:00`);
+    }
+
     if (fechaFin && fechaFin < fechaInicio) {
       const mensaje = 'La fecha de fin no puede ser anterior a la fecha de inicio.';
       this.error.set(mensaje);
@@ -152,12 +190,12 @@ export class EventosComponent implements OnInit {
           .pipe(switchMap(() => this.api.asignarResponsablesEvento(evento.id, responsables)))
       : this.api.crearEvento(datos);
     solicitud.subscribe({
-      next: (eventoGuardado) => {
+      next: () => {
         const mensaje = evento ? 'Evento actualizado correctamente.' : 'Evento creado correctamente.';
         this.mensaje.set(mensaje);
         this.toast.exito(mensaje);
         this.cargarEventos();
-        this.seleccionar(eventoGuardado);
+        this.cerrarModal();
       },
       error: (error) => {
         const mensaje = obtenerMensajeError(error, 'No fue posible guardar el evento');
@@ -169,12 +207,12 @@ export class EventosComponent implements OnInit {
     });
   }
 
-  campoConError(nombre: 'nombre' | 'descripcion' | 'fechaInicio' | 'lugarPrincipal') {
+  campoConError(nombre: 'nombre' | 'descripcion' | 'fechaInicio' | 'horaInicio' | 'lugarPrincipal') {
     const control = this.formulario.controls[nombre];
     return control.invalid && (control.touched || this.intentoEnvio());
   }
 
-  mensajeCampo(nombre: 'nombre' | 'descripcion' | 'fechaInicio' | 'lugarPrincipal') {
+  mensajeCampo(nombre: 'nombre' | 'descripcion' | 'fechaInicio' | 'horaInicio' | 'lugarPrincipal') {
     const control = this.formulario.controls[nombre];
     if (control.hasError('required')) return 'Este campo es obligatorio.';
     if (control.hasError('maxlength')) return 'Supera la longitud permitida.';
@@ -182,24 +220,25 @@ export class EventosComponent implements OnInit {
   }
 
   private mensajeFormularioInvalido() {
-    const orden: Array<'nombre' | 'descripcion' | 'fechaInicio' | 'lugarPrincipal'> = [
+    const orden: Array<'nombre' | 'descripcion' | 'fechaInicio' | 'horaInicio' | 'lugarPrincipal'> = [
       'nombre',
       'descripcion',
       'fechaInicio',
+      'horaInicio',
       'lugarPrincipal',
     ];
     const campo = orden.find((nombre) => this.formulario.controls[nombre].invalid);
     return campo ? this.mensajeCampo(campo) : 'Revisa los datos del evento.';
   }
 
-  private convertirFecha(valor: string) {
-    return new Date(valor);
+  private obtenerFechaISO(fecha: Date): string {
+    const desplazamiento = fecha.getTimezoneOffset() * 60000;
+    return new Date(fecha.getTime() - desplazamiento).toISOString().slice(0, 10);
   }
 
-  private formatearFechaControl(valor: string) {
-    const fecha = new Date(valor);
+  private obtenerHoraISO(fecha: Date): string {
     const desplazamiento = fecha.getTimezoneOffset() * 60000;
-    return new Date(fecha.getTime() - desplazamiento).toISOString().slice(0, 16);
+    return new Date(fecha.getTime() - desplazamiento).toISOString().slice(11, 16);
   }
 
   private limpiarAvisos() {
