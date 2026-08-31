@@ -2,18 +2,23 @@
   <aside class="sidebar">
     <a class="brand" routerLink="/perfil">eventos<span>.</span></a>
     <nav>
-      <p class="nav-label">Gestión de Usuarios, Seguridad y Auditoría</p>
+      <p class="nav-label">Gestion de Usuarios, Seguridad y Auditoria</p>
       <a routerLink="/perfil" routerLinkActive="active">Mi perfil</a>
       @if (sesion.esAdministrador()) {
         <a routerLink="/usuarios" routerLinkActive="active">Usuarios</a>
         <a routerLink="/roles" routerLinkActive="active">Roles y permisos</a>
       }
+      @if (sesion.esAdministrador() || sesion.tieneAccesoRecursos()) {
+        <p class="nav-label">Gestion de Eventos, Programacion y Recursos</p>
+      }
+      @if (sesion.esAdministrador()) {
+        <a routerLink="/eventos" routerLinkActive="active">Eventos</a>
+      }
       @if (sesion.tieneAccesoRecursos()) {
-        <p class="nav-label">Gestión de Eventos, Programación y Recursos</p>
         <a routerLink="/recursos" routerLinkActive="active">Recursos</a>
       }
       @if (sesion.tieneAccesoConvocatorias()) {
-        <p class="nav-label">Gestión de Staff y Organización</p>
+        <p class="nav-label">Gestion de Staff y Organizacion</p>
         <a routerLink="/convocatorias" routerLinkActive="active">Convocatorias</a>
       }
     </nav>

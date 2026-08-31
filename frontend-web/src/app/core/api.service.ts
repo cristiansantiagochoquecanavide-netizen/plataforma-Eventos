@@ -12,14 +12,15 @@ import {
   EstadoConvocatoria,
   EstadoRecurso,
   Evento,
+  GuardarEventoSolicitud,
   PaginaUsuarios,
   Permiso,
   Recurso,
   Rol,
   RolPermisos,
   SesionRespuesta,
-  TipoRecurso,
   TipoPersonalConvocatoria,
+  TipoRecurso,
   Usuario,
 } from './modelos';
 
@@ -64,7 +65,7 @@ export class ApiService {
     return this.http.get<Usuario>(`${this.url}/perfil`);
   }
 
-  actualizarPerfil(datos: object) {
+  actualizarPerfil(datos: Pick<Usuario, 'nombres' | 'apellidos' | 'correo'>) {
     return this.http.put<Usuario>(`${this.url}/perfil`, datos);
   }
 
@@ -117,7 +118,23 @@ export class ApiService {
     return this.http.put<RolPermisos>(`${this.url}/roles/${idRol}/permisos`, { permisos });
   }
 
-  // --- CU19: Gestión y Consulta de Recursos ---
+  listarEventos() {
+    return this.http.get<Evento[]>(`${this.url}/eventos`);
+  }
+
+  crearEvento(datos: GuardarEventoSolicitud) {
+    return this.http.post<Evento>(`${this.url}/eventos`, datos);
+  }
+
+  actualizarEvento(id: number, datos: GuardarEventoSolicitud) {
+    return this.http.put<Evento>(`${this.url}/eventos/${id}`, datos);
+  }
+
+  asignarResponsablesEvento(id: number, responsables: number[]) {
+    return this.http.put<Evento>(`${this.url}/eventos/${id}/responsables`, { responsables });
+  }
+
+  // --- CU19: Gestion y Consulta de Recursos ---
   listarRecursos(termino?: string, tipo?: TipoRecurso | '', estado?: EstadoRecurso | '') {
     let params = new HttpParams();
     if (termino && termino.trim()) {
@@ -148,11 +165,7 @@ export class ApiService {
     return this.http.patch<Recurso>(`${this.url}/recursos/${id}/estado`, { estado });
   }
 
-  // --- CU20: Asignación de Recursos a Eventos y Salas ---
-  listarEventos() {
-    return this.http.get<Evento[]>(`${this.url}/eventos`);
-  }
-
+  // --- CU20: Asignacion de Recursos a Eventos y Salas ---
   listarAsignaciones(idEvento?: number, idRecurso?: number, estado?: EstadoAsignacion | '') {
     let params = new HttpParams();
     if (idEvento) {
@@ -176,8 +189,6 @@ export class ApiService {
   }
 
   // --- CU15: Gestion de Convocatorias de Staff y Voluntarios ---
-  // Consulta con filtros, registra necesidades de personal y ejecuta las dos
-  // transiciones finales permitidas por el caso de uso: cerrar y cancelar.
   listarConvocatorias(
     idEvento?: number,
     tipoPersonal?: TipoPersonalConvocatoria | '',

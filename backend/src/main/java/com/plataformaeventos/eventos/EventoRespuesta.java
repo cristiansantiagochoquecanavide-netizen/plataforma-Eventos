@@ -1,6 +1,7 @@
 package com.plataformaeventos.eventos;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 public record EventoRespuesta(
         Long id,
@@ -9,6 +10,7 @@ public record EventoRespuesta(
         OffsetDateTime fechaInicio,
         OffsetDateTime fechaFin,
         String lugarPrincipal,
-        EstadoEvento estado
+        String estado,
+        List<ResponsableEventoRespuesta> responsables
 ) {
 }

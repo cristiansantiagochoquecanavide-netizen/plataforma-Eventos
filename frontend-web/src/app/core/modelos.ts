@@ -40,6 +40,43 @@ export interface RolPermisos {
   permisos: Permiso[];
 }
 
+export type EstadoEvento =
+  | 'BORRADOR'
+  | 'PLANIFICADO'
+  | 'PUBLICADO'
+  | 'EN_CURSO'
+  | 'FINALIZADO'
+  | 'CANCELADO';
+
+export interface ResponsableEvento {
+  id: number;
+  nombres: string;
+  apellidos: string;
+  correo: string;
+  roles: string[];
+}
+
+export interface Evento {
+  id: number;
+  nombre: string;
+  descripcion: string | null;
+  fechaInicio: string;
+  fechaFin: string | null;
+  lugarPrincipal: string | null;
+  estado: EstadoEvento;
+  responsables: ResponsableEvento[];
+}
+
+export interface GuardarEventoSolicitud {
+  nombre: string;
+  descripcion: string | null;
+  fechaInicio: string;
+  fechaFin: string | null;
+  lugarPrincipal: string | null;
+  estado: EstadoEvento;
+  responsables: number[];
+}
+
 // --- CU19: Modelos de Recursos ---
 export type TipoRecurso = 'AUDIOVISUAL' | 'MOBILIARIO' | 'EQUIPO_COMPUTO' | 'ESPACIO' | 'OTRO';
 export type EstadoRecurso = 'DISPONIBLE' | 'EN_USO' | 'MANTENIMIENTO' | 'DE_BAJA';
@@ -82,19 +119,6 @@ export interface CambiarEstadoRecursoSolicitud {
   estado: EstadoRecurso;
 }
 
-// --- CU20: Modelos de Eventos y Asignación de Recursos ---
-export type EstadoEvento = 'BORRADOR' | 'PUBLICADO' | 'EN_CURSO' | 'FINALIZADO' | 'CANCELADO';
-
-export interface Evento {
-  id: number;
-  nombre: string;
-  descripcion: string | null;
-  fechaInicio: string;
-  fechaFin: string;
-  lugarPrincipal: string | null;
-  estado: EstadoEvento;
-}
-
 export type EstadoAsignacion = 'ACTIVA' | 'DEVUELTA' | 'CANCELADA';
 
 export interface AsignacionRecurso {
@@ -122,8 +146,6 @@ export interface CrearAsignacionSolicitud {
 }
 
 // --- CU15: Gestion de Convocatorias de Staff y Voluntarios ---
-// Modela el registro asociado a un evento, su necesidad de personal, fecha limite
-// y ciclo de vida. Una convocatoria nace ABIERTA y puede finalizar CERRADA o CANCELADA.
 export type TipoPersonalConvocatoria = 'STAFF' | 'VOLUNTARIO';
 export type EstadoConvocatoria = 'ABIERTA' | 'CERRADA' | 'CANCELADA';
 

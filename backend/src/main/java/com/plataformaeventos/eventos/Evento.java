@@ -1,17 +1,24 @@
 package com.plataformaeventos.eventos;
 
+import com.plataformaeventos.usuarios.Usuario;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 import java.time.OffsetDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "evento")
@@ -31,7 +38,7 @@ public class Evento {
     @Column(name = "fecha_inicio", nullable = false)
     private OffsetDateTime fechaInicio;
 
-    @Column(name = "fecha_fin", nullable = false)
+    @Column(name = "fecha_fin")
     private OffsetDateTime fechaFin;
 
     @Column(name = "lugar_principal", length = 150)
@@ -47,7 +54,15 @@ public class Evento {
     @Column(name = "fecha_actualizacion", nullable = false)
     private OffsetDateTime fechaActualizacion;
 
-    public Evento() {
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "evento_responsable",
+            joinColumns = @JoinColumn(name = "id_evento"),
+            inverseJoinColumns = @JoinColumn(name = "id_usuario")
+    )
+    private Set<Usuario> responsables = new HashSet<>();
+
+    protected Evento() {
     }
 
     public Evento(
@@ -74,7 +89,7 @@ public class Evento {
         }
         fechaActualizacion = ahora;
         if (estado == null) {
-            estado = EstadoEvento.PUBLICADO;
+            estado = EstadoEvento.PLANIFICADO;
         }
     }
 
@@ -91,55 +106,47 @@ public class Evento {
         return nombre;
     }
 
-    public void setNombre(String nombre) {
-        this.nombre = nombre;
-    }
-
     public String getDescripcion() {
         return descripcion;
-    }
-
-    public void setDescripcion(String descripcion) {
-        this.descripcion = descripcion;
     }
 
     public OffsetDateTime getFechaInicio() {
         return fechaInicio;
     }
 
-    public void setFechaInicio(OffsetDateTime fechaInicio) {
-        this.fechaInicio = fechaInicio;
-    }
-
     public OffsetDateTime getFechaFin() {
         return fechaFin;
-    }
-
-    public void setFechaFin(OffsetDateTime fechaFin) {
-        this.fechaFin = fechaFin;
     }
 
     public String getLugarPrincipal() {
         return lugarPrincipal;
     }
 
-    public void setLugarPrincipal(String lugarPrincipal) {
-        this.lugarPrincipal = lugarPrincipal;
-    }
-
     public EstadoEvento getEstado() {
         return estado;
     }
 
-    public void setEstado(EstadoEvento estado) {
+    public Set<Usuario> getResponsables() {
+        return responsables;
+    }
+
+    public void actualizarDatos(
+            String nombre,
+            String descripcion,
+            OffsetDateTime fechaInicio,
+            OffsetDateTime fechaFin,
+            String lugarPrincipal,
+            EstadoEvento estado
+    ) {
+        this.nombre = nombre;
+        this.descripcion = descripcion;
+        this.fechaInicio = fechaInicio;
+        this.fechaFin = fechaFin;
+        this.lugarPrincipal = lugarPrincipal;
         this.estado = estado;
     }
 
-    public OffsetDateTime getFechaCreacion() {
-        return fechaCreacion;
-    }
-
-    public OffsetDateTime getFechaActualizacion() {
-        return fechaActualizacion;
+    public void asignarResponsables(Set<Usuario> responsables) {
+        this.responsables = new HashSet<>(responsables);
     }
 }

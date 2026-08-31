@@ -1,0 +1,145 @@
+<section class="page-heading">
+  <p class="eyebrow">Operacion</p>
+  <h1>Eventos</h1>
+  <p>Planificacion, sedes y responsables asignados para cada evento.</p>
+</section>
+@if (mensaje()) {
+  <p class="notice success">{{ mensaje() }}</p>
+}
+@if (error()) {
+  <p class="notice error">{{ error() }}</p>
+}
+<div class="eventos-layout">
+  <section class="card table-card">
+    <div class="card-title compact">
+      <h2>Agenda</h2>
+      <span>{{ eventos().length }} eventos</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Evento</th>
+            <th>Fechas</th>
+            <th>Lugar</th>
+            <th>Responsables</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (evento of eventos(); track evento.id) {
+            <tr
+              class="selectable-row"
+              [class.selected]="eventoSeleccionado()?.id === evento.id"
+              (click)="seleccionar(evento)"
+            >
+              <td>
+                <strong>{{ evento.nombre }}</strong>
+                <small>{{ evento.descripcion || 'Sin descripcion' }}</small>
+              </td>
+              <td>
+                {{ evento.fechaInicio | date: 'dd/MM/yyyy HH:mm' }}
+                @if (evento.fechaFin) {
+                  <small>{{ evento.fechaFin | date: 'dd/MM/yyyy HH:mm' }}</small>
+                }
+              </td>
+              <td>{{ evento.lugarPrincipal || 'Sin lugar' }}</td>
+              <td>
+                @for (responsable of evento.responsables; track responsable.id) {
+                  <span class="inline-chip">{{ responsable.nombres }} {{ responsable.apellidos }}</span>
+                } @empty {
+                  <small>Sin responsables</small>
+                }
+              </td>
+              <td><span class="status">{{ evento.estado }}</span></td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5"><small>No hay eventos registrados.</small></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <h2>{{ eventoSeleccionado() ? 'Editar evento' : 'Nuevo evento' }}</h2>
+      <button type="button" (click)="nuevo()">Nuevo</button>
+    </div>
+    <form [formGroup]="formulario" (ngSubmit)="guardar()" class="form-grid" novalidate>
+      <label class="full" [class.invalid]="campoConError('nombre')"
+        >Nombre
+        <input formControlName="nombre" />
+        @if (campoConError('nombre')) {
+          <small class="field-error">{{ mensajeCampo('nombre') }}</small>
+        }
+      </label>
+      <label class="full" [class.invalid]="campoConError('descripcion')"
+        >Descripcion
+        <textarea formControlName="descripcion" rows="3"></textarea>
+        @if (campoConError('descripcion')) {
+          <small class="field-error">{{ mensajeCampo('descripcion') }}</small>
+        }
+      </label>
+      <label [class.invalid]="campoConError('fechaInicio')"
+        >Inicio
+        <input type="datetime-local" formControlName="fechaInicio" />
+        @if (campoConError('fechaInicio')) {
+          <small class="field-error">{{ mensajeCampo('fechaInicio') }}</small>
+        }
+      </label>
+      <label
+        >Fin
+        <input type="datetime-local" formControlName="fechaFin" />
+      </label>
+      <label class="full" [class.invalid]="campoConError('lugarPrincipal')"
+        >Lugar principal
+        <input formControlName="lugarPrincipal" />
+        @if (campoConError('lugarPrincipal')) {
+          <small class="field-error">{{ mensajeCampo('lugarPrincipal') }}</small>
+        }
+      </label>
+      <label class="full"
+        >Estado
+        <select formControlName="estado">
+          <option value="BORRADOR">BORRADOR</option>
+          <option value="PLANIFICADO">PLANIFICADO</option>
+          <option value="PUBLICADO">PUBLICADO</option>
+          <option value="EN_CURSO">EN_CURSO</option>
+          <option value="FINALIZADO">FINALIZADO</option>
+          <option value="CANCELADO">CANCELADO</option>
+        </select>
+      </label>
+      <div class="full">
+        <div class="card-title inline-title">
+          <h2>Responsables</h2>
+          <span>{{ responsablesSeleccionados().size }} asignados</span>
+        </div>
+        <div class="responsable-list">
+          @for (usuario of responsablesDisponibles(); track usuario.id) {
+            <label class="permission-option">
+              <input
+                type="checkbox"
+                [checked]="responsablesSeleccionados().has(usuario.id)"
+                (change)="alternarResponsable(usuario.id, $any($event.target).checked)"
+              />
+              <span
+                ><strong>{{ usuario.nombres }} {{ usuario.apellidos }}</strong
+                ><small>{{ usuario.correo }} - {{ usuario.roles.join(', ') }}</small></span
+              >
+            </label>
+          } @empty {
+            <p class="empty-inline">No hay usuarios activos con rol ORGANIZADOR o STAFF.</p>
+          }
+        </div>
+      </div>
+      <div class="button-row full">
+        <button class="primary" type="submit" [disabled]="guardando()">
+          {{ guardando() ? 'Guardando...' : eventoSeleccionado() ? 'Actualizar' : 'Crear evento' }}
+        </button>
+      </div>
+    </form>
+  </section>
+</div>
