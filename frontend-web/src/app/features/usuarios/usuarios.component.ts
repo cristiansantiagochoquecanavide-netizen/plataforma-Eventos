@@ -68,6 +68,7 @@ export class UsuariosComponent implements OnInit {
   cerrarModal() {
     this.modalAbierto.set(false);
     this.cancelar();
+    this.limpiarAvisos();
   }
 
   editar(usuario: Usuario) {
