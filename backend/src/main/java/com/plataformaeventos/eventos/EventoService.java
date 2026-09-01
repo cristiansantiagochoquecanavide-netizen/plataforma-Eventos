@@ -1,5 +1,8 @@
 package com.plataformaeventos.eventos;
 
+import com.plataformaeventos.categorias.Categoria;
+import com.plataformaeventos.categorias.CategoriaRepository;
+import com.plataformaeventos.categorias.CategoriaRespuesta;
 import com.plataformaeventos.excepciones.ExcepcionNoEncontrado;
 import com.plataformaeventos.roles.Rol;
 import com.plataformaeventos.usuarios.EstadoUsuario;
@@ -20,10 +23,16 @@ public class EventoService {
     private static final Set<String> ROLES_RESPONSABLES = Set.of("ORGANIZADOR", "STAFF");
 
     private final EventoRepository eventoRepository;
+    private final CategoriaRepository categoriaRepository;
     private final UsuarioRepository usuarioRepository;
 
-    public EventoService(EventoRepository eventoRepository, UsuarioRepository usuarioRepository) {
+    public EventoService(
+            EventoRepository eventoRepository,
+            CategoriaRepository categoriaRepository,
+            UsuarioRepository usuarioRepository
+    ) {
         this.eventoRepository = eventoRepository;
+        this.categoriaRepository = categoriaRepository;
         this.usuarioRepository = usuarioRepository;
     }
 
@@ -43,13 +52,15 @@ public class EventoService {
     @Transactional
     public EventoRespuesta crearEvento(GuardarEventoSolicitud solicitud) {
         validarFechas(solicitud.fechaInicio(), solicitud.fechaFin());
+        Categoria categoria = buscarCategoria(solicitud.idCategoria());
         Evento evento = new Evento(
                 solicitud.nombre().trim(),
                 normalizarTexto(solicitud.descripcion()),
                 solicitud.fechaInicio(),
                 solicitud.fechaFin(),
                 normalizarTexto(solicitud.lugarPrincipal()),
-                solicitud.estado() == null ? EstadoEvento.PLANIFICADO : solicitud.estado()
+                solicitud.estado() == null ? EstadoEvento.PLANIFICADO : solicitud.estado(),
+                categoria
         );
         evento.asignarResponsables(obtenerResponsablesValidos(solicitud.responsables()));
         return convertirEvento(eventoRepository.save(evento));
@@ -59,13 +70,15 @@ public class EventoService {
     public EventoRespuesta actualizarEvento(Long idEvento, GuardarEventoSolicitud solicitud) {
         validarFechas(solicitud.fechaInicio(), solicitud.fechaFin());
         Evento evento = buscarEvento(idEvento);
+        Categoria categoria = buscarCategoria(solicitud.idCategoria());
         evento.actualizarDatos(
                 solicitud.nombre().trim(),
                 normalizarTexto(solicitud.descripcion()),
                 solicitud.fechaInicio(),
                 solicitud.fechaFin(),
                 normalizarTexto(solicitud.lugarPrincipal()),
-                solicitud.estado() == null ? evento.getEstado() : solicitud.estado()
+                solicitud.estado() == null ? evento.getEstado() : solicitud.estado(),
+                categoria
         );
         evento.asignarResponsables(obtenerResponsablesValidos(solicitud.responsables()));
         return convertirEvento(evento);
@@ -81,6 +94,14 @@ public class EventoService {
     private Evento buscarEvento(Long idEvento) {
         return eventoRepository.findById(idEvento)
                 .orElseThrow(() -> new ExcepcionNoEncontrado("Evento no encontrado"));
+    }
+
+    private Categoria buscarCategoria(Long idCategoria) {
+        if (idCategoria == null) {
+            throw new IllegalArgumentException("La categoria del evento es obligatoria");
+        }
+        return categoriaRepository.findById(idCategoria)
+                .orElseThrow(() -> new ExcepcionNoEncontrado("Categoria no encontrada"));
     }
 
     private Set<Usuario> obtenerResponsablesValidos(Set<Long> idsResponsables) {
@@ -123,11 +144,25 @@ public class EventoService {
                 evento.getFechaInicio(),
                 evento.getFechaFin(),
                 evento.getLugarPrincipal(),
+                convertirCategoria(evento.getCategoria()),
                 evento.getEstado().name(),
                 evento.getResponsables().stream()
                         .sorted(Comparator.comparing(Usuario::getApellidos).thenComparing(Usuario::getNombres))
                         .map(this::convertirResponsable)
                         .toList()
+        );
+    }
+
+    private CategoriaRespuesta convertirCategoria(Categoria categoria) {
+        if (categoria == null) {
+            return null;
+        }
+        return new CategoriaRespuesta(
+                categoria.getId(),
+                categoria.getNombre(),
+                categoria.getDescripcion(),
+                categoria.getFechaCreacion(),
+                categoria.getFechaActualizacion()
         );
     }
 

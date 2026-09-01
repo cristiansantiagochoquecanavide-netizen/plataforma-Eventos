@@ -48,6 +48,19 @@ export type EstadoEvento =
   | 'FINALIZADO'
   | 'CANCELADO';
 
+export interface Categoria {
+  id: number;
+  nombre: string;
+  descripcion: string | null;
+  fechaCreacion?: string;
+  fechaActualizacion?: string;
+}
+
+export interface GuardarCategoriaSolicitud {
+  nombre: string;
+  descripcion: string | null;
+}
+
 export interface ResponsableEvento {
   id: number;
   nombres: string;
@@ -63,6 +76,7 @@ export interface Evento {
   fechaInicio: string;
   fechaFin: string | null;
   lugarPrincipal: string | null;
+  categoria: Categoria | null;
   estado: EstadoEvento;
   responsables: ResponsableEvento[];
 }
@@ -73,6 +87,7 @@ export interface GuardarEventoSolicitud {
   fechaInicio: string;
   fechaFin: string | null;
   lugarPrincipal: string | null;
+  idCategoria: number;
   estado: EstadoEvento;
   responsables: number[];
 }

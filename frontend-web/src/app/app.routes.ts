@@ -8,6 +8,7 @@ import {
 import { InicioSesionComponent } from './features/auth/inicio-sesion.component';
 import { RecuperarClaveComponent } from './features/auth/recuperar-clave.component';
 import { RestablecerClaveComponent } from './features/auth/restablecer-clave.component';
+import { CategoriasComponent } from './features/categorias/categorias.component';
 import { ConvocatoriasComponent } from './features/convocatorias/convocatorias.component';
 import { EventosComponent } from './features/eventos/eventos.component';
 import { PanelComponent } from './features/panel/panel.component';
@@ -27,6 +28,7 @@ export const routes: Routes = [
     children: [
       { path: 'perfil', component: PerfilComponent },
       { path: 'eventos', component: EventosComponent, canActivate: [administradorGuard] },
+      { path: 'categorias', component: CategoriasComponent, canActivate: [administradorGuard] },
       { path: 'usuarios', component: UsuariosComponent, canActivate: [administradorGuard] },
       { path: 'roles', component: RolesComponent, canActivate: [administradorGuard] },
       { path: 'recursos', component: RecursosComponent, canActivate: [recursosGuard] },

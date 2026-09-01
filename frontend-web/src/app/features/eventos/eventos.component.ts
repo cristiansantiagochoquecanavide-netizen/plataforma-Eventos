@@ -4,7 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { switchMap } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { obtenerMensajeError } from '../../core/mensajes-error';
-import { EstadoEvento, Evento, GuardarEventoSolicitud, Usuario } from '../../core/modelos';
+import { Categoria, EstadoEvento, Evento, GuardarEventoSolicitud, Usuario } from '../../core/modelos';
 import { ToastService } from '../../core/toast.service';
 
 @Component({
@@ -15,6 +15,7 @@ import { ToastService } from '../../core/toast.service';
 })
 export class EventosComponent implements OnInit {
   readonly eventos = signal<Evento[]>([]);
+  readonly categorias = signal<Categoria[]>([]);
   readonly usuarios = signal<Usuario[]>([]);
   readonly responsablesSeleccionados = signal<Set<number>>(new Set());
   readonly eventoSeleccionado = signal<Evento | null>(null);
@@ -38,6 +39,7 @@ export class EventosComponent implements OnInit {
     fechaFin: [''],
     horaFin: ['18:00'],
     lugarPrincipal: ['', Validators.maxLength(150)],
+    idCategoria: [0, [Validators.required, Validators.min(1)]],
     estado: ['PLANIFICADO' as EstadoEvento],
   });
 
@@ -48,6 +50,7 @@ export class EventosComponent implements OnInit {
 
   ngOnInit() {
     this.cargarEventos();
+    this.cargarCategorias();
     this.cargarUsuarios();
   }
 
@@ -67,6 +70,17 @@ export class EventosComponent implements OnInit {
       next: (pagina) => this.usuarios.set(pagina.elementos),
       error: (error) => {
         const mensaje = obtenerMensajeError(error, 'No fue posible cargar responsables');
+        this.error.set(mensaje);
+        this.toast.error(mensaje);
+      },
+    });
+  }
+
+  cargarCategorias() {
+    this.api.listarCategorias().subscribe({
+      next: (categorias) => this.categorias.set(categorias),
+      error: (error) => {
+        const mensaje = obtenerMensajeError(error, 'No fue posible cargar categorias');
         this.error.set(mensaje);
         this.toast.error(mensaje);
       },
@@ -111,6 +125,7 @@ export class EventosComponent implements OnInit {
       fechaFin: dFin ? this.obtenerFechaISO(dFin) : '',
       horaFin: dFin ? this.obtenerHoraISO(dFin) : '18:00',
       lugarPrincipal: evento.lugarPrincipal ?? '',
+      idCategoria: evento.categoria?.id ?? 0,
       estado: evento.estado,
     });
   }
@@ -128,6 +143,7 @@ export class EventosComponent implements OnInit {
       fechaFin: '',
       horaFin: '18:00',
       lugarPrincipal: '',
+      idCategoria: 0,
       estado: 'PLANIFICADO',
     });
   }
@@ -181,6 +197,7 @@ export class EventosComponent implements OnInit {
       fechaInicio: fechaInicio.toISOString(),
       fechaFin: fechaFin?.toISOString() ?? null,
       lugarPrincipal: valor.lugarPrincipal.trim() || null,
+      idCategoria: valor.idCategoria,
       estado: valor.estado,
       responsables,
     };
@@ -207,25 +224,33 @@ export class EventosComponent implements OnInit {
     });
   }
 
-  campoConError(nombre: 'nombre' | 'descripcion' | 'fechaInicio' | 'horaInicio' | 'lugarPrincipal') {
+  campoConError(
+    nombre: 'nombre' | 'descripcion' | 'fechaInicio' | 'horaInicio' | 'lugarPrincipal' | 'idCategoria',
+  ) {
     const control = this.formulario.controls[nombre];
     return control.invalid && (control.touched || this.intentoEnvio());
   }
 
-  mensajeCampo(nombre: 'nombre' | 'descripcion' | 'fechaInicio' | 'horaInicio' | 'lugarPrincipal') {
+  mensajeCampo(
+    nombre: 'nombre' | 'descripcion' | 'fechaInicio' | 'horaInicio' | 'lugarPrincipal' | 'idCategoria',
+  ) {
     const control = this.formulario.controls[nombre];
     if (control.hasError('required')) return 'Este campo es obligatorio.';
+    if (control.hasError('min')) return 'Selecciona una categoria.';
     if (control.hasError('maxlength')) return 'Supera la longitud permitida.';
     return '';
   }
 
   private mensajeFormularioInvalido() {
-    const orden: Array<'nombre' | 'descripcion' | 'fechaInicio' | 'horaInicio' | 'lugarPrincipal'> = [
+    const orden: Array<
+      'nombre' | 'descripcion' | 'fechaInicio' | 'horaInicio' | 'lugarPrincipal' | 'idCategoria'
+    > = [
       'nombre',
       'descripcion',
       'fechaInicio',
       'horaInicio',
       'lugarPrincipal',
+      'idCategoria',
     ];
     const campo = orden.find((nombre) => this.formulario.controls[nombre].invalid);
     return campo ? this.mensajeCampo(campo) : 'Revisa los datos del evento.';

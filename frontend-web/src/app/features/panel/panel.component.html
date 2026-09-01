@@ -13,6 +13,7 @@
       }
       @if (sesion.esAdministrador()) {
         <a routerLink="/eventos" routerLinkActive="active">Eventos</a>
+        <a routerLink="/categorias" routerLinkActive="active">Categorias</a>
       }
       @if (sesion.tieneAccesoRecursos()) {
         <a routerLink="/recursos" routerLinkActive="active">Recursos</a>

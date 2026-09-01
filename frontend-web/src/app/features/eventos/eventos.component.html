@@ -29,6 +29,7 @@
           <th>Evento</th>
           <th>Fechas</th>
           <th>Lugar Principal</th>
+          <th>Categoria</th>
           <th>Responsables</th>
           <th>Estado</th>
           <th style="text-align: right;">Acciones</th>
@@ -49,6 +50,13 @@
             </td>
             <td>{{ evento.lugarPrincipal || 'Sin lugar asignado' }}</td>
             <td>
+              @if (evento.categoria) {
+                <span class="inline-chip">{{ evento.categoria.nombre }}</span>
+              } @else {
+                <small style="color: var(--muted);">Sin categoria</small>
+              }
+            </td>
+            <td>
               @for (responsable of evento.responsables; track responsable.id) {
                 <span class="inline-chip" style="margin-right: 4px;">{{ responsable.nombres }} {{ responsable.apellidos }}</span>
               } @empty {
@@ -66,7 +74,7 @@
           </tr>
         } @empty {
           <tr>
-            <td colspan="6" style="text-align: center; padding: 32px;"><small>No hay eventos registrados.</small></td>
+            <td colspan="7" style="text-align: center; padding: 32px;"><small>No hay eventos registrados.</small></td>
           </tr>
         }
       </tbody>
@@ -107,6 +115,19 @@
             <textarea formControlName="descripcion" rows="3" placeholder="Detalla los objetivos, público y características del evento..."></textarea>
             @if (campoConError('descripcion')) {
               <small class="field-error">{{ mensajeCampo('descripcion') }}</small>
+            }
+          </label>
+
+          <label class="full" [class.invalid]="campoConError('idCategoria')">
+            Categoria *
+            <select formControlName="idCategoria">
+              <option [ngValue]="0">Selecciona una categoria</option>
+              @for (categoria of categorias(); track categoria.id) {
+                <option [ngValue]="categoria.id">{{ categoria.nombre }}</option>
+              }
+            </select>
+            @if (campoConError('idCategoria')) {
+              <small class="field-error">{{ mensajeCampo('idCategoria') }}</small>
             }
           </label>
 

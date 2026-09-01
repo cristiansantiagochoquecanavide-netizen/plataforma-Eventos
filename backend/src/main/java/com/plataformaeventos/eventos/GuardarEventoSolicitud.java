@@ -24,6 +24,9 @@ public record GuardarEventoSolicitud(
         @Size(max = 150, message = "El lugar principal no debe superar 150 caracteres")
         String lugarPrincipal,
 
+        @NotNull(message = "La categoria del evento es obligatoria")
+        Long idCategoria,
+
         EstadoEvento estado,
 
         @NotEmpty(message = "Debe asignarse al menos un responsable")

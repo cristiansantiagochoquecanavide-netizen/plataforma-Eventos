@@ -1,5 +1,6 @@
 package com.plataformaeventos.eventos;
 
+import com.plataformaeventos.categorias.Categoria;
 import com.plataformaeventos.usuarios.Usuario;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,6 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -44,6 +46,10 @@ public class Evento {
     @Column(name = "lugar_principal", length = 150)
     private String lugarPrincipal;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "id_categoria", nullable = false)
+    private Categoria categoria;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private EstadoEvento estado;
@@ -71,7 +77,8 @@ public class Evento {
             OffsetDateTime fechaInicio,
             OffsetDateTime fechaFin,
             String lugarPrincipal,
-            EstadoEvento estado
+            EstadoEvento estado,
+            Categoria categoria
     ) {
         this.nombre = nombre;
         this.descripcion = descripcion;
@@ -79,6 +86,7 @@ public class Evento {
         this.fechaFin = fechaFin;
         this.lugarPrincipal = lugarPrincipal;
         this.estado = estado;
+        this.categoria = categoria;
     }
 
     @PrePersist
@@ -122,6 +130,10 @@ public class Evento {
         return lugarPrincipal;
     }
 
+    public Categoria getCategoria() {
+        return categoria;
+    }
+
     public EstadoEvento getEstado() {
         return estado;
     }
@@ -136,7 +148,8 @@ public class Evento {
             OffsetDateTime fechaInicio,
             OffsetDateTime fechaFin,
             String lugarPrincipal,
-            EstadoEvento estado
+            EstadoEvento estado,
+            Categoria categoria
     ) {
         this.nombre = nombre;
         this.descripcion = descripcion;
@@ -144,6 +157,7 @@ public class Evento {
         this.fechaFin = fechaFin;
         this.lugarPrincipal = lugarPrincipal;
         this.estado = estado;
+        this.categoria = categoria;
     }
 
     public void asignarResponsables(Set<Usuario> responsables) {

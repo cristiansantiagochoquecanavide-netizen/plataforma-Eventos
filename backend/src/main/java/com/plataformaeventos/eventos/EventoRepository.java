@@ -8,12 +8,14 @@ import java.util.Optional;
 
 public interface EventoRepository extends JpaRepository<Evento, Long> {
 
-    @EntityGraph(attributePaths = {"responsables", "responsables.roles"})
+    @EntityGraph(attributePaths = {"categoria", "responsables", "responsables.roles"})
     List<Evento> findByEstadoNotOrderByFechaInicioAsc(EstadoEvento estado);
 
-    @EntityGraph(attributePaths = {"responsables", "responsables.roles"})
+    @EntityGraph(attributePaths = {"categoria", "responsables", "responsables.roles"})
     List<Evento> findAllByOrderByFechaInicioAsc();
 
-    @EntityGraph(attributePaths = {"responsables", "responsables.roles"})
+    @EntityGraph(attributePaths = {"categoria", "responsables", "responsables.roles"})
     Optional<Evento> findById(Long id);
+
+    boolean existsByCategoriaId(Long idCategoria);
 }

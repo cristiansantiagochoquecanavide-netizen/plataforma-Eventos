@@ -4,6 +4,7 @@ import { environment } from '../../environments/environment';
 import {
   ActualizarRecursoSolicitud,
   AsignacionRecurso,
+  Categoria,
   Convocatoria,
   CrearAsignacionSolicitud,
   CrearConvocatoriaSolicitud,
@@ -12,6 +13,7 @@ import {
   EstadoConvocatoria,
   EstadoRecurso,
   Evento,
+  GuardarCategoriaSolicitud,
   GuardarEventoSolicitud,
   PaginaUsuarios,
   Permiso,
@@ -132,6 +134,26 @@ export class ApiService {
 
   asignarResponsablesEvento(id: number, responsables: number[]) {
     return this.http.put<Evento>(`${this.url}/eventos/${id}/responsables`, { responsables });
+  }
+
+  listarCategorias() {
+    return this.http.get<Categoria[]>(`${this.url}/categorias`);
+  }
+
+  obtenerCategoria(id: number) {
+    return this.http.get<Categoria>(`${this.url}/categorias/${id}`);
+  }
+
+  crearCategoria(datos: GuardarCategoriaSolicitud) {
+    return this.http.post<Categoria>(`${this.url}/categorias`, datos);
+  }
+
+  actualizarCategoria(id: number, datos: GuardarCategoriaSolicitud) {
+    return this.http.put<Categoria>(`${this.url}/categorias/${id}`, datos);
+  }
+
+  eliminarCategoria(id: number) {
+    return this.http.delete<void>(`${this.url}/categorias/${id}`);
   }
 
   // --- CU19: Gestion y Consulta de Recursos ---
