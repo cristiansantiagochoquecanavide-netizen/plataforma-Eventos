@@ -143,7 +143,7 @@ class _SessionGateState extends State<SessionGate> {
             }
             return widget.session.user == null
                 ? LoginPage(session: widget.session)
-                : ProfilePage(session: widget.session);
+                : EventsPage(session: widget.session);
           },
         );
       },
@@ -755,6 +755,169 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
+// Pantalla del CU7: consulta eventos, busca por nombre, filtra por categoria y abre el detalle.
+class EventsPage extends StatefulWidget {
+  const EventsPage({required this.session, super.key});
+
+  final SessionController session;
+
+  @override
+  State<EventsPage> createState() => _EventsPageState();
+}
+
+class _EventsPageState extends State<EventsPage> {
+  final _search = TextEditingController();
+  List<EventModel> _events = [];
+  List<String> _categories = [];
+  String _category = '';
+  bool _loading = true;
+  bool _searched = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loading = false;
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadEvents() async {
+    setState(() => _searched = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final events = await widget.session.listEvents(_search.text, _category);
+      if (!mounted) return;
+      setState(() {
+        _events = events;
+        _categories = events.map((event) => event.category).toSet().toList()..sort();
+        _loading = false;
+      });
+    } on ApiException catch (error) {
+      if (mounted) setState(() { _error = error.message; _events = []; _loading = false; });
+    }
+  }
+
+  void _clearFilters() {
+    _search.clear();
+    setState(() {
+      _category = '';
+      _events = [];
+      _searched = false;
+    });
+  }
+
+  void _showDetail(EventModel event) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.fromLTRB(22, 4, 22, 30),
+        child: Wrap(
+          runSpacing: 12,
+          children: [
+            Text(event.name, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+            Chip(label: Text(event.category)),
+            Text(event.description.isEmpty ? 'Sin descripcion' : event.description),
+            ListTile(leading: const Icon(Icons.calendar_today_rounded), title: Text(_formatDate(event.start)), subtitle: const Text('Fecha de inicio')),
+            if (event.end != null) ListTile(leading: const Icon(Icons.event_available_rounded), title: Text(_formatDate(event.end!)), subtitle: const Text('Fecha de finalizacion')),
+            ListTile(leading: const Icon(Icons.place_outlined), title: Text(event.place.isEmpty ? 'Sin lugar asignado' : event.place), subtitle: const Text('Lugar')),
+            Text('Estado: ${event.status}', style: const TextStyle(fontWeight: FontWeight.w700)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) => '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Eventos disponibles'),
+        actions: [
+          IconButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProfilePage(session: widget.session))), icon: const Icon(Icons.person_outline_rounded), tooltip: 'Mi perfil'),
+          IconButton(onPressed: () => widget.session.logout(), icon: const Icon(Icons.logout_rounded), tooltip: 'Cerrar sesion'),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadEvents,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
+          children: [
+            const Text('Consulta y busqueda de eventos', style: TextStyle(color: AppColors.muted)),
+            const SizedBox(height: 16),
+            TextField(controller: _search, onSubmitted: (_) => _loadEvents(), decoration: InputDecoration(labelText: 'Buscar por titulo o nombre', prefixIcon: const Icon(Icons.search_rounded), suffixIcon: IconButton(onPressed: _loadEvents, icon: const Icon(Icons.arrow_forward_rounded)))),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(value: _category.isEmpty ? null : _category, decoration: const InputDecoration(labelText: 'Filtrar por categoria', prefixIcon: Icon(Icons.category_outlined)), items: [const DropdownMenuItem(value: '', child: Text('Todas las categorias')), ..._categories.map((category) => DropdownMenuItem(value: category, child: Text(category)))], onChanged: (value) { setState(() => _category = value ?? ''); _loadEvents(); }),
+            Align(alignment: Alignment.centerRight, child: TextButton(onPressed: _clearFilters, child: const Text('Limpiar filtros'))),
+            if (_error != null) Text(_error!, style: const TextStyle(color: AppColors.danger)),
+            if (_loading) const Padding(padding: EdgeInsets.all(30), child: Center(child: CircularProgressIndicator())),
+            if (!_loading && _searched && _events.isEmpty) const Padding(padding: EdgeInsets.all(30), child: Center(child: Text('No se encontraron eventos con los criterios seleccionados.', textAlign: TextAlign.center))),
+..._events.map(
+  (event) => Card(
+    margin: const EdgeInsets.only(bottom: 12),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: () => _showDetail(event),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    event.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 17,
+                    ),
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                Chip(label: Text(event.category)),
+                Text(
+                  _formatDate(event.start),
+                  style: const TextStyle(color: AppColors.muted),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              event.place.isEmpty
+                  ? 'Sin lugar asignado'
+                  : event.place,
+              style: const TextStyle(color: AppColors.muted),
+            ),
+          ],
+        ),
+      ),
+    ),
+  ),
+),          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ProfilePageState extends State<ProfilePage> {
   late final TextEditingController _names;
   late final TextEditingController _lastNames;
@@ -1167,6 +1330,9 @@ class SessionController extends ChangeNotifier {
   Future<void> changePassword(String current, String next) =>
       _authorized((tokens) => _api.changePassword(tokens, current, next));
 
+  Future<List<EventModel>> listEvents(String term, String category) =>
+      _authorized((tokens) => _api.listEvents(tokens, term, category));
+
   Future<T> _authorized<T>(Future<T> Function(SessionTokens) action) async {
     if (_tokens == null) {
       throw const ApiException('La sesion ya no esta disponible');
@@ -1286,6 +1452,22 @@ class ApiClient {
     );
   }
 
+  Future<List<EventModel>> listEvents(
+    SessionTokens tokens,
+    String term,
+    String category,
+  ) async {
+    final query = <String, String>{};
+    if (term.trim().isNotEmpty) query['termino'] = term.trim();
+    if (category.isNotEmpty) query['categoria'] = category;
+    final uri = Uri.parse('$baseUrl/eventos').replace(queryParameters: query);
+    final response = await http.get(uri, headers: _headers(tokens));
+    final data = _data(response);
+    return (data as List<dynamic>)
+        .map((item) => EventModel.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<http.Response> _get(String path, SessionTokens tokens) =>
       http.get(Uri.parse('$baseUrl$path'), headers: _headers(tokens));
   Future<http.Response> _send(
@@ -1315,10 +1497,8 @@ class ApiClient {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer ${tokens.accessToken}',
   };
-  Map<String, dynamic> _data(http.Response response) {
-    final data = response.body.isEmpty
-        ? <String, dynamic>{}
-        : jsonDecode(response.body) as Map<String, dynamic>;
+  dynamic _data(http.Response response) {
+    final data = response.body.isEmpty ? <String, dynamic>{} : jsonDecode(response.body);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ApiException(
         data['message'] as String? ?? 'La solicitud no pudo completarse',
@@ -1327,6 +1507,30 @@ class ApiClient {
     }
     return data;
   }
+}
+
+class EventModel {
+  const EventModel({required this.id, required this.name, required this.description, required this.category, required this.start, required this.end, required this.place, required this.status});
+
+  final int id;
+  final String name;
+  final String description;
+  final String category;
+  final DateTime start;
+  final DateTime? end;
+  final String place;
+  final String status;
+
+  factory EventModel.fromJson(Map<String, dynamic> json) => EventModel(
+    id: json['id'] as int,
+    name: json['nombre'] as String,
+    description: json['descripcion'] as String? ?? '',
+    category: json['categoria'] as String? ?? 'GENERAL',
+    start: DateTime.parse(json['fechaInicio'] as String),
+    end: json['fechaFin'] == null ? null : DateTime.parse(json['fechaFin'] as String),
+    place: json['lugarPrincipal'] as String? ?? '',
+    status: json['estado'] as String,
+  );
 }
 
 class ApiException implements Exception {

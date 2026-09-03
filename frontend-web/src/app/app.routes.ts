@@ -1,12 +1,21 @@
 import { Routes } from '@angular/router';
-import { administradorGuard, autenticacionGuard } from './core/guards';
-import { InicioSesionComponent } from './paginas/inicio-sesion.component';
-import { PanelComponent } from './paginas/panel.component';
-import { PerfilComponent } from './paginas/perfil.component';
-import { RecuperarClaveComponent } from './paginas/recuperar-clave.component';
-import { RestablecerClaveComponent } from './paginas/restablecer-clave.component';
-import { RolesComponent } from './paginas/roles.component';
-import { UsuariosComponent } from './paginas/usuarios.component';
+import {
+  administradorGuard,
+  autenticacionGuard,
+  convocatoriasGuard,
+  recursosGuard,
+} from './core/guards';
+import { InicioSesionComponent } from './features/auth/inicio-sesion.component';
+import { RecuperarClaveComponent } from './features/auth/recuperar-clave.component';
+import { RestablecerClaveComponent } from './features/auth/restablecer-clave.component';
+import { ConvocatoriasComponent } from './features/convocatorias/convocatorias.component';
+import { EventosComponent } from './features/eventos/eventos.component';
+import { ConsultaEventosComponent } from './features/eventos/consulta-eventos.component';
+import { PanelComponent } from './features/panel/panel.component';
+import { PerfilComponent } from './features/perfil/perfil.component';
+import { RecursosComponent } from './features/recursos/recursos.component';
+import { RolesComponent } from './features/roles/roles.component';
+import { UsuariosComponent } from './features/usuarios/usuarios.component';
 
 export const routes: Routes = [
   { path: 'iniciar-sesion', component: InicioSesionComponent },
@@ -18,8 +27,16 @@ export const routes: Routes = [
     canActivate: [autenticacionGuard],
     children: [
       { path: 'perfil', component: PerfilComponent },
+      { path: 'consulta-eventos', component: ConsultaEventosComponent },
+      { path: 'eventos', component: EventosComponent, canActivate: [administradorGuard] },
       { path: 'usuarios', component: UsuariosComponent, canActivate: [administradorGuard] },
       { path: 'roles', component: RolesComponent, canActivate: [administradorGuard] },
+      { path: 'recursos', component: RecursosComponent, canActivate: [recursosGuard] },
+      {
+        path: 'convocatorias',
+        component: ConvocatoriasComponent,
+        canActivate: [convocatoriasGuard],
+      },
       { path: '', pathMatch: 'full', redirectTo: 'perfil' },
     ],
   },

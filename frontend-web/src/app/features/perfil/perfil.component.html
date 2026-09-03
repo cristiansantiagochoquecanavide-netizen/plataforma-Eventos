@@ -1,0 +1,109 @@
+<section class="page-heading">
+  <p class="eyebrow">Cuenta</p>
+  <h1>Mi perfil</h1>
+  <p>Datos de acceso, identidad y seguridad.</p>
+</section>
+
+<!-- Barra de Pestañas (Tabs) -->
+<div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid var(--line); padding-bottom: 8px;">
+  <button
+    type="button"
+    [style.background]="pestanaActiva() === 'perfil' ? 'var(--brand)' : 'transparent'"
+    [style.color]="pestanaActiva() === 'perfil' ? '#ffffff' : 'var(--ink)'"
+    [style.box-shadow]="pestanaActiva() === 'perfil' ? '0 4px 12px rgba(11, 102, 86, 0.25)' : 'none'"
+    style="font-size: 0.95rem; padding: 10px 20px; border-radius: 8px; border: 0; cursor: pointer; font-weight: 600;"
+    (click)="cambiarPestana('perfil')"
+  >
+    👤 Datos Personales
+  </button>
+  <button
+    type="button"
+    [style.background]="pestanaActiva() === 'seguridad' ? 'var(--brand)' : 'transparent'"
+    [style.color]="pestanaActiva() === 'seguridad' ? '#ffffff' : 'var(--ink)'"
+    [style.box-shadow]="pestanaActiva() === 'seguridad' ? '0 4px 12px rgba(11, 102, 86, 0.25)' : 'none'"
+    style="font-size: 0.95rem; padding: 10px 20px; border-radius: 8px; border: 0; cursor: pointer; font-weight: 600;"
+    (click)="cambiarPestana('seguridad')"
+  >
+    🔒 Seguridad y Contraseña
+  </button>
+</div>
+
+@if (mensaje()) {
+  <p class="notice success">{{ mensaje() }}</p>
+}
+@if (error()) {
+  <p class="notice error">{{ error() }}</p>
+}
+
+<!-- PESTAÑA 1: DATOS PERSONALES -->
+@if (pestanaActiva() === 'perfil') {
+  <div style="max-width: 720px;">
+    <section class="card">
+      <div class="card-header">
+        <h2>Datos personales</h2>
+        <span>Perfil</span>
+      </div>
+      <form [formGroup]="perfil" (ngSubmit)="guardarPerfil()" class="form-grid" novalidate>
+        <label [class.invalid]="campoPerfilConError('nombres')">
+          Nombres
+          <input formControlName="nombres" />
+          @if (campoPerfilConError('nombres')) {
+            <small class="field-error">{{ mensajeCampoPerfil('nombres') }}</small>
+          }
+        </label>
+        <label [class.invalid]="campoPerfilConError('apellidos')">
+          Apellidos
+          <input formControlName="apellidos" />
+          @if (campoPerfilConError('apellidos')) {
+            <small class="field-error">{{ mensajeCampoPerfil('apellidos') }}</small>
+          }
+        </label>
+        <label class="full" [class.invalid]="campoPerfilConError('correo')">
+          Correo
+          <input type="email" formControlName="correo" />
+          @if (campoPerfilConError('correo')) {
+            <small class="field-error">{{ mensajeCampoPerfil('correo') }}</small>
+          }
+        </label>
+        <button class="primary" type="submit" [disabled]="guardandoPerfil()" style="color: #ffffff;">
+          {{ guardandoPerfil() ? 'Guardando...' : 'Guardar cambios' }}
+        </button>
+      </form>
+    </section>
+  </div>
+}
+
+<!-- PESTAÑA 2: SEGURIDAD Y CONTRASEÑA -->
+@if (pestanaActiva() === 'seguridad') {
+  <div style="max-width: 720px;">
+    <section class="card accent-card">
+      <div class="card-header">
+        <h2>Actualizar clave</h2>
+        <span>Seguridad</span>
+      </div>
+      <form [formGroup]="clave" (ngSubmit)="cambiarClave()" class="form-grid" novalidate>
+        <label class="full" [class.invalid]="claveActualConError()">
+          Clave actual
+          <input type="password" formControlName="claveActual" autocomplete="current-password" />
+          @if (claveActualConError()) {
+            <small class="field-error">La clave actual es obligatoria.</small>
+          }
+        </label>
+        <label class="full" [class.invalid]="nuevaClaveConError()">
+          Nueva clave
+          <input type="password" formControlName="nuevaClave" autocomplete="new-password" />
+          @if (nuevaClaveConError()) {
+            <small class="field-error">{{ mensajeNuevaClave() }}</small>
+          }
+        </label>
+        <app-requisitos-clave
+          class="full"
+          [clave]="clave.controls.nuevaClave.value"
+        ></app-requisitos-clave>
+        <button class="primary" type="submit" [disabled]="actualizandoClave()" style="color: #ffffff;">
+          {{ actualizandoClave() ? 'Actualizando...' : 'Cambiar clave' }}
+        </button>
+      </form>
+    </section>
+  </div>
+}

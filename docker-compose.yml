@@ -2,9 +2,9 @@ services:
   base-datos:
     image: postgres:17-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-eventos}
+      POSTGRES_USER: ${POSTGRES_USER:-eventos_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eventos_clave}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -22,14 +22,14 @@ services:
     environment:
       POSTGRES_HOST: base-datos
       POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
+      POSTGRES_DB: ${POSTGRES_DB:-eventos}
+      POSTGRES_USER: ${POSTGRES_USER:-eventos_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eventos_clave}
+      JWT_SECRET: ${JWT_SECRET:-desarrollo_secreto_local_de_al_menos_32_caracteres_12345}
       JWT_ACCESO_EXPIRACION_MINUTOS: ${JWT_ACCESO_EXPIRACION_MINUTOS:-15}
       JWT_REFRESH_EXPIRACION_DIAS: ${JWT_REFRESH_EXPIRACION_DIAS:-7}
-      ADMIN_CORREO: ${ADMIN_CORREO}
-      ADMIN_CLAVE: ${ADMIN_CLAVE}
+      ADMIN_CORREO: ${ADMIN_CORREO:-AdminEventos@gmail.com}
+      ADMIN_CLAVE: ${ADMIN_CLAVE:-Admin123}
       CORS_ORIGENES: ${CORS_ORIGENES:-http://localhost:4200}
       URL_FRONTEND_WEB: ${URL_FRONTEND_WEB:-http://localhost:4200}
       URL_APLICACION_MOVIL: ${URL_APLICACION_MOVIL:-eventos://recuperar-clave}

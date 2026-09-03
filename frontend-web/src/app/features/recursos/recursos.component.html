@@ -1,0 +1,503 @@
+<section class="page-heading" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+  <div>
+    <p class="eyebrow">Gestión de Eventos, Programación y Recursos</p>
+    <h1>Recursos y Asignaciones</h1>
+    <p>Control de inventario de recursos (CU19) y asignación a eventos y salas (CU20).</p>
+  </div>
+  <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+    @if (pestanaActiva() === 'inventario') {
+      <button class="primary" type="button" (click)="abrirModalCrear()" style="display: flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px; color: #ffffff;">
+        <span style="font-weight: 800; font-size: 1.15rem; line-height: 1; color: #ffffff;">+</span>
+        <span style="color: #ffffff; font-weight: 700;">Crear Nuevo Recurso</span>
+      </button>
+      <button type="button" (click)="abrirModalAsignar()" style="display: flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px;">
+        <span>📋</span>
+        <span>Asignar a Evento</span>
+      </button>
+    } @else {
+      <button class="primary" type="button" (click)="abrirModalAsignar()" style="display: flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px; color: #ffffff;">
+        <span style="font-weight: 800; font-size: 1.15rem; line-height: 1; color: #ffffff;">+</span>
+        <span style="color: #ffffff; font-weight: 700;">Nueva Asignación (CU20)</span>
+      </button>
+    }
+  </div>
+</section>
+
+<!-- Barra de Pestañas (Tabs) -->
+<div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid var(--line); padding-bottom: 8px;">
+  <button
+    type="button"
+    [style.background]="pestanaActiva() === 'inventario' ? 'var(--brand)' : 'transparent'"
+    [style.color]="pestanaActiva() === 'inventario' ? '#ffffff' : 'var(--ink)'"
+    [style.box-shadow]="pestanaActiva() === 'inventario' ? '0 4px 12px rgba(11, 102, 86, 0.25)' : 'none'"
+    style="font-size: 0.95rem; padding: 10px 20px; border-radius: 8px; border: 0;"
+    (click)="cambiarPestana('inventario')"
+  >
+    📦 Inventario de Recursos (CU19)
+  </button>
+  <button
+    type="button"
+    [style.background]="pestanaActiva() === 'asignaciones' ? 'var(--brand)' : 'transparent'"
+    [style.color]="pestanaActiva() === 'asignaciones' ? '#ffffff' : 'var(--ink)'"
+    [style.box-shadow]="pestanaActiva() === 'asignaciones' ? '0 4px 12px rgba(11, 102, 86, 0.25)' : 'none'"
+    style="font-size: 0.95rem; padding: 10px 20px; border-radius: 8px; border: 0;"
+    (click)="cambiarPestana('asignaciones')"
+  >
+    📋 Asignaciones a Eventos y Salas (CU20)
+  </button>
+</div>
+
+@if (mensaje()) {
+  <p class="notice success">{{ mensaje() }}</p>
+}
+@if (error() && !modalAbierto() && !modalAsignacionAbierto()) {
+  <p class="notice error">{{ error() }}</p>
+}
+
+<!-- PESTAÑA 1: INVENTARIO DE RECURSOS (CU19) -->
+@if (pestanaActiva() === 'inventario') {
+  <section class="card table-card">
+    <div class="card-title compact" style="display: flex; justify-content: space-between; align-items: center;">
+      <h2>Catálogo de Recursos</h2>
+      <span class="role-chip">{{ recursos().length }} registrados</span>
+    </div>
+
+    <!-- Filtros de Inventario -->
+    <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;">
+      <input
+        type="search"
+        placeholder="Buscar por nombre, código o ubicación..."
+        style="flex: 2; min-width: 240px;"
+        [value]="filtroTermino()"
+        (input)="buscar($any($event.target).value)"
+      />
+      <select style="flex: 1; min-width: 170px;" [value]="filtroTipo()" (change)="cambiarFiltroTipo($any($event.target).value)">
+        <option value="">Todos los tipos</option>
+        @for (tipo of tiposRecurso; track tipo) {
+          <option [value]="tipo">{{ tipo }}</option>
+        }
+      </select>
+      <select style="flex: 1; min-width: 170px;" [value]="filtroEstado()" (change)="cambiarFiltroEstado($any($event.target).value)">
+        <option value="">Todos los estados</option>
+        @for (estado of estadosRecurso; track estado) {
+          <option [value]="estado">{{ estado }}</option>
+        }
+      </select>
+      @if (filtroTermino() || filtroTipo() || filtroEstado()) {
+        <button type="button" (click)="limpiarFiltros()">Limpiar filtros</button>
+      }
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Código / Nombre</th>
+            <th>Tipo</th>
+            <th>Stock (Disp / Total)</th>
+            <th>Estado</th>
+            <th>Ubicación</th>
+            <th style="text-align: right;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (cargando()) {
+            <tr>
+              <td colspan="6" style="text-align: center; padding: 32px; color: var(--muted);">
+                Cargando recursos...
+              </td>
+            </tr>
+          } @else if (recursos().length === 0) {
+            <tr>
+              <td colspan="6" style="text-align: center; padding: 36px; color: var(--muted);">
+                <p style="margin-bottom: 12px; font-weight: 600;">No se encontraron recursos con los filtros aplicados.</p>
+                <button class="primary" type="button" (click)="abrirModalCrear()" style="color: #ffffff;">
+                  Registrar el primer recurso
+                </button>
+              </td>
+            </tr>
+          } @else {
+            @for (recurso of recursos(); track recurso.id) {
+              <tr>
+                <td>
+                  <strong style="color: var(--brand-strong);">{{ recurso.codigo }}</strong> — {{ recurso.nombre }}
+                  @if (recurso.descripcion) {
+                    <small style="display: block; color: var(--muted); margin-top: 2px;">{{ recurso.descripcion }}</small>
+                  }
+                </td>
+                <td>
+                  <span class="role-chip" style="font-size: 0.78rem;">{{ recurso.tipo }}</span>
+                </td>
+                <td>
+                  <strong style="color: var(--brand); font-size: 1.05rem;">{{ recurso.cantidadDisponible }}</strong>
+                  <span style="color: var(--muted);"> / {{ recurso.cantidadTotal }}</span>
+                </td>
+                <td>
+                  <span
+                    class="status"
+                    [class.off]="recurso.estado === 'DE_BAJA' || recurso.estado === 'MANTENIMIENTO'"
+                  >
+                    {{ recurso.estado }}
+                  </span>
+                </td>
+                <td>
+                  <small>{{ recurso.ubicacion || 'Sin ubicación' }}</small>
+                </td>
+                <td class="actions" style="text-align: right; display: flex; justify-content: flex-end; gap: 6px;">
+                  @if (recurso.cantidadDisponible > 0 && recurso.estado !== 'DE_BAJA' && recurso.estado !== 'MANTENIMIENTO') {
+                    <button
+                      type="button"
+                      style="background: var(--brand-soft); color: var(--brand-strong); font-size: 0.82rem; padding: 4px 10px;"
+                      (click)="abrirModalAsignar(recurso)"
+                      title="Asignar este recurso a un evento y sala"
+                    >
+                      Asignar (CU20)
+                    </button>
+                  }
+                  <button type="button" (click)="editar(recurso)">Editar</button>
+                  <select
+                    style="min-height: 34px; padding: 4px 8px; font-size: 0.82rem; width: auto;"
+                    [value]="recurso.estado"
+                    [disabled]="idCambiandoEstado() === recurso.id"
+                    (change)="cambiarEstado(recurso, $any($event.target).value)"
+                  >
+                    @for (estado of estadosRecurso; track estado) {
+                      <option [value]="estado">{{ estado }}</option>
+                    }
+                  </select>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+}
+
+<!-- PESTAÑA 2: ASIGNACIONES A EVENTOS Y SALAS (CU20) -->
+@if (pestanaActiva() === 'asignaciones') {
+  <section class="card table-card">
+    <div class="card-title compact" style="display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <h2>Recursos Asignados a Eventos y Salas</h2>
+        <small style="color: var(--muted);">Seguimiento de uso en eventos activos y control de devoluciones</small>
+      </div>
+      <span class="role-chip">{{ asignaciones().length }} asignaciones</span>
+    </div>
+
+    <!-- Filtros de Asignaciones -->
+    <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;">
+      <select style="flex: 2; min-width: 240px;" [value]="filtroEventoId()" (change)="cambiarFiltroEvento($any($event.target).value)">
+        <option [value]="0">Todos los eventos</option>
+        @for (evento of eventos(); track evento.id) {
+          <option [value]="evento.id">{{ evento.nombre }}</option>
+        }
+      </select>
+
+      <select style="flex: 1; min-width: 170px;" [value]="filtroEstadoAsignacion()" (change)="cambiarFiltroEstadoAsignacion($any($event.target).value)">
+        <option value="">Todos los estados</option>
+        @for (estado of estadosAsignacion; track estado) {
+          <option [value]="estado">{{ estado }}</option>
+        }
+      </select>
+
+      @if (filtroEventoId() > 0 || filtroEstadoAsignacion()) {
+        <button type="button" (click)="limpiarFiltrosAsignaciones()">Limpiar filtros</button>
+      }
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Evento</th>
+            <th>Recurso Asignado</th>
+            <th>Sala / Espacio</th>
+            <th>Cantidad</th>
+            <th>Estado</th>
+            <th>Fecha Asignación</th>
+            <th style="text-align: right;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (cargandoAsignaciones()) {
+            <tr>
+              <td colspan="7" style="text-align: center; padding: 32px; color: var(--muted);">
+                Cargando asignaciones...
+              </td>
+            </tr>
+          } @else if (asignaciones().length === 0) {
+            <tr>
+              <td colspan="7" style="text-align: center; padding: 36px; color: var(--muted);">
+                <p style="margin-bottom: 12px; font-weight: 600;">No hay asignaciones registradas con los filtros seleccionados.</p>
+                <button class="primary" type="button" (click)="abrirModalAsignar()" style="color: #ffffff;">
+                  Realizar la primera asignación
+                </button>
+              </td>
+            </tr>
+          } @else {
+            @for (asig of asignaciones(); track asig.id) {
+              <tr>
+                <td>
+                  <strong>{{ asig.nombreEvento }}</strong>
+                </td>
+                <td>
+                  <strong style="color: var(--brand-strong);">{{ asig.codigoRecurso }}</strong> — {{ asig.nombreRecurso }}
+                  <span class="role-chip" style="font-size: 0.72rem; margin-left: 6px;">{{ asig.tipoRecurso }}</span>
+                </td>
+                <td>
+                  <strong>📍 {{ asig.salaEspacio }}</strong>
+                  @if (asig.observaciones) {
+                    <small style="display: block; color: var(--muted); margin-top: 2px;">{{ asig.observaciones }}</small>
+                  }
+                </td>
+                <td>
+                  <strong style="font-size: 1.05rem; color: var(--brand);">{{ asig.cantidadAsignada }}</strong> unidad(es)
+                </td>
+                <td>
+                  <span
+                    class="status"
+                    [class.off]="asig.estado === 'DEVUELTA' || asig.estado === 'CANCELADA'"
+                  >
+                    {{ asig.estado }}
+                  </span>
+                </td>
+                <td>
+                  <small>{{ asig.fechaAsignacion | date:'dd/MM/yyyy HH:mm' }}</small>
+                  @if (asig.fechaDevolucion) {
+                    <small style="display: block; color: var(--muted);">Devuelto: {{ asig.fechaDevolucion | date:'dd/MM/yyyy HH:mm' }}</small>
+                  }
+                </td>
+                <td class="actions" style="text-align: right;">
+                  @if (asig.estado === 'ACTIVA') {
+                    <button
+                      type="button"
+                      class="primary"
+                      style="font-size: 0.82rem; padding: 6px 12px; color: #ffffff;"
+                      [disabled]="idLiberando() === asig.id"
+                      (click)="liberarAsignacion(asig)"
+                    >
+                      {{ idLiberando() === asig.id ? 'Liberando...' : 'Devolver / Liberar' }}
+                    </button>
+                  } @else {
+                    <small style="color: var(--muted);">Completada</small>
+                  }
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+}
+
+<!-- MODAL 1: REGISTRAR / EDITAR RECURSO (CU19) -->
+@if (modalAbierto()) {
+  <div class="modal-overlay" (click)="cerrarModal()">
+    <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h2>{{ editando() ? 'Editar Recurso' : 'Crear Nuevo Recurso (CU19)' }}</h2>
+          <small style="color: var(--muted);">{{ editando() ? 'Actualiza los datos y estado del recurso' : 'Ingresa la información para registrar el recurso en inventario' }}</small>
+        </div>
+        <button class="btn-close" type="button" (click)="cerrarModal()" title="Cerrar">✕</button>
+      </div>
+
+      <div class="modal-body">
+        @if (error()) {
+          <p class="notice error" style="margin-top: 0; margin-bottom: 16px;">{{ error() }}</p>
+        }
+
+        <form [formGroup]="formulario" (ngSubmit)="guardar()" class="form-grid" novalidate>
+          <label [class.invalid]="campoConError('codigo')">
+            Código / Identificador *
+            <input
+              formControlName="codigo"
+              placeholder="Ej: AUD-001, PROY-01"
+              style="text-transform: uppercase;"
+            />
+            @if (campoConError('codigo')) {
+              <small class="field-error">{{ mensajeCampo('codigo') }}</small>
+            }
+          </label>
+
+          <label [class.invalid]="campoConError('tipo')">
+            Tipo de Recurso *
+            <select formControlName="tipo">
+              @for (tipo of tiposRecurso; track tipo) {
+                <option [value]="tipo">{{ tipo }}</option>
+              }
+            </select>
+            @if (campoConError('tipo')) {
+              <small class="field-error">{{ mensajeCampo('tipo') }}</small>
+            }
+          </label>
+
+          <label class="full" [class.invalid]="campoConError('nombre')">
+            Nombre del Recurso *
+            <input formControlName="nombre" placeholder="Ej: Proyector Láser Epson 4K" />
+            @if (campoConError('nombre')) {
+              <small class="field-error">{{ mensajeCampo('nombre') }}</small>
+            }
+          </label>
+
+          <label [class.invalid]="campoConError('cantidadTotal')">
+            Cantidad Total *
+            <input type="number" formControlName="cantidadTotal" min="0" />
+            @if (campoConError('cantidadTotal')) {
+              <small class="field-error">{{ mensajeCampo('cantidadTotal') }}</small>
+            }
+          </label>
+
+          @if (editando()) {
+            <label [class.invalid]="campoConError('cantidadDisponible')">
+              Cantidad Disponible *
+              <input type="number" formControlName="cantidadDisponible" min="0" />
+              @if (campoConError('cantidadDisponible')) {
+                <small class="field-error">{{ mensajeCampo('cantidadDisponible') }}</small>
+              }
+            </label>
+
+            <label class="full" [class.invalid]="campoConError('estado')">
+              Estado Operativo *
+              <select formControlName="estado">
+                @for (estado of estadosRecurso; track estado) {
+                  <option [value]="estado">{{ estado }}</option>
+                }
+              </select>
+              @if (campoConError('estado')) {
+                <small class="field-error">{{ mensajeCampo('estado') }}</small>
+              }
+            </label>
+          }
+
+          <label class="full" [class.invalid]="campoConError('ubicacion')">
+            Ubicación física / Depósito
+            <input formControlName="ubicacion" placeholder="Ej: Depósito Central - Estante A3" />
+            @if (campoConError('ubicacion')) {
+              <small class="field-error">{{ mensajeCampo('ubicacion') }}</small>
+            }
+          </label>
+
+          <label class="full" [class.invalid]="campoConError('descripcion')">
+            Descripción / Especificaciones técnicas
+            <textarea formControlName="descripcion" rows="3" placeholder="Detalles de conectividad, cables incluidos, etc."></textarea>
+            @if (campoConError('descripcion')) {
+              <small class="field-error">{{ mensajeCampo('descripcion') }}</small>
+            }
+          </label>
+
+          <div class="button-row" style="margin-top: 12px;">
+            <button type="button" (click)="cerrarModal()">Cancelar</button>
+            <button class="primary" type="submit" [disabled]="guardando()" style="color: #ffffff;">
+              {{ guardando() ? 'Guardando...' : editando() ? 'Actualizar Recurso' : 'Registrar Recurso' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- MODAL 2: ASIGNAR RECURSO A EVENTO Y SALA (CU20) -->
+@if (modalAsignacionAbierto()) {
+  <div class="modal-overlay" (click)="cerrarModalAsignacion()">
+    <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h2>Asignar Recurso a Evento y Sala (CU20)</h2>
+          <small style="color: var(--muted);">Vincula recursos disponibles a un evento y su respectivo espacio</small>
+        </div>
+        <button class="btn-close" type="button" (click)="cerrarModalAsignacion()" title="Cerrar">✕</button>
+      </div>
+
+      <div class="modal-body">
+        @if (error()) {
+          <p class="notice error" style="margin-top: 0; margin-bottom: 16px;">{{ error() }}</p>
+        }
+
+        <form [formGroup]="formularioAsignacion" (ngSubmit)="guardarAsignacion()" class="form-grid" novalidate>
+          <label class="full" [class.invalid]="campoAsignacionConError('idEvento')">
+            Evento Destino *
+            <select formControlName="idEvento">
+              @if (eventos().length === 0) {
+                <option [value]="0">No hay eventos disponibles</option>
+              }
+              @for (evento of eventos(); track evento.id) {
+                <option [value]="evento.id">{{ evento.nombre }} ({{ evento.lugarPrincipal || 'Sin lugar asignado' }})</option>
+              }
+            </select>
+            @if (campoAsignacionConError('idEvento')) {
+              <small class="field-error">{{ mensajeCampoAsignacion('idEvento') }}</small>
+            }
+          </label>
+
+          <label class="full" [class.invalid]="campoAsignacionConError('idRecurso')">
+            Recurso a Asignar *
+            <select formControlName="idRecurso" (change)="cambiarRecursoEnAsignacion($any($event.target).value)">
+              @if (recursosDisponiblesParaAsignar().length === 0) {
+                <option [value]="0">No hay recursos con stock disponible</option>
+              }
+              @for (rec of recursosDisponiblesParaAsignar(); track rec.id) {
+                <option [value]="rec.id">
+                  {{ rec.codigo }} — {{ rec.nombre }} (Disponible: {{ rec.cantidadDisponible }} / {{ rec.cantidadTotal }})
+                </option>
+              }
+            </select>
+            @if (campoAsignacionConError('idRecurso')) {
+              <small class="field-error">{{ mensajeCampoAsignacion('idRecurso') }}</small>
+            }
+          </label>
+
+          <!-- Banner informativo de disponibilidad del recurso seleccionado -->
+          @if (recursoSeleccionadoParaAsignar(); as r) {
+            <div class="full" style="background: var(--brand-soft); border-radius: 8px; padding: 12px 16px; border: 1px solid rgba(11, 102, 86, 0.2);">
+              <p style="margin: 0; color: var(--brand-strong); font-size: 0.88rem;">
+                <strong>Disponibilidad actual:</strong> {{ r.cantidadDisponible }} unidad(es) libres de un total de {{ r.cantidadTotal }}.
+                <br><span style="color: var(--muted); font-size: 0.82rem;">Ubicación: {{ r.ubicacion || 'Depósito principal' }}</span>
+              </p>
+            </div>
+          }
+
+          <label class="full" [class.invalid]="campoAsignacionConError('salaEspacio')">
+            Sala / Espacio del Evento *
+            <input formControlName="salaEspacio" placeholder="Ej: Auditorio Principal, Sala A1, Laboratorio 2" />
+            @if (campoAsignacionConError('salaEspacio')) {
+              <small class="field-error">{{ mensajeCampoAsignacion('salaEspacio') }}</small>
+            }
+          </label>
+
+          <label class="full" [class.invalid]="campoAsignacionConError('cantidadAsignada')">
+            Cantidad Requerida *
+            <input
+              type="number"
+              formControlName="cantidadAsignada"
+              min="1"
+              [max]="recursoSeleccionadoParaAsignar()?.cantidadDisponible ?? 1"
+            />
+            @if (campoAsignacionConError('cantidadAsignada')) {
+              <small class="field-error">{{ mensajeCampoAsignacion('cantidadAsignada') }}</small>
+            }
+          </label>
+
+          <label class="full" [class.invalid]="campoAsignacionConError('observaciones')">
+            Observaciones / Notas
+            <textarea formControlName="observaciones" rows="2" placeholder="Instrucciones especiales de instalación o responsable"></textarea>
+            @if (campoAsignacionConError('observaciones')) {
+              <small class="field-error">{{ mensajeCampoAsignacion('observaciones') }}</small>
+            }
+          </label>
+
+          <div class="button-row" style="margin-top: 12px;">
+            <button type="button" (click)="cerrarModalAsignacion()">Cancelar</button>
+            <button class="primary" type="submit" [disabled]="guardandoAsignacion()" style="color: #ffffff;">
+              {{ guardandoAsignacion() ? 'Asignando...' : 'Confirmar Asignación' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}

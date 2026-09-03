@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "drawio": {
+      "command": "drawio-mcp"
+    },
+    "enterprise-architect": {
+      "command": "C:\\Program Files (x86)\\Sparx Systems\\EA Trial\\MCP_Server\\MCP3.exe",
+      "args": [
+        "-enableEdit"
+      ]
+    }
+  }
+}

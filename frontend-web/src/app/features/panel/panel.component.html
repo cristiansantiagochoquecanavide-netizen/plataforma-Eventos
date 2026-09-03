@@ -1,0 +1,38 @@
+<div class="shell">
+  <aside class="sidebar">
+    <a class="brand" routerLink="/perfil">eventos<span>.</span></a>
+    <nav>
+      <p class="nav-label">Gestion de Usuarios, Seguridad y Auditoria</p>
+      <a routerLink="/perfil" routerLinkActive="active">Mi perfil</a>
+      <a routerLink="/consulta-eventos" routerLinkActive="active">Consultar eventos</a>
+      @if (sesion.esAdministrador()) {
+        <a routerLink="/usuarios" routerLinkActive="active">Usuarios</a>
+        <a routerLink="/roles" routerLinkActive="active">Roles y permisos</a>
+      }
+      @if (sesion.esAdministrador() || sesion.tieneAccesoRecursos()) {
+        <p class="nav-label">Gestion de Eventos, Programacion y Recursos</p>
+      }
+      @if (sesion.esAdministrador()) {
+        <a routerLink="/eventos" routerLinkActive="active">Eventos</a>
+      }
+      @if (sesion.tieneAccesoRecursos()) {
+        <a routerLink="/recursos" routerLinkActive="active">Recursos</a>
+      }
+      @if (sesion.tieneAccesoConvocatorias()) {
+        <p class="nav-label">Gestion de Staff y Organizacion</p>
+        <a routerLink="/convocatorias" routerLinkActive="active">Convocatorias</a>
+      }
+    </nav>
+    <button class="logout" type="button" (click)="sesion.cerrar()">Cerrar sesion</button>
+  </aside>
+  <main class="workspace">
+    <header>
+      <div>
+        <p class="eyebrow">Sesion activa</p>
+        <strong>{{ sesion.usuario()?.nombres }} {{ sesion.usuario()?.apellidos }}</strong>
+      </div>
+      <span class="role-chip">{{ sesion.usuario()?.roles?.join(' · ') }}</span>
+    </header>
+    <router-outlet />
+  </main>
+</div>

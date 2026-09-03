@@ -617,6 +617,12 @@ td strong {
   grid-template-columns: minmax(220px, 0.72fr) minmax(290px, 0.9fr) minmax(330px, 1.18fr);
 }
 
+.eventos-layout {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: minmax(0, 1.28fr) minmax(340px, 0.82fr);
+}
+
 .role-list,
 .permission-list {
   display: grid;
@@ -659,6 +665,51 @@ td strong {
   width: 16px;
   min-height: 16px;
   margin-top: 3px;
+}
+
+.selectable-row {
+  cursor: pointer;
+}
+
+.selectable-row:hover {
+  background: #f7faf7;
+}
+
+.selectable-row.selected {
+  background: var(--brand-soft);
+}
+
+.inline-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 999px;
+  background: #eef4f1;
+  color: #42534d;
+  font-size: 0.72rem;
+  font-weight: 800;
+  margin: 2px 4px 2px 0;
+  padding: 4px 8px;
+}
+
+.inline-title {
+  padding: 0 0 12px;
+}
+
+.responsable-list {
+  display: grid;
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 12px;
+}
+
+.empty-inline {
+  color: var(--muted);
+  margin: 14px 0;
+  font-size: 0.86rem;
+  font-weight: 700;
 }
 
 .empty-state {
@@ -804,6 +855,7 @@ td strong {
 
   .two-columns,
   .admin-grid,
+  .eventos-layout,
   .roles-layout {
     grid-template-columns: 1fr;
   }
@@ -868,3 +920,82 @@ td strong {
     flex-direction: column;
   }
 }
+
+/* Modal / Ventana Flotante */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 23, 20, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+  animation: modalFadeIn 150ms ease-out;
+}
+
+.modal-dialog {
+  background: var(--paper);
+  border-radius: 16px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 740px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalSlideUp 180ms ease-out;
+  border: 1px solid var(--line);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--ink);
+}
+
+.modal-header .btn-close {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.modal-header .btn-close:hover {
+  background: #e1e8e4;
+  color: var(--ink);
+}
+
+.modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalSlideUp {
+  from { transform: translateY(12px) scale(0.98); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+

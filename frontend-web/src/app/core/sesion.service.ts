@@ -51,6 +51,23 @@ export class SesionService {
     return this.usuario()?.roles.includes('ADMINISTRADOR') ?? false;
   }
 
+  tieneAccesoRecursos() {
+    const roles = this.usuario()?.roles ?? [];
+    return roles.includes('ADMINISTRADOR') || roles.includes('ORGANIZADOR');
+  }
+
+  tieneAccesoConvocatorias() {
+    const roles = this.usuario()?.roles ?? [];
+    return roles.some((rol) =>
+      ['ADMINISTRADOR', 'ORGANIZADOR', 'STAFF', 'PARTICIPANTE'].includes(rol),
+    );
+  }
+
+  puedeGestionarConvocatorias() {
+    const roles = this.usuario()?.roles ?? [];
+    return roles.includes('ADMINISTRADOR') || roles.includes('ORGANIZADOR');
+  }
+
   cerrar() {
     const token = this.sesion?.refreshToken;
     this.limpiarSesion();

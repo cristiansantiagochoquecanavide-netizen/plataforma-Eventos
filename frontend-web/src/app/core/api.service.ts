@@ -1,7 +1,28 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from '../../environments/environment';
-import { PaginaUsuarios, Permiso, Rol, RolPermisos, SesionRespuesta, Usuario } from './modelos';
+import {
+  ActualizarRecursoSolicitud,
+  AsignacionRecurso,
+  Convocatoria,
+  CrearAsignacionSolicitud,
+  CrearConvocatoriaSolicitud,
+  CrearRecursoSolicitud,
+  EstadoAsignacion,
+  EstadoConvocatoria,
+  EstadoRecurso,
+  Evento,
+  GuardarEventoSolicitud,
+  PaginaUsuarios,
+  Permiso,
+  Recurso,
+  Rol,
+  RolPermisos,
+  SesionRespuesta,
+  TipoPersonalConvocatoria,
+  TipoRecurso,
+  Usuario,
+} from './modelos';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -52,8 +73,13 @@ export class ApiService {
     return this.http.patch<void>(`${this.url}/perfil/clave`, { claveActual, nuevaClave });
   }
 
-  listarUsuarios(pagina = 0, tamano = 20) {
-    return this.http.get<PaginaUsuarios>(`${this.url}/usuarios`, { params: { pagina, tamano } });
+  listarUsuarios(pagina = 0, tamano = 10, termino = '') {
+    const params = {
+      pagina: pagina.toString(),
+      tamano: tamano.toString(),
+      ...(termino.trim() ? { termino: termino.trim() } : {}),
+    };
+    return this.http.get<PaginaUsuarios>(`${this.url}/usuarios`, { params });
   }
 
   crearUsuario(datos: object) {
@@ -90,5 +116,109 @@ export class ApiService {
 
   asignarPermisos(idRol: number, permisos: string[]) {
     return this.http.put<RolPermisos>(`${this.url}/roles/${idRol}/permisos`, { permisos });
+  }
+
+  listarEventos(termino = '', categoria = '') {
+    let params = new HttpParams();
+    if (termino.trim()) params = params.set('termino', termino.trim());
+    if (categoria) params = params.set('categoria', categoria);
+    return this.http.get<Evento[]>(`${this.url}/eventos`, { params });
+  }
+
+  obtenerEvento(id: number) {
+    return this.http.get<Evento>(`${this.url}/eventos/${id}`);
+  }
+
+  crearEvento(datos: GuardarEventoSolicitud) {
+    return this.http.post<Evento>(`${this.url}/eventos`, datos);
+  }
+
+  actualizarEvento(id: number, datos: GuardarEventoSolicitud) {
+    return this.http.put<Evento>(`${this.url}/eventos/${id}`, datos);
+  }
+
+  asignarResponsablesEvento(id: number, responsables: number[]) {
+    return this.http.put<Evento>(`${this.url}/eventos/${id}/responsables`, { responsables });
+  }
+
+  // --- CU19: Gestion y Consulta de Recursos ---
+  listarRecursos(termino?: string, tipo?: TipoRecurso | '', estado?: EstadoRecurso | '') {
+    let params = new HttpParams();
+    if (termino && termino.trim()) {
+      params = params.set('termino', termino.trim());
+    }
+    if (tipo) {
+      params = params.set('tipo', tipo);
+    }
+    if (estado) {
+      params = params.set('estado', estado);
+    }
+    return this.http.get<Recurso[]>(`${this.url}/recursos`, { params });
+  }
+
+  obtenerRecurso(id: number) {
+    return this.http.get<Recurso>(`${this.url}/recursos/${id}`);
+  }
+
+  crearRecurso(datos: CrearRecursoSolicitud) {
+    return this.http.post<Recurso>(`${this.url}/recursos`, datos);
+  }
+
+  actualizarRecurso(id: number, datos: ActualizarRecursoSolicitud) {
+    return this.http.put<Recurso>(`${this.url}/recursos/${id}`, datos);
+  }
+
+  cambiarEstadoRecurso(id: number, estado: EstadoRecurso) {
+    return this.http.patch<Recurso>(`${this.url}/recursos/${id}/estado`, { estado });
+  }
+
+  // --- CU20: Asignacion de Recursos a Eventos y Salas ---
+  listarAsignaciones(idEvento?: number, idRecurso?: number, estado?: EstadoAsignacion | '') {
+    let params = new HttpParams();
+    if (idEvento) {
+      params = params.set('idEvento', idEvento.toString());
+    }
+    if (idRecurso) {
+      params = params.set('idRecurso', idRecurso.toString());
+    }
+    if (estado) {
+      params = params.set('estado', estado);
+    }
+    return this.http.get<AsignacionRecurso[]>(`${this.url}/asignaciones-recursos`, { params });
+  }
+
+  crearAsignacion(datos: CrearAsignacionSolicitud) {
+    return this.http.post<AsignacionRecurso>(`${this.url}/asignaciones-recursos`, datos);
+  }
+
+  liberarAsignacion(id: number) {
+    return this.http.patch<AsignacionRecurso>(`${this.url}/asignaciones-recursos/${id}/liberar`, {});
+  }
+
+  // --- CU15: Gestion de Convocatorias de Staff y Voluntarios ---
+  listarConvocatorias(
+    idEvento?: number,
+    tipoPersonal?: TipoPersonalConvocatoria | '',
+    estado?: EstadoConvocatoria | '',
+    termino?: string,
+  ) {
+    let params = new HttpParams();
+    if (idEvento) params = params.set('idEvento', idEvento.toString());
+    if (tipoPersonal) params = params.set('tipoPersonal', tipoPersonal);
+    if (estado) params = params.set('estado', estado);
+    if (termino?.trim()) params = params.set('termino', termino.trim());
+    return this.http.get<Convocatoria[]>(`${this.url}/convocatorias`, { params });
+  }
+
+  crearConvocatoria(datos: CrearConvocatoriaSolicitud) {
+    return this.http.post<Convocatoria>(`${this.url}/convocatorias`, datos);
+  }
+
+  cerrarConvocatoria(id: number) {
+    return this.http.patch<Convocatoria>(`${this.url}/convocatorias/${id}/cerrar`, {});
+  }
+
+  cancelarConvocatoria(id: number) {
+    return this.http.patch<Convocatoria>(`${this.url}/convocatorias/${id}/cancelar`, {});
   }
 }

@@ -1,4 +1,6 @@
 package com.plataformaeventos.usuarios;
+ 
+import com.plataformaeventos.usuarios.dto.*;
 
 import com.plataformaeventos.excepciones.ExcepcionNoEncontrado;
 import com.plataformaeventos.roles.EstadoRol;

@@ -1,0 +1,232 @@
+<!--
+  CU15: Gestion de Convocatorias de Staff y Voluntarios.
+  Consulta convocatorias, filtra por evento/tipo/estado, registra necesidades de
+  personal con datos obligatorios y permite cerrar o cancelar registros abiertos.
+-->
+<section class="page-heading">
+  <p class="eyebrow">Gestión de Staff y Organización</p>
+  <h1>Convocatorias</h1>
+  <p>Organiza las necesidades de personal de cada evento y controla su estado.</p>
+  @if (puedeGestionar()) {
+    <div style="margin-top: 14px;">
+      <button class="primary" type="button" (click)="abrirModal()" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px; color: #ffffff;">
+        <span style="font-weight: 800; font-size: 1.15rem; line-height: 1; color: #ffffff;">+</span>
+        <span style="color: #ffffff; font-weight: 700;">Nueva Convocatoria</span>
+      </button>
+    </div>
+  }
+</section>
+
+@if (error()) {
+  <p class="notice error">{{ error() }}</p>
+}
+
+<section class="card filtros-convocatoria" aria-label="Filtros de convocatorias">
+  <label>
+    Buscar
+    <input
+      #termino
+      type="search"
+      [value]="filtroTermino()"
+      placeholder="Evento o descripcion"
+      (keyup.enter)="buscar(termino.value)"
+    />
+  </label>
+  <label>
+    Evento
+    <select [value]="filtroEvento()" (change)="cambiarFiltroEvento($any($event.target).value)">
+      <option [value]="0">Todos los eventos</option>
+      @for (evento of eventosParaFiltro(); track evento.id) {
+        <option [value]="evento.id">{{ evento.nombre }}</option>
+      }
+    </select>
+  </label>
+  <label>
+    Tipo de personal
+    <select [value]="filtroTipo()" (change)="cambiarFiltroTipo($any($event.target).value)">
+      <option value="">Todos</option>
+      <option value="STAFF">Staff</option>
+      <option value="VOLUNTARIO">Voluntariado</option>
+    </select>
+  </label>
+  <label>
+    Estado
+    <select [value]="filtroEstado()" (change)="cambiarFiltroEstado($any($event.target).value)">
+      <option value="">Todos</option>
+      @for (estado of estados; track estado) {
+        <option [value]="estado">{{ estado }}</option>
+      }
+    </select>
+  </label>
+  <div class="acciones-filtro">
+    <button type="button" (click)="buscar(termino.value)">Buscar</button>
+    <button type="button" (click)="termino.value = ''; limpiarFiltros()">Limpiar</button>
+  </div>
+</section>
+
+<section class="card table-card">
+  <div class="card-title">
+    <h2>Convocatorias existentes</h2>
+    <span>{{ convocatorias().length }} registro(s)</span>
+  </div>
+
+  @if (cargando()) {
+    <div class="empty-state">Cargando convocatorias...</div>
+  } @else if (convocatorias().length === 0) {
+    <div class="empty-state">
+      <div>
+        <strong>No se encontraron convocatorias</strong>
+        <p>Ajusta los filtros o registra una nueva convocatoria.</p>
+      </div>
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Evento</th>
+            <th>Personal</th>
+            <th>Descripcion</th>
+            <th>Cantidad</th>
+            <th>Fecha limite</th>
+            <th>Estado</th>
+            @if (puedeGestionar()) {
+              <th>Acciones</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (convocatoria of convocatorias(); track convocatoria.id) {
+            <tr>
+              <td>
+                <strong>{{ convocatoria.nombreEvento }}</strong>
+                <small>#{{ convocatoria.id }}</small>
+              </td>
+              <td><span class="tipo-chip">{{ etiquetaTipo(convocatoria.tipoPersonal) }}</span></td>
+              <td class="descripcion-cell">{{ convocatoria.descripcion }}</td>
+              <td><strong>{{ convocatoria.cantidadRequerida }}</strong></td>
+              <td>{{ convocatoria.fechaLimite | date: 'dd/MM/yyyy' : 'UTC' }}</td>
+              <td>
+                <span class="estado-convocatoria" [class]="'estado-convocatoria ' + claseEstado(convocatoria.estado)">
+                  {{ convocatoria.estado }}
+                </span>
+              </td>
+              @if (puedeGestionar()) {
+                <td>
+                  <div class="actions">
+                    <button
+                      type="button"
+                      [disabled]="convocatoria.estado !== 'ABIERTA' || idProcesando() === convocatoria.id"
+                      (click)="cerrar(convocatoria)"
+                    >
+                      Cerrar
+                    </button>
+                    <button
+                      class="btn-danger"
+                      type="button"
+                      [disabled]="convocatoria.estado !== 'ABIERTA' || idProcesando() === convocatoria.id"
+                      (click)="cancelar(convocatoria)"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
+@if (modalAbierto()) {
+  <div class="modal-overlay" role="presentation" (click)="cerrarModal()">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="titulo-convocatoria" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">CU15 · Nuevo registro</p>
+          <h2 id="titulo-convocatoria">Registrar convocatoria</h2>
+        </div>
+        <button class="btn-close" type="button" aria-label="Cerrar" (click)="cerrarModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <form class="form-grid" [formGroup]="formulario" (ngSubmit)="guardar()">
+          <label class="full" [class.invalid]="campoConError('idEvento')">
+            Evento *
+            <select formControlName="idEvento">
+              <option [value]="0">Selecciona un evento</option>
+              @for (evento of eventosDisponibles(); track evento.id) {
+                <option [value]="evento.id">
+                  {{ evento.nombre }} · {{ evento.fechaInicio | date: 'dd/MM/yyyy' }}
+                </option>
+              }
+            </select>
+            @if (campoConError('idEvento')) {
+              <small class="field-error">{{ mensajeCampo('idEvento') }}</small>
+            }
+          </label>
+
+          <label [class.invalid]="campoConError('tipoPersonal')">
+            Tipo de personal *
+            <select formControlName="tipoPersonal">
+              <option value="STAFF">Staff</option>
+              <option value="VOLUNTARIO">Voluntariado</option>
+            </select>
+          </label>
+
+          <label [class.invalid]="campoConError('cantidadRequerida')">
+            Cantidad requerida *
+            <input type="number" min="1" formControlName="cantidadRequerida" />
+            @if (campoConError('cantidadRequerida')) {
+              <small class="field-error">{{ mensajeCampo('cantidadRequerida') }}</small>
+            }
+          </label>
+
+          <label class="full" [class.invalid]="campoConError('fechaLimite')">
+            Fecha limite *
+            <input
+              type="date"
+              formControlName="fechaLimite"
+              [min]="fechaMinima"
+              [max]="fechaMaximaEvento()"
+            />
+            <small>Debe ser hoy o una fecha anterior al inicio del evento.</small>
+            @if (campoConError('fechaLimite')) {
+              <small class="field-error">{{ mensajeCampo('fechaLimite') }}</small>
+            }
+          </label>
+
+          <label class="full" [class.invalid]="campoConError('descripcion')">
+            Descripcion de funciones y requisitos *
+            <textarea
+              rows="5"
+              maxlength="1000"
+              formControlName="descripcion"
+              placeholder="Describe las funciones, horarios, habilidades o condiciones necesarias"
+            ></textarea>
+            <small>{{ formulario.controls.descripcion.value.length }}/1000 caracteres</small>
+            @if (campoConError('descripcion')) {
+              <small class="field-error">{{ mensajeCampo('descripcion') }}</small>
+            }
+          </label>
+
+          @if (eventosDisponibles().length === 0) {
+            <p class="notice error full">No existen eventos disponibles para asociar la convocatoria.</p>
+          }
+
+          <div class="button-row full modal-actions">
+            <button type="button" (click)="cerrarModal()">Cancelar</button>
+            <button
+              class="primary"
+              type="submit"
+              [disabled]="guardando() || eventosDisponibles().length === 0"
+            >
+              {{ guardando() ? 'Guardando...' : 'Registrar convocatoria' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}

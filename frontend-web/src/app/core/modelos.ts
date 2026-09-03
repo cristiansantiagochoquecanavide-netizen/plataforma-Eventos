@@ -40,6 +40,138 @@ export interface RolPermisos {
   permisos: Permiso[];
 }
 
+export type EstadoEvento =
+  | 'BORRADOR'
+  | 'PLANIFICADO'
+  | 'PUBLICADO'
+  | 'EN_CURSO'
+  | 'FINALIZADO'
+  | 'CANCELADO';
+
+export interface ResponsableEvento {
+  id: number;
+  nombres: string;
+  apellidos: string;
+  correo: string;
+  roles: string[];
+}
+
+export interface Evento {
+  id: number;
+  nombre: string;
+  descripcion: string | null;
+  categoria: string;
+  fechaInicio: string;
+  fechaFin: string | null;
+  lugarPrincipal: string | null;
+  estado: EstadoEvento;
+  responsables: ResponsableEvento[];
+}
+
+export interface GuardarEventoSolicitud {
+  nombre: string;
+  descripcion: string | null;
+  categoria: string;
+  fechaInicio: string;
+  fechaFin: string | null;
+  lugarPrincipal: string | null;
+  estado: EstadoEvento;
+  responsables: number[];
+}
+
+// --- CU19: Modelos de Recursos ---
+export type TipoRecurso = 'AUDIOVISUAL' | 'MOBILIARIO' | 'EQUIPO_COMPUTO' | 'ESPACIO' | 'OTRO';
+export type EstadoRecurso = 'DISPONIBLE' | 'EN_USO' | 'MANTENIMIENTO' | 'DE_BAJA';
+
+export interface Recurso {
+  id: number;
+  codigo: string;
+  nombre: string;
+  tipo: TipoRecurso;
+  cantidadTotal: number;
+  cantidadDisponible: number;
+  estado: EstadoRecurso;
+  ubicacion: string | null;
+  descripcion: string | null;
+  fechaCreacion?: string;
+  fechaActualizacion?: string;
+}
+
+export interface CrearRecursoSolicitud {
+  codigo: string;
+  nombre: string;
+  tipo: TipoRecurso;
+  cantidadTotal: number;
+  ubicacion?: string | null;
+  descripcion?: string | null;
+}
+
+export interface ActualizarRecursoSolicitud {
+  codigo: string;
+  nombre: string;
+  tipo: TipoRecurso;
+  cantidadTotal: number;
+  cantidadDisponible: number;
+  estado: EstadoRecurso;
+  ubicacion?: string | null;
+  descripcion?: string | null;
+}
+
+export interface CambiarEstadoRecursoSolicitud {
+  estado: EstadoRecurso;
+}
+
+export type EstadoAsignacion = 'ACTIVA' | 'DEVUELTA' | 'CANCELADA';
+
+export interface AsignacionRecurso {
+  id: number;
+  idEvento: number;
+  nombreEvento: string;
+  idRecurso: number;
+  codigoRecurso: string;
+  nombreRecurso: string;
+  tipoRecurso: TipoRecurso;
+  salaEspacio: string;
+  cantidadAsignada: number;
+  estado: EstadoAsignacion;
+  observaciones: string | null;
+  fechaAsignacion: string;
+  fechaDevolucion: string | null;
+}
+
+export interface CrearAsignacionSolicitud {
+  idEvento: number;
+  idRecurso: number;
+  salaEspacio: string;
+  cantidadAsignada: number;
+  observaciones?: string | null;
+}
+
+// --- CU15: Gestion de Convocatorias de Staff y Voluntarios ---
+export type TipoPersonalConvocatoria = 'STAFF' | 'VOLUNTARIO';
+export type EstadoConvocatoria = 'ABIERTA' | 'CERRADA' | 'CANCELADA';
+
+export interface Convocatoria {
+  id: number;
+  idEvento: number;
+  nombreEvento: string;
+  tipoPersonal: TipoPersonalConvocatoria;
+  descripcion: string;
+  cantidadRequerida: number;
+  fechaLimite: string;
+  estado: EstadoConvocatoria;
+  fechaCreacion: string;
+  fechaActualizacion: string;
+}
+
+export interface CrearConvocatoriaSolicitud {
+  idEvento: number;
+  tipoPersonal: TipoPersonalConvocatoria;
+  descripcion: string;
+  cantidadRequerida: number;
+  fechaLimite: string;
+}
+
 export interface ErrorApi {
   status: number;
   message: string;

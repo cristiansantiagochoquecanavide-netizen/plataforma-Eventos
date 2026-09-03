@@ -3,7 +3,8 @@ package com.plataformaeventos.roles;
 import com.plataformaeventos.excepciones.ExcepcionNoEncontrado;
 import com.plataformaeventos.permisos.Permiso;
 import com.plataformaeventos.permisos.PermisoRepository;
-import com.plataformaeventos.permisos.PermisoRespuesta;
+import com.plataformaeventos.permisos.dto.PermisoRespuesta;
+import com.plataformaeventos.roles.dto.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
