@@ -4,6 +4,7 @@
     <nav>
       <p class="nav-label">Gestion de Usuarios, Seguridad y Auditoria</p>
       <a routerLink="/perfil" routerLinkActive="active">Mi perfil</a>
+      <a routerLink="/consulta-eventos" routerLinkActive="active">Consultar eventos</a>
       @if (sesion.esAdministrador()) {
         <a routerLink="/usuarios" routerLinkActive="active">Usuarios</a>
         <a routerLink="/roles" routerLinkActive="active">Roles y permisos</a>

@@ -10,6 +10,7 @@ import { RecuperarClaveComponent } from './features/auth/recuperar-clave.compone
 import { RestablecerClaveComponent } from './features/auth/restablecer-clave.component';
 import { ConvocatoriasComponent } from './features/convocatorias/convocatorias.component';
 import { EventosComponent } from './features/eventos/eventos.component';
+import { ConsultaEventosComponent } from './features/eventos/consulta-eventos.component';
 import { PanelComponent } from './features/panel/panel.component';
 import { PerfilComponent } from './features/perfil/perfil.component';
 import { RecursosComponent } from './features/recursos/recursos.component';
@@ -26,6 +27,7 @@ export const routes: Routes = [
     canActivate: [autenticacionGuard],
     children: [
       { path: 'perfil', component: PerfilComponent },
+      { path: 'consulta-eventos', component: ConsultaEventosComponent },
       { path: 'eventos', component: EventosComponent, canActivate: [administradorGuard] },
       { path: 'usuarios', component: UsuariosComponent, canActivate: [administradorGuard] },
       { path: 'roles', component: RolesComponent, canActivate: [administradorGuard] },

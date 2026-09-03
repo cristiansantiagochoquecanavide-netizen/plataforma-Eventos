@@ -35,6 +35,9 @@ public class Evento {
     @Column(length = 500)
     private String descripcion;
 
+    @Column(nullable = false, length = 80)
+    private String categoria;
+
     @Column(name = "fecha_inicio", nullable = false)
     private OffsetDateTime fechaInicio;
 
@@ -65,6 +68,7 @@ public class Evento {
     protected Evento() {
     }
 
+    // Mantiene compatibles los servicios y pruebas que crean eventos sin categoria.
     public Evento(
             String nombre,
             String descripcion,
@@ -73,8 +77,21 @@ public class Evento {
             String lugarPrincipal,
             EstadoEvento estado
     ) {
+        this(nombre, descripcion, "GENERAL", fechaInicio, fechaFin, lugarPrincipal, estado);
+    }
+
+    public Evento(
+            String nombre,
+            String descripcion,
+            String categoria,
+            OffsetDateTime fechaInicio,
+            OffsetDateTime fechaFin,
+            String lugarPrincipal,
+            EstadoEvento estado
+    ) {
         this.nombre = nombre;
         this.descripcion = descripcion;
+        this.categoria = categoria;
         this.fechaInicio = fechaInicio;
         this.fechaFin = fechaFin;
         this.lugarPrincipal = lugarPrincipal;
@@ -110,6 +127,10 @@ public class Evento {
         return descripcion;
     }
 
+    public String getCategoria() {
+        return categoria;
+    }
+
     public OffsetDateTime getFechaInicio() {
         return fechaInicio;
     }
@@ -133,6 +154,7 @@ public class Evento {
     public void actualizarDatos(
             String nombre,
             String descripcion,
+            String categoria,
             OffsetDateTime fechaInicio,
             OffsetDateTime fechaFin,
             String lugarPrincipal,
@@ -140,6 +162,7 @@ public class Evento {
     ) {
         this.nombre = nombre;
         this.descripcion = descripcion;
+        this.categoria = categoria;
         this.fechaInicio = fechaInicio;
         this.fechaFin = fechaFin;
         this.lugarPrincipal = lugarPrincipal;

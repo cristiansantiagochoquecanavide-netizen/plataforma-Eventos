@@ -33,6 +33,7 @@ export class EventosComponent implements OnInit {
   readonly formulario = new FormBuilder().nonNullable.group({
     nombre: ['', [Validators.required, Validators.maxLength(150)]],
     descripcion: ['', Validators.maxLength(500)],
+    categoria: ['GENERAL', [Validators.required, Validators.maxLength(80)]],
     fechaInicio: ['', Validators.required],
     horaInicio: ['09:00', Validators.required],
     fechaFin: [''],
@@ -106,6 +107,7 @@ export class EventosComponent implements OnInit {
     this.formulario.reset({
       nombre: evento.nombre,
       descripcion: evento.descripcion ?? '',
+      categoria: evento.categoria,
       fechaInicio: this.obtenerFechaISO(dInicio),
       horaInicio: this.obtenerHoraISO(dInicio),
       fechaFin: dFin ? this.obtenerFechaISO(dFin) : '',
@@ -123,6 +125,7 @@ export class EventosComponent implements OnInit {
     this.formulario.reset({
       nombre: '',
       descripcion: '',
+      categoria: 'GENERAL',
       fechaInicio: '',
       horaInicio: '09:00',
       fechaFin: '',
@@ -178,6 +181,7 @@ export class EventosComponent implements OnInit {
     const datos: GuardarEventoSolicitud = {
       nombre: valor.nombre.trim(),
       descripcion: valor.descripcion.trim() || null,
+      categoria: valor.categoria.trim(),
       fechaInicio: fechaInicio.toISOString(),
       fechaFin: fechaFin?.toISOString() ?? null,
       lugarPrincipal: valor.lugarPrincipal.trim() || null,

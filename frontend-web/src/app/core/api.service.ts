@@ -118,8 +118,15 @@ export class ApiService {
     return this.http.put<RolPermisos>(`${this.url}/roles/${idRol}/permisos`, { permisos });
   }
 
-  listarEventos() {
-    return this.http.get<Evento[]>(`${this.url}/eventos`);
+  listarEventos(termino = '', categoria = '') {
+    let params = new HttpParams();
+    if (termino.trim()) params = params.set('termino', termino.trim());
+    if (categoria) params = params.set('categoria', categoria);
+    return this.http.get<Evento[]>(`${this.url}/eventos`, { params });
+  }
+
+  obtenerEvento(id: number) {
+    return this.http.get<Evento>(`${this.url}/eventos/${id}`);
   }
 
   crearEvento(datos: GuardarEventoSolicitud) {

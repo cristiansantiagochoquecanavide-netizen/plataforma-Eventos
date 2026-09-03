@@ -28,9 +28,14 @@ public class EventoService {
     }
 
     @Transactional(readOnly = true)
-    public List<EventoRespuesta> listarEventos() {
+    public List<EventoRespuesta> listarEventos(String termino, String categoria) {
+        String texto = termino == null ? "" : termino.trim().toLowerCase();
+        String filtroCategoria = categoria == null ? "" : categoria.trim().toLowerCase();
         return eventoRepository.findByEstadoNotOrderByFechaInicioAsc(EstadoEvento.CANCELADO)
                 .stream()
+                // Se filtra en el servicio para que web y movil reciban exactamente el mismo resultado.
+                .filter(evento -> texto.isEmpty() || evento.getNombre().toLowerCase().contains(texto))
+                .filter(evento -> filtroCategoria.isEmpty() || evento.getCategoria().toLowerCase().equals(filtroCategoria))
                 .map(this::convertirEvento)
                 .toList();
     }
@@ -46,6 +51,7 @@ public class EventoService {
         Evento evento = new Evento(
                 solicitud.nombre().trim(),
                 normalizarTexto(solicitud.descripcion()),
+                solicitud.categoria().trim(),
                 solicitud.fechaInicio(),
                 solicitud.fechaFin(),
                 normalizarTexto(solicitud.lugarPrincipal()),
@@ -62,6 +68,7 @@ public class EventoService {
         evento.actualizarDatos(
                 solicitud.nombre().trim(),
                 normalizarTexto(solicitud.descripcion()),
+                solicitud.categoria().trim(),
                 solicitud.fechaInicio(),
                 solicitud.fechaFin(),
                 normalizarTexto(solicitud.lugarPrincipal()),
@@ -120,6 +127,7 @@ public class EventoService {
                 evento.getId(),
                 evento.getNombre(),
                 evento.getDescripcion(),
+                evento.getCategoria(),
                 evento.getFechaInicio(),
                 evento.getFechaFin(),
                 evento.getLugarPrincipal(),

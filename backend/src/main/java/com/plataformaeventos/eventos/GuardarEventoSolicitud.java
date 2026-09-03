@@ -16,6 +16,10 @@ public record GuardarEventoSolicitud(
         @Size(max = 500, message = "La descripcion no debe superar 500 caracteres")
         String descripcion,
 
+        @NotBlank(message = "La categoria es obligatoria")
+        @Size(max = 80, message = "La categoria no debe superar 80 caracteres")
+        String categoria,
+
         @NotNull(message = "La fecha de inicio es obligatoria")
         OffsetDateTime fechaInicio,
 

@@ -7,6 +7,7 @@ public record EventoRespuesta(
         Long id,
         String nombre,
         String descripcion,
+        String categoria,
         OffsetDateTime fechaInicio,
         OffsetDateTime fechaFin,
         String lugarPrincipal,

@@ -60,6 +60,7 @@ export interface Evento {
   id: number;
   nombre: string;
   descripcion: string | null;
+  categoria: string;
   fechaInicio: string;
   fechaFin: string | null;
   lugarPrincipal: string | null;
@@ -70,6 +71,7 @@ export interface Evento {
 export interface GuardarEventoSolicitud {
   nombre: string;
   descripcion: string | null;
+  categoria: string;
   fechaInicio: string;
   fechaFin: string | null;
   lugarPrincipal: string | null;
