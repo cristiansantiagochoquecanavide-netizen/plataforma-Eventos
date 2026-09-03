@@ -1,6 +1,8 @@
 package com.plataformaeventos.eventos;
 
 import com.plataformaeventos.excepciones.ExcepcionNoEncontrado;
+import com.plataformaeventos.espacios.Espacio;
+import com.plataformaeventos.espacios.EspacioRepository;
 import com.plataformaeventos.roles.Rol;
 import com.plataformaeventos.usuarios.EstadoUsuario;
 import com.plataformaeventos.usuarios.Usuario;
@@ -21,10 +23,16 @@ public class EventoService {
 
     private final EventoRepository eventoRepository;
     private final UsuarioRepository usuarioRepository;
+    private final EspacioRepository espacioRepository;
 
-    public EventoService(EventoRepository eventoRepository, UsuarioRepository usuarioRepository) {
+    public EventoService(
+            EventoRepository eventoRepository,
+            UsuarioRepository usuarioRepository,
+            EspacioRepository espacioRepository
+    ) {
         this.eventoRepository = eventoRepository;
         this.usuarioRepository = usuarioRepository;
+        this.espacioRepository = espacioRepository;
     }
 
     @Transactional(readOnly = true)
@@ -48,6 +56,7 @@ public class EventoService {
     @Transactional
     public EventoRespuesta crearEvento(GuardarEventoSolicitud solicitud) {
         validarFechas(solicitud.fechaInicio(), solicitud.fechaFin());
+        Espacio espacio = validarProgramacion(solicitud, null);
         Evento evento = new Evento(
                 solicitud.nombre().trim(),
                 normalizarTexto(solicitud.descripcion()),
@@ -57,6 +66,7 @@ public class EventoService {
                 normalizarTexto(solicitud.lugarPrincipal()),
                 solicitud.estado() == null ? EstadoEvento.PLANIFICADO : solicitud.estado()
         );
+        evento.configurarProgramacion(espacio, solicitud.aforoMaximo());
         evento.asignarResponsables(obtenerResponsablesValidos(solicitud.responsables()));
         return convertirEvento(eventoRepository.save(evento));
     }
@@ -65,6 +75,7 @@ public class EventoService {
     public EventoRespuesta actualizarEvento(Long idEvento, GuardarEventoSolicitud solicitud) {
         validarFechas(solicitud.fechaInicio(), solicitud.fechaFin());
         Evento evento = buscarEvento(idEvento);
+        Espacio espacio = validarProgramacion(solicitud, idEvento);
         evento.actualizarDatos(
                 solicitud.nombre().trim(),
                 normalizarTexto(solicitud.descripcion()),
@@ -74,6 +85,7 @@ public class EventoService {
                 normalizarTexto(solicitud.lugarPrincipal()),
                 solicitud.estado() == null ? evento.getEstado() : solicitud.estado()
         );
+        evento.configurarProgramacion(espacio, solicitud.aforoMaximo());
         evento.asignarResponsables(obtenerResponsablesValidos(solicitud.responsables()));
         return convertirEvento(evento);
     }
@@ -110,9 +122,22 @@ public class EventoService {
     }
 
     private void validarFechas(OffsetDateTime fechaInicio, OffsetDateTime fechaFin) {
-        if (fechaFin != null && fechaFin.isBefore(fechaInicio)) {
-            throw new IllegalArgumentException("La fecha de fin no puede ser anterior a la fecha de inicio");
+        if (fechaFin == null || !fechaFin.isAfter(fechaInicio)) {
+            throw new IllegalArgumentException("La fecha de fin debe ser posterior a la fecha de inicio");
         }
+    }
+
+    private Espacio validarProgramacion(GuardarEventoSolicitud solicitud, Long idEvento) {
+        Espacio espacio = espacioRepository.findById(solicitud.idEspacio())
+                .orElseThrow(() -> new ExcepcionNoEncontrado("Espacio no encontrado"));
+        if (solicitud.aforoMaximo() > espacio.getCapacidad()) {
+            throw new IllegalArgumentException("El aforo del evento no puede superar la capacidad del espacio");
+        }
+        if (eventoRepository.existeConflictoProgramacion(
+                espacio.getId(), solicitud.fechaInicio(), solicitud.fechaFin(), idEvento)) {
+            throw new IllegalArgumentException("El espacio ya esta ocupado en el horario seleccionado");
+        }
+        return espacio;
     }
 
     private String normalizarTexto(String valor) {
@@ -131,6 +156,13 @@ public class EventoService {
                 evento.getFechaInicio(),
                 evento.getFechaFin(),
                 evento.getLugarPrincipal(),
+                evento.getEspacio() == null ? null : new EspacioEventoRespuesta(
+                        evento.getEspacio().getId(),
+                        evento.getEspacio().getNombre(),
+                        evento.getEspacio().getUbicacion(),
+                        evento.getEspacio().getCapacidad()
+                ),
+                evento.getAforoMaximo(),
                 evento.getEstado().name(),
                 evento.getResponsables().stream()
                         .sorted(Comparator.comparing(Usuario::getApellidos).thenComparing(Usuario::getNombres))

@@ -3,6 +3,7 @@ package com.plataformaeventos.eventos;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.time.OffsetDateTime;
@@ -27,6 +28,13 @@ public record GuardarEventoSolicitud(
 
         @Size(max = 150, message = "El lugar principal no debe superar 150 caracteres")
         String lugarPrincipal,
+
+        @NotNull(message = "El espacio es obligatorio")
+        Long idEspacio,
+
+        @NotNull(message = "El aforo maximo es obligatorio")
+        @Positive(message = "El aforo maximo debe ser mayor que cero")
+        Integer aforoMaximo,
 
         EstadoEvento estado,
 

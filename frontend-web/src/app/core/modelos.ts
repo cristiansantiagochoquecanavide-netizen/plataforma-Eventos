@@ -64,6 +64,8 @@ export interface Evento {
   fechaInicio: string;
   fechaFin: string | null;
   lugarPrincipal: string | null;
+  espacio: Espacio | null;
+  aforoMaximo: number | null;
   estado: EstadoEvento;
   responsables: ResponsableEvento[];
 }
@@ -75,8 +77,23 @@ export interface GuardarEventoSolicitud {
   fechaInicio: string;
   fechaFin: string | null;
   lugarPrincipal: string | null;
+  idEspacio: number;
+  aforoMaximo: number;
   estado: EstadoEvento;
   responsables: number[];
+}
+
+export interface Espacio {
+  id: number;
+  nombre: string;
+  ubicacion: string;
+  capacidad: number;
+}
+
+export interface GuardarEspacioSolicitud {
+  nombre: string;
+  ubicacion: string;
+  capacidad: number;
 }
 
 // --- CU19: Modelos de Recursos ---

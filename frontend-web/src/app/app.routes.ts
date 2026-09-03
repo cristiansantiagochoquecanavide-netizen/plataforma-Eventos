@@ -1,9 +1,11 @@
 import { Routes } from '@angular/router';
 import {
   administradorGuard,
+  eventosGuard,
   autenticacionGuard,
   convocatoriasGuard,
   recursosGuard,
+  espaciosGuard,
 } from './core/guards';
 import { InicioSesionComponent } from './features/auth/inicio-sesion.component';
 import { RecuperarClaveComponent } from './features/auth/recuperar-clave.component';
@@ -14,6 +16,7 @@ import { ConsultaEventosComponent } from './features/eventos/consulta-eventos.co
 import { PanelComponent } from './features/panel/panel.component';
 import { PerfilComponent } from './features/perfil/perfil.component';
 import { RecursosComponent } from './features/recursos/recursos.component';
+import { EspaciosComponent } from './features/espacios/espacios.component';
 import { RolesComponent } from './features/roles/roles.component';
 import { UsuariosComponent } from './features/usuarios/usuarios.component';
 
@@ -28,10 +31,11 @@ export const routes: Routes = [
     children: [
       { path: 'perfil', component: PerfilComponent },
       { path: 'consulta-eventos', component: ConsultaEventosComponent },
-      { path: 'eventos', component: EventosComponent, canActivate: [administradorGuard] },
+      { path: 'eventos', component: EventosComponent, canActivate: [eventosGuard] },
       { path: 'usuarios', component: UsuariosComponent, canActivate: [administradorGuard] },
       { path: 'roles', component: RolesComponent, canActivate: [administradorGuard] },
       { path: 'recursos', component: RecursosComponent, canActivate: [recursosGuard] },
+      { path: 'espacios', component: EspaciosComponent, canActivate: [espaciosGuard] },
       {
         path: 'convocatorias',
         component: ConvocatoriasComponent,

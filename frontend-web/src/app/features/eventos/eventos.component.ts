@@ -4,7 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { switchMap } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { obtenerMensajeError } from '../../core/mensajes-error';
-import { EstadoEvento, Evento, GuardarEventoSolicitud, Usuario } from '../../core/modelos';
+import { EstadoEvento, Espacio, Evento, GuardarEventoSolicitud, Usuario } from '../../core/modelos';
 import { ToastService } from '../../core/toast.service';
 
 @Component({
@@ -16,6 +16,7 @@ import { ToastService } from '../../core/toast.service';
 export class EventosComponent implements OnInit {
   readonly eventos = signal<Evento[]>([]);
   readonly usuarios = signal<Usuario[]>([]);
+  readonly espacios = signal<Espacio[]>([]);
   readonly responsablesSeleccionados = signal<Set<number>>(new Set());
   readonly eventoSeleccionado = signal<Evento | null>(null);
   readonly modalAbierto = signal(false);
@@ -39,6 +40,8 @@ export class EventosComponent implements OnInit {
     fechaFin: [''],
     horaFin: ['18:00'],
     lugarPrincipal: ['', Validators.maxLength(150)],
+    idEspacio: [null as number | null, Validators.required],
+    aforoMaximo: [null as number | null, [Validators.required, Validators.min(1)]],
     estado: ['PLANIFICADO' as EstadoEvento],
   });
 
@@ -50,6 +53,7 @@ export class EventosComponent implements OnInit {
   ngOnInit() {
     this.cargarEventos();
     this.cargarUsuarios();
+    this.cargarEspacios();
   }
 
   cargarEventos() {
@@ -68,6 +72,17 @@ export class EventosComponent implements OnInit {
       next: (pagina) => this.usuarios.set(pagina.elementos),
       error: (error) => {
         const mensaje = obtenerMensajeError(error, 'No fue posible cargar responsables');
+        this.error.set(mensaje);
+        this.toast.error(mensaje);
+      },
+    });
+  }
+
+  cargarEspacios() {
+    this.api.listarEspacios().subscribe({
+      next: (espacios) => this.espacios.set(espacios),
+      error: (error) => {
+        const mensaje = obtenerMensajeError(error, 'No fue posible cargar espacios');
         this.error.set(mensaje);
         this.toast.error(mensaje);
       },
@@ -113,6 +128,8 @@ export class EventosComponent implements OnInit {
       fechaFin: dFin ? this.obtenerFechaISO(dFin) : '',
       horaFin: dFin ? this.obtenerHoraISO(dFin) : '18:00',
       lugarPrincipal: evento.lugarPrincipal ?? '',
+      idEspacio: evento.espacio?.id ?? null,
+      aforoMaximo: evento.aforoMaximo,
       estado: evento.estado,
     });
   }
@@ -131,6 +148,8 @@ export class EventosComponent implements OnInit {
       fechaFin: '',
       horaFin: '18:00',
       lugarPrincipal: '',
+      idEspacio: null,
+      aforoMaximo: null,
       estado: 'PLANIFICADO',
     });
   }
@@ -185,6 +204,8 @@ export class EventosComponent implements OnInit {
       fechaInicio: fechaInicio.toISOString(),
       fechaFin: fechaFin?.toISOString() ?? null,
       lugarPrincipal: valor.lugarPrincipal.trim() || null,
+      idEspacio: valor.idEspacio!,
+      aforoMaximo: valor.aforoMaximo!,
       estado: valor.estado,
       responsables,
     };

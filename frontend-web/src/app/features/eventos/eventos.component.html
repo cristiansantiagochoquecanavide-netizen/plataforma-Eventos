@@ -27,9 +27,10 @@
       <thead>
         <tr>
           <th>Evento</th>
-          <th>Fechas</th>
-          <th>Lugar Principal</th>
-          <th>Responsables</th>
+           <th>Fechas</th>
+           <th>Lugar Principal</th>
+           <th>Espacio / Aforo</th>
+           <th>Responsables</th>
           <th>Estado</th>
           <th style="text-align: right;">Acciones</th>
         </tr>
@@ -49,6 +50,12 @@
             </td>
             <td>{{ evento.lugarPrincipal || 'Sin lugar asignado' }}</td>
             <td>
+              {{ evento.espacio?.nombre || 'Sin espacio' }}
+              @if (evento.aforoMaximo) {
+                <small>Aforo: {{ evento.aforoMaximo }}</small>
+              }
+            </td>
+            <td>
               @for (responsable of evento.responsables; track responsable.id) {
                 <span class="inline-chip" style="margin-right: 4px;">{{ responsable.nombres }} {{ responsable.apellidos }}</span>
               } @empty {
@@ -66,7 +73,7 @@
           </tr>
         } @empty {
           <tr>
-            <td colspan="6" style="text-align: center; padding: 32px;"><small>No hay eventos registrados.</small></td>
+             <td colspan="7" style="text-align: center; padding: 32px;"><small>No hay eventos registrados.</small></td>
           </tr>
         }
       </tbody>
@@ -164,6 +171,25 @@
             @if (campoConError('lugarPrincipal')) {
               <small class="field-error">{{ mensajeCampo('lugarPrincipal') }}</small>
             }
+          </label>
+
+          <label class="full">
+            Espacio o sala *
+            <select formControlName="idEspacio">
+              <option [ngValue]="null">Selecciona un espacio</option>
+              @for (espacio of espacios(); track espacio.id) {
+                <option [ngValue]="espacio.id">{{ espacio.nombre }} - {{ espacio.ubicacion }} ({{ espacio.capacidad }} personas)</option>
+              }
+            </select>
+            @if (formulario.controls.idEspacio.invalid && intentoEnvio()) {
+              <small class="field-error">Debes seleccionar un espacio.</small>
+            }
+          </label>
+
+          <label class="full">
+            Aforo del evento *
+            <input type="number" min="1" formControlName="aforoMaximo" placeholder="Ej: 100" />
+            <small style="color: var(--muted);">No puede superar la capacidad del espacio seleccionado.</small>
           </label>
 
           <label class="full">

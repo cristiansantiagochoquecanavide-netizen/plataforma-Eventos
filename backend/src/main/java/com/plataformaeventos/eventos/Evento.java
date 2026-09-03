@@ -1,6 +1,7 @@
 package com.plataformaeventos.eventos;
 
 import com.plataformaeventos.usuarios.Usuario;
+import com.plataformaeventos.espacios.Espacio;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -12,6 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -46,6 +48,13 @@ public class Evento {
 
     @Column(name = "lugar_principal", length = 150)
     private String lugarPrincipal;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_espacio")
+    private Espacio espacio;
+
+    @Column(name = "aforo_maximo")
+    private Integer aforoMaximo;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -143,6 +152,14 @@ public class Evento {
         return lugarPrincipal;
     }
 
+    public Espacio getEspacio() {
+        return espacio;
+    }
+
+    public Integer getAforoMaximo() {
+        return aforoMaximo;
+    }
+
     public EstadoEvento getEstado() {
         return estado;
     }
@@ -167,6 +184,11 @@ public class Evento {
         this.fechaFin = fechaFin;
         this.lugarPrincipal = lugarPrincipal;
         this.estado = estado;
+    }
+
+    public void configurarProgramacion(Espacio espacio, Integer aforoMaximo) {
+        this.espacio = espacio;
+        this.aforoMaximo = aforoMaximo;
     }
 
     public void asignarResponsables(Set<Usuario> responsables) {

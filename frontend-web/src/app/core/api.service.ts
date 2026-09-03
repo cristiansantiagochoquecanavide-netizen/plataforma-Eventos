@@ -11,8 +11,10 @@ import {
   EstadoAsignacion,
   EstadoConvocatoria,
   EstadoRecurso,
+  Espacio,
   Evento,
   GuardarEventoSolicitud,
+  GuardarEspacioSolicitud,
   PaginaUsuarios,
   Permiso,
   Recurso,
@@ -139,6 +141,18 @@ export class ApiService {
 
   asignarResponsablesEvento(id: number, responsables: number[]) {
     return this.http.put<Evento>(`${this.url}/eventos/${id}/responsables`, { responsables });
+  }
+
+  listarEspacios() {
+    return this.http.get<Espacio[]>(`${this.url}/espacios`);
+  }
+
+  crearEspacio(datos: GuardarEspacioSolicitud) {
+    return this.http.post<Espacio>(`${this.url}/espacios`, datos);
+  }
+
+  actualizarEspacio(id: number, datos: GuardarEspacioSolicitud) {
+    return this.http.put<Espacio>(`${this.url}/espacios/${id}`, datos);
   }
 
   // --- CU19: Gestion y Consulta de Recursos ---
