@@ -22,6 +22,28 @@ export const administradorGuard: CanActivateFn = () => {
   );
 };
 
+export const usuariosGuard: CanActivateFn = () => {
+  const sesion = inject(SesionService);
+  const router = inject(Router);
+  return sesion.restaurar().pipe(
+    map((autenticado) =>
+      autenticado && sesion.tieneAccesoUsuarios() ? true : router.createUrlTree(['/perfil']),
+    ),
+    catchError(() => of(router.createUrlTree(['/iniciar-sesion']))),
+  );
+};
+
+export const rolesGuard: CanActivateFn = () => {
+  const sesion = inject(SesionService);
+  const router = inject(Router);
+  return sesion.restaurar().pipe(
+    map((autenticado) =>
+      autenticado && sesion.tieneAccesoRoles() ? true : router.createUrlTree(['/perfil']),
+    ),
+    catchError(() => of(router.createUrlTree(['/iniciar-sesion']))),
+  );
+};
+
 export const recursosGuard: CanActivateFn = () => {
   const sesion = inject(SesionService);
   const router = inject(Router);
@@ -33,9 +55,27 @@ export const recursosGuard: CanActivateFn = () => {
   );
 };
 
-export const eventosGuard: CanActivateFn = recursosGuard;
+export const eventosGuard: CanActivateFn = () => {
+  const sesion = inject(SesionService);
+  const router = inject(Router);
+  return sesion.restaurar().pipe(
+    map((autenticado) =>
+      autenticado && sesion.tieneAccesoEventos() ? true : router.createUrlTree(['/perfil']),
+    ),
+    catchError(() => of(router.createUrlTree(['/iniciar-sesion']))),
+  );
+};
 
-export const espaciosGuard: CanActivateFn = recursosGuard;
+export const espaciosGuard: CanActivateFn = () => {
+  const sesion = inject(SesionService);
+  const router = inject(Router);
+  return sesion.restaurar().pipe(
+    map((autenticado) =>
+      autenticado && sesion.tieneAccesoEspacios() ? true : router.createUrlTree(['/perfil']),
+    ),
+    catchError(() => of(router.createUrlTree(['/iniciar-sesion']))),
+  );
+};
 
 export const convocatoriasGuard: CanActivateFn = () => {
   const sesion = inject(SesionService);

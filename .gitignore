@@ -6,6 +6,7 @@
 # Java y Maven
 backend/target/
 *.log
+*.zip
 
 # Angular y Node.js
 frontend-web/node_modules/

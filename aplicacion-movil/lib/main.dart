@@ -1525,12 +1525,23 @@ class EventModel {
     id: json['id'] as int,
     name: json['nombre'] as String,
     description: json['descripcion'] as String? ?? '',
-    category: json['categoria'] as String? ?? 'GENERAL',
+    category: _readCategoryName(json),
     start: DateTime.parse(json['fechaInicio'] as String),
     end: json['fechaFin'] == null ? null : DateTime.parse(json['fechaFin'] as String),
     place: json['lugarPrincipal'] as String? ?? '',
     status: json['estado'] as String,
   );
+
+  static String _readCategoryName(Map<String, dynamic> json) {
+    final category = json['categoria'];
+    if (category is String && category.isNotEmpty) return category;
+    if (category is Map<String, dynamic>) {
+      final name = category['nombre'];
+      if (name is String && name.isNotEmpty) return name;
+    }
+    final categoryName = json['categoriaNombre'];
+    return categoryName is String && categoryName.isNotEmpty ? categoryName : 'GENERAL';
+  }
 }
 
 class ApiException implements Exception {

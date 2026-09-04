@@ -3,6 +3,8 @@ package com.plataformaeventos.perfil;
 import com.plataformaeventos.perfil.dto.*;
 
 import com.plataformaeventos.excepciones.ExcepcionNoAutorizado;
+import com.plataformaeventos.permisos.Permiso;
+import com.plataformaeventos.roles.EstadoRol;
 import com.plataformaeventos.roles.Rol;
 import com.plataformaeventos.seguridad.TokenRefrescoService;
 import com.plataformaeventos.usuarios.Usuario;
@@ -63,7 +65,7 @@ public class PerfilService {
     }
 
     private Usuario buscarUsuario(String correo) {
-        return usuarioRepository.findByCorreo(normalizarCorreo(correo))
+        return usuarioRepository.findByCorreoConRolesYPermisos(normalizarCorreo(correo))
                 .orElseThrow(() -> new ExcepcionNoAutorizado("Usuario no encontrado"));
     }
 
@@ -77,8 +79,19 @@ public class PerfilService {
                 usuario.getNombres(),
                 usuario.getApellidos(),
                 usuario.getCorreo(),
-                roles
+                roles,
+                obtenerPermisos(usuario)
         );
+    }
+
+    private List<String> obtenerPermisos(Usuario usuario) {
+        return usuario.getRoles().stream()
+                .filter(rol -> rol.getEstado() == EstadoRol.ACTIVO)
+                .flatMap(rol -> rol.getPermisos().stream())
+                .map(Permiso::getNombre)
+                .distinct()
+                .sorted()
+                .toList();
     }
 
     private String normalizarCorreo(String correo) {

@@ -3,6 +3,8 @@ package com.plataformaeventos.autenticacion;
 import com.plataformaeventos.autenticacion.dto.*;
 
 import com.plataformaeventos.excepciones.ExcepcionNoAutorizado;
+import com.plataformaeventos.permisos.Permiso;
+import com.plataformaeventos.roles.EstadoRol;
 import com.plataformaeventos.roles.Rol;
 import com.plataformaeventos.roles.RolRepository;
 import com.plataformaeventos.seguridad.JwtService;
@@ -118,7 +120,7 @@ public class AutenticacionService {
 
     @Transactional(readOnly = true)
     public UsuarioActualRespuesta obtenerUsuarioActual(String correo) {
-        Usuario usuario = usuarioRepository.findByCorreo(normalizarCorreo(correo))
+        Usuario usuario = usuarioRepository.findByCorreoConRolesYPermisos(normalizarCorreo(correo))
                 .orElseThrow(() -> new ExcepcionNoAutorizado("Usuario no encontrado"));
         return convertirUsuario(usuario);
     }
@@ -142,8 +144,19 @@ public class AutenticacionService {
                 usuario.getApellidos(),
                 usuario.getCorreo(),
                 usuario.getEstado().name(),
-                roles
+                roles,
+                obtenerPermisos(usuario)
         );
+    }
+
+    private List<String> obtenerPermisos(Usuario usuario) {
+        return usuario.getRoles().stream()
+                .filter(rol -> rol.getEstado() == EstadoRol.ACTIVO)
+                .flatMap(rol -> rol.getPermisos().stream())
+                .map(Permiso::getNombre)
+                .distinct()
+                .sorted()
+                .toList();
     }
 
     private String normalizarCorreo(String correo) {

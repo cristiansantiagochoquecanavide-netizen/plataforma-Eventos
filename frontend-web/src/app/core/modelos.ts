@@ -11,6 +11,7 @@ export interface Usuario {
   correo: string;
   estado?: string;
   roles: string[];
+  permisos?: string[];
 }
 
 export interface PaginaUsuarios {
@@ -48,6 +49,19 @@ export type EstadoEvento =
   | 'FINALIZADO'
   | 'CANCELADO';
 
+export interface Categoria {
+  id: number;
+  nombre: string;
+  descripcion: string | null;
+  fechaCreacion?: string;
+  fechaActualizacion?: string;
+}
+
+export interface GuardarCategoriaSolicitud {
+  nombre: string;
+  descripcion: string | null;
+}
+
 export interface ResponsableEvento {
   id: number;
   nombres: string;
@@ -60,10 +74,11 @@ export interface Evento {
   id: number;
   nombre: string;
   descripcion: string | null;
-  categoria: string;
   fechaInicio: string;
   fechaFin: string | null;
   lugarPrincipal: string | null;
+  categoria: Categoria | null;
+  categoriaNombre: string | null;
   espacio: Espacio | null;
   aforoMaximo: number | null;
   estado: EstadoEvento;
@@ -73,14 +88,14 @@ export interface Evento {
 export interface GuardarEventoSolicitud {
   nombre: string;
   descripcion: string | null;
-  categoria: string;
   fechaInicio: string;
   fechaFin: string | null;
   lugarPrincipal: string | null;
+  idCategoria: number;
   idEspacio: number;
   aforoMaximo: number;
   estado: EstadoEvento;
-  responsables: number[];
+  responsables?: number[];
 }
 
 export interface Espacio {

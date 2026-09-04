@@ -1,11 +1,29 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { switchMap } from 'rxjs';
+import { of, switchMap } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { obtenerMensajeError } from '../../core/mensajes-error';
-import { EstadoEvento, Espacio, Evento, GuardarEventoSolicitud, Usuario } from '../../core/modelos';
+import {
+  Categoria,
+  EstadoEvento,
+  Espacio,
+  Evento,
+  GuardarEventoSolicitud,
+  ResponsableEvento,
+} from '../../core/modelos';
+import { SesionService } from '../../core/sesion.service';
 import { ToastService } from '../../core/toast.service';
+
+type CampoEvento =
+  | 'nombre'
+  | 'descripcion'
+  | 'fechaInicio'
+  | 'horaInicio'
+  | 'lugarPrincipal'
+  | 'idCategoria'
+  | 'idEspacio'
+  | 'aforoMaximo';
 
 @Component({
   selector: 'app-eventos',
@@ -15,7 +33,8 @@ import { ToastService } from '../../core/toast.service';
 })
 export class EventosComponent implements OnInit {
   readonly eventos = signal<Evento[]>([]);
-  readonly usuarios = signal<Usuario[]>([]);
+  readonly categorias = signal<Categoria[]>([]);
+  readonly responsables = signal<ResponsableEvento[]>([]);
   readonly espacios = signal<Espacio[]>([]);
   readonly responsablesSeleccionados = signal<Set<number>>(new Set());
   readonly eventoSeleccionado = signal<Evento | null>(null);
@@ -24,22 +43,21 @@ export class EventosComponent implements OnInit {
   readonly error = signal('');
   readonly mensaje = signal('');
   readonly intentoEnvio = signal(false);
-  readonly responsablesDisponibles = computed(() =>
-    this.usuarios().filter(
-      (usuario) =>
-        usuario.estado === 'ACTIVO' &&
-        usuario.roles.some((rol) => rol === 'ORGANIZADOR' || rol === 'STAFF'),
-    ),
+  readonly puedeCrear = computed(() => this.sesion.puedeCrearEventos());
+  readonly puedeEditar = computed(() => this.sesion.puedeEditarEventos());
+  readonly puedeAsignarResponsables = computed(() =>
+    this.sesion.puedeAsignarResponsablesEvento(),
   );
+  readonly puedeMantenerEventos = computed(() => this.puedeCrear() || this.puedeEditar());
   readonly formulario = new FormBuilder().nonNullable.group({
     nombre: ['', [Validators.required, Validators.maxLength(150)]],
     descripcion: ['', Validators.maxLength(500)],
-    categoria: ['GENERAL', [Validators.required, Validators.maxLength(80)]],
     fechaInicio: ['', Validators.required],
     horaInicio: ['09:00', Validators.required],
     fechaFin: [''],
     horaFin: ['18:00'],
     lugarPrincipal: ['', Validators.maxLength(150)],
+    idCategoria: [0, [Validators.required, Validators.min(1)]],
     idEspacio: [null as number | null, Validators.required],
     aforoMaximo: [null as number | null, [Validators.required, Validators.min(1)]],
     estado: ['PLANIFICADO' as EstadoEvento],
@@ -47,13 +65,19 @@ export class EventosComponent implements OnInit {
 
   constructor(
     private readonly api: ApiService,
+    readonly sesion: SesionService,
     private readonly toast: ToastService,
   ) {}
 
   ngOnInit() {
     this.cargarEventos();
-    this.cargarUsuarios();
-    this.cargarEspacios();
+    if (this.puedeMantenerEventos()) {
+      this.cargarCategorias();
+      this.cargarEspacios();
+    }
+    if (this.puedeAsignarResponsables()) {
+      this.cargarResponsablesDisponibles();
+    }
   }
 
   cargarEventos() {
@@ -67,11 +91,22 @@ export class EventosComponent implements OnInit {
     });
   }
 
-  cargarUsuarios() {
-    this.api.listarUsuarios(0, 100).subscribe({
-      next: (pagina) => this.usuarios.set(pagina.elementos),
+  cargarResponsablesDisponibles() {
+    this.api.listarResponsablesDisponiblesEvento().subscribe({
+      next: (responsables) => this.responsables.set(responsables),
       error: (error) => {
         const mensaje = obtenerMensajeError(error, 'No fue posible cargar responsables');
+        this.error.set(mensaje);
+        this.toast.error(mensaje);
+      },
+    });
+  }
+
+  cargarCategorias() {
+    this.api.listarCategorias().subscribe({
+      next: (categorias) => this.categorias.set(categorias),
+      error: (error) => {
+        const mensaje = obtenerMensajeError(error, 'No fue posible cargar categorias');
         this.error.set(mensaje);
         this.toast.error(mensaje);
       },
@@ -90,6 +125,7 @@ export class EventosComponent implements OnInit {
   }
 
   abrirModalCrear() {
+    if (!this.puedeCrear()) return;
     this.nuevo();
     this.limpiarAvisos();
     this.intentoEnvio.set(false);
@@ -107,6 +143,7 @@ export class EventosComponent implements OnInit {
     if (event) {
       event.stopPropagation();
     }
+    if (!this.puedeEditar()) return;
     this.limpiarAvisos();
     this.seleccionar(evento);
     this.modalAbierto.set(true);
@@ -122,12 +159,12 @@ export class EventosComponent implements OnInit {
     this.formulario.reset({
       nombre: evento.nombre,
       descripcion: evento.descripcion ?? '',
-      categoria: evento.categoria,
       fechaInicio: this.obtenerFechaISO(dInicio),
       horaInicio: this.obtenerHoraISO(dInicio),
       fechaFin: dFin ? this.obtenerFechaISO(dFin) : '',
       horaFin: dFin ? this.obtenerHoraISO(dFin) : '18:00',
       lugarPrincipal: evento.lugarPrincipal ?? '',
+      idCategoria: evento.categoria?.id ?? 0,
       idEspacio: evento.espacio?.id ?? null,
       aforoMaximo: evento.aforoMaximo,
       estado: evento.estado,
@@ -142,12 +179,12 @@ export class EventosComponent implements OnInit {
     this.formulario.reset({
       nombre: '',
       descripcion: '',
-      categoria: 'GENERAL',
       fechaInicio: '',
       horaInicio: '09:00',
       fechaFin: '',
       horaFin: '18:00',
       lugarPrincipal: '',
+      idCategoria: 0,
       idEspacio: null,
       aforoMaximo: null,
       estado: 'PLANIFICADO',
@@ -167,11 +204,13 @@ export class EventosComponent implements OnInit {
   guardar() {
     this.intentoEnvio.set(true);
     if (this.guardando()) return;
-    if (this.formulario.invalid || this.responsablesSeleccionados().size === 0) {
+    const evento = this.eventoSeleccionado();
+    if ((evento && !this.puedeEditar()) || (!evento && !this.puedeCrear())) {
+      return;
+    }
+    if (this.formulario.invalid) {
       this.formulario.markAllAsTouched();
-      const mensaje = this.formulario.invalid
-        ? this.mensajeFormularioInvalido()
-        : 'Debe asignarse al menos un responsable.';
+      const mensaje = this.mensajeFormularioInvalido();
       this.error.set(mensaje);
       this.toast.error(mensaje);
       return;
@@ -186,8 +225,8 @@ export class EventosComponent implements OnInit {
       fechaFin = new Date(`${valor.fechaFin}T${horaF}:00`);
     }
 
-    if (fechaFin && fechaFin < fechaInicio) {
-      const mensaje = 'La fecha de fin no puede ser anterior a la fecha de inicio.';
+    if (fechaFin && fechaFin <= fechaInicio) {
+      const mensaje = 'La fecha de fin debe ser posterior a la fecha de inicio.';
       this.error.set(mensaje);
       this.toast.error(mensaje);
       return;
@@ -195,24 +234,28 @@ export class EventosComponent implements OnInit {
 
     this.limpiarAvisos();
     this.guardando.set(true);
-    const evento = this.eventoSeleccionado();
     const responsables = Array.from(this.responsablesSeleccionados());
     const datos: GuardarEventoSolicitud = {
       nombre: valor.nombre.trim(),
       descripcion: valor.descripcion.trim() || null,
-      categoria: valor.categoria.trim(),
       fechaInicio: fechaInicio.toISOString(),
       fechaFin: fechaFin?.toISOString() ?? null,
       lugarPrincipal: valor.lugarPrincipal.trim() || null,
+      idCategoria: valor.idCategoria,
       idEspacio: valor.idEspacio!,
       aforoMaximo: valor.aforoMaximo!,
       estado: valor.estado,
-      responsables,
     };
     const solicitud = evento
       ? this.api
           .actualizarEvento(evento.id, datos)
-          .pipe(switchMap(() => this.api.asignarResponsablesEvento(evento.id, responsables)))
+          .pipe(
+            switchMap((actualizado) =>
+              this.puedeAsignarResponsables()
+                ? this.api.asignarResponsablesEvento(evento.id, responsables)
+                : of(actualizado),
+            ),
+          )
       : this.api.crearEvento(datos);
     solicitud.subscribe({
       next: () => {
@@ -232,25 +275,37 @@ export class EventosComponent implements OnInit {
     });
   }
 
-  campoConError(nombre: 'nombre' | 'descripcion' | 'fechaInicio' | 'horaInicio' | 'lugarPrincipal') {
+  campoConError(nombre: CampoEvento) {
     const control = this.formulario.controls[nombre];
     return control.invalid && (control.touched || this.intentoEnvio());
   }
 
-  mensajeCampo(nombre: 'nombre' | 'descripcion' | 'fechaInicio' | 'horaInicio' | 'lugarPrincipal') {
+  mensajeCampo(nombre: CampoEvento) {
     const control = this.formulario.controls[nombre];
-    if (control.hasError('required')) return 'Este campo es obligatorio.';
+    if (control.hasError('required')) {
+      if (nombre === 'idCategoria') return 'Selecciona una categoria.';
+      if (nombre === 'idEspacio') return 'Selecciona un espacio.';
+      if (nombre === 'aforoMaximo') return 'Ingresa el aforo del evento.';
+      return 'Este campo es obligatorio.';
+    }
+    if (control.hasError('min')) {
+      if (nombre === 'idCategoria') return 'Selecciona una categoria.';
+      if (nombre === 'aforoMaximo') return 'El aforo debe ser mayor que cero.';
+    }
     if (control.hasError('maxlength')) return 'Supera la longitud permitida.';
     return '';
   }
 
   private mensajeFormularioInvalido() {
-    const orden: Array<'nombre' | 'descripcion' | 'fechaInicio' | 'horaInicio' | 'lugarPrincipal'> = [
+    const orden: CampoEvento[] = [
       'nombre',
       'descripcion',
+      'idCategoria',
       'fechaInicio',
       'horaInicio',
       'lugarPrincipal',
+      'idEspacio',
+      'aforoMaximo',
     ];
     const campo = orden.find((nombre) => this.formulario.controls[nombre].invalid);
     return campo ? this.mensajeCampo(campo) : 'Revisa los datos del evento.';

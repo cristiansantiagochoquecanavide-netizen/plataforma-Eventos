@@ -1,15 +1,17 @@
 import { Routes } from '@angular/router';
 import {
-  administradorGuard,
   eventosGuard,
   autenticacionGuard,
   convocatoriasGuard,
   recursosGuard,
+  rolesGuard,
   espaciosGuard,
+  usuariosGuard,
 } from './core/guards';
 import { InicioSesionComponent } from './features/auth/inicio-sesion.component';
 import { RecuperarClaveComponent } from './features/auth/recuperar-clave.component';
 import { RestablecerClaveComponent } from './features/auth/restablecer-clave.component';
+import { CategoriasComponent } from './features/categorias/categorias.component';
 import { ConvocatoriasComponent } from './features/convocatorias/convocatorias.component';
 import { EventosComponent } from './features/eventos/eventos.component';
 import { ConsultaEventosComponent } from './features/eventos/consulta-eventos.component';
@@ -32,8 +34,9 @@ export const routes: Routes = [
       { path: 'perfil', component: PerfilComponent },
       { path: 'consulta-eventos', component: ConsultaEventosComponent },
       { path: 'eventos', component: EventosComponent, canActivate: [eventosGuard] },
-      { path: 'usuarios', component: UsuariosComponent, canActivate: [administradorGuard] },
-      { path: 'roles', component: RolesComponent, canActivate: [administradorGuard] },
+      { path: 'categorias', component: CategoriasComponent, canActivate: [eventosGuard] },
+      { path: 'usuarios', component: UsuariosComponent, canActivate: [usuariosGuard] },
+      { path: 'roles', component: RolesComponent, canActivate: [rolesGuard] },
       { path: 'recursos', component: RecursosComponent, canActivate: [recursosGuard] },
       { path: 'espacios', component: EspaciosComponent, canActivate: [espaciosGuard] },
       {

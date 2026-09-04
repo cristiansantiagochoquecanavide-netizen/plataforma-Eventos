@@ -1,5 +1,6 @@
 package com.plataformaeventos.recursos.asignaciones;
 
+import com.plataformaeventos.categorias.Categoria;
 import com.plataformaeventos.eventos.EstadoEvento;
 import com.plataformaeventos.eventos.Evento;
 import com.plataformaeventos.eventos.EventoRepository;
@@ -36,8 +37,7 @@ class AsignacionRecursoServiceTest {
 
     @Test
     void crearAsignacionDescuentaStockDisponibleYGuarda() {
-        Evento evento = new Evento("Congreso Tech", "Desc", OffsetDateTime.now(), OffsetDateTime.now().plusDays(2), "Centro", EstadoEvento.PUBLICADO);
-        ReflectionTestUtils.setField(evento, "id", 1L);
+        Evento evento = crearEvento();
 
         Recurso recurso = new Recurso("PROY-01", "Proyector 4K", TipoRecurso.AUDIOVISUAL, 5, 5, EstadoRecurso.DISPONIBLE, "Depósito", null);
         ReflectionTestUtils.setField(recurso, "id", 10L);
@@ -64,8 +64,7 @@ class AsignacionRecursoServiceTest {
 
     @Test
     void crearAsignacionCambiaEstadoAEnUsoSiDisponibilidadLlegaACero() {
-        Evento evento = new Evento("Congreso Tech", "Desc", OffsetDateTime.now(), OffsetDateTime.now().plusDays(2), "Centro", EstadoEvento.PUBLICADO);
-        ReflectionTestUtils.setField(evento, "id", 1L);
+        Evento evento = crearEvento();
 
         Recurso recurso = new Recurso("PROY-01", "Proyector 4K", TipoRecurso.AUDIOVISUAL, 2, 2, EstadoRecurso.DISPONIBLE, "Depósito", null);
         ReflectionTestUtils.setField(recurso, "id", 10L);
@@ -83,8 +82,7 @@ class AsignacionRecursoServiceTest {
 
     @Test
     void crearAsignacionFallaSiCantidadMayorQueDisponible() {
-        Evento evento = new Evento("Congreso Tech", "Desc", OffsetDateTime.now(), OffsetDateTime.now().plusDays(2), "Centro", EstadoEvento.PUBLICADO);
-        ReflectionTestUtils.setField(evento, "id", 1L);
+        Evento evento = crearEvento();
 
         Recurso recurso = new Recurso("PROY-01", "Proyector 4K", TipoRecurso.AUDIOVISUAL, 5, 2, EstadoRecurso.DISPONIBLE, "Depósito", null);
         ReflectionTestUtils.setField(recurso, "id", 10L);
@@ -101,7 +99,7 @@ class AsignacionRecursoServiceTest {
 
     @Test
     void liberarAsignacionRestauraStockDisponibleYActualizaEstado() {
-        Evento evento = new Evento("Congreso Tech", "Desc", OffsetDateTime.now(), OffsetDateTime.now().plusDays(2), "Centro", EstadoEvento.PUBLICADO);
+        Evento evento = crearEvento();
         Recurso recurso = new Recurso("LAP-01", "Laptop", TipoRecurso.EQUIPO_COMPUTO, 2, 0, EstadoRecurso.EN_USO, "Oficina", null);
         AsignacionRecurso asignacion = new AsignacionRecurso(evento, recurso, "Mesa de Registro", 2, EstadoAsignacion.ACTIVA, null);
         ReflectionTestUtils.setField(asignacion, "id", 50L);
@@ -115,5 +113,21 @@ class AsignacionRecursoServiceTest {
         assertThat(recurso.getCantidadDisponible()).isEqualTo(2);
         assertThat(recurso.getEstado()).isEqualTo(EstadoRecurso.DISPONIBLE);
         verify(recursoRepository).save(recurso);
+    }
+
+    private Evento crearEvento() {
+        Categoria categoria = new Categoria("General", null);
+        ReflectionTestUtils.setField(categoria, "id", 1L);
+        Evento evento = new Evento(
+                "Congreso Tech",
+                "Desc",
+                OffsetDateTime.now(),
+                OffsetDateTime.now().plusDays(2),
+                "Centro",
+                EstadoEvento.PUBLICADO,
+                categoria
+        );
+        ReflectionTestUtils.setField(evento, "id", 1L);
+        return evento;
     }
 }

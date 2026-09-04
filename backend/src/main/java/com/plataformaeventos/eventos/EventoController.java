@@ -43,6 +43,14 @@ public class EventoController {
         return ResponseEntity.ok(eventoService.listarEventos(termino, categoria));
     }
 
+    @GetMapping("/responsables-disponibles")
+    @PreAuthorize("hasAuthority('EVENTO_ASIGNAR_RESPONSABLE')")
+    @Operation(summary = "Listar responsables disponibles")
+    @ApiResponse(responseCode = "200", description = "Responsables disponibles consultados")
+    public ResponseEntity<List<ResponsableEventoRespuesta>> listarResponsablesDisponibles() {
+        return ResponseEntity.ok(eventoService.listarResponsablesDisponibles());
+    }
+
     @GetMapping("/{idEvento}")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Consultar evento por identificador")

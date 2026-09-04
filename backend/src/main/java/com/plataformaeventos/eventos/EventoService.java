@@ -1,5 +1,8 @@
 package com.plataformaeventos.eventos;
 
+import com.plataformaeventos.categorias.Categoria;
+import com.plataformaeventos.categorias.CategoriaRepository;
+import com.plataformaeventos.categorias.CategoriaRespuesta;
 import com.plataformaeventos.excepciones.ExcepcionNoEncontrado;
 import com.plataformaeventos.espacios.Espacio;
 import com.plataformaeventos.espacios.EspacioRepository;
@@ -22,15 +25,18 @@ public class EventoService {
     private static final Set<String> ROLES_RESPONSABLES = Set.of("ORGANIZADOR", "STAFF");
 
     private final EventoRepository eventoRepository;
+    private final CategoriaRepository categoriaRepository;
     private final UsuarioRepository usuarioRepository;
     private final EspacioRepository espacioRepository;
 
     public EventoService(
             EventoRepository eventoRepository,
+            CategoriaRepository categoriaRepository,
             UsuarioRepository usuarioRepository,
             EspacioRepository espacioRepository
     ) {
         this.eventoRepository = eventoRepository;
+        this.categoriaRepository = categoriaRepository;
         this.usuarioRepository = usuarioRepository;
         this.espacioRepository = espacioRepository;
     }
@@ -43,7 +49,7 @@ public class EventoService {
                 .stream()
                 // Se filtra en el servicio para que web y movil reciban exactamente el mismo resultado.
                 .filter(evento -> texto.isEmpty() || evento.getNombre().toLowerCase().contains(texto))
-                .filter(evento -> filtroCategoria.isEmpty() || evento.getCategoria().toLowerCase().equals(filtroCategoria))
+                .filter(evento -> filtroCategoria.isEmpty() || nombreCategoria(evento).toLowerCase().equals(filtroCategoria))
                 .map(this::convertirEvento)
                 .toList();
     }
@@ -53,21 +59,31 @@ public class EventoService {
         return convertirEvento(buscarEvento(idEvento));
     }
 
+    @Transactional(readOnly = true)
+    public List<ResponsableEventoRespuesta> listarResponsablesDisponibles() {
+        return usuarioRepository.findResponsablesDisponibles(ROLES_RESPONSABLES).stream()
+                .map(this::convertirResponsable)
+                .toList();
+    }
+
     @Transactional
     public EventoRespuesta crearEvento(GuardarEventoSolicitud solicitud) {
         validarFechas(solicitud.fechaInicio(), solicitud.fechaFin());
+        Categoria categoria = buscarCategoria(solicitud.idCategoria());
         Espacio espacio = validarProgramacion(solicitud, null);
         Evento evento = new Evento(
                 solicitud.nombre().trim(),
                 normalizarTexto(solicitud.descripcion()),
-                solicitud.categoria().trim(),
                 solicitud.fechaInicio(),
                 solicitud.fechaFin(),
                 normalizarTexto(solicitud.lugarPrincipal()),
-                solicitud.estado() == null ? EstadoEvento.PLANIFICADO : solicitud.estado()
+                solicitud.estado() == null ? EstadoEvento.PLANIFICADO : solicitud.estado(),
+                categoria
         );
         evento.configurarProgramacion(espacio, solicitud.aforoMaximo());
-        evento.asignarResponsables(obtenerResponsablesValidos(solicitud.responsables()));
+        if (solicitud.responsables() != null) {
+            evento.asignarResponsables(obtenerResponsablesValidos(solicitud.responsables()));
+        }
         return convertirEvento(eventoRepository.save(evento));
     }
 
@@ -75,18 +91,18 @@ public class EventoService {
     public EventoRespuesta actualizarEvento(Long idEvento, GuardarEventoSolicitud solicitud) {
         validarFechas(solicitud.fechaInicio(), solicitud.fechaFin());
         Evento evento = buscarEvento(idEvento);
+        Categoria categoria = buscarCategoria(solicitud.idCategoria());
         Espacio espacio = validarProgramacion(solicitud, idEvento);
         evento.actualizarDatos(
                 solicitud.nombre().trim(),
                 normalizarTexto(solicitud.descripcion()),
-                solicitud.categoria().trim(),
                 solicitud.fechaInicio(),
                 solicitud.fechaFin(),
                 normalizarTexto(solicitud.lugarPrincipal()),
-                solicitud.estado() == null ? evento.getEstado() : solicitud.estado()
+                solicitud.estado() == null ? evento.getEstado() : solicitud.estado(),
+                categoria
         );
         evento.configurarProgramacion(espacio, solicitud.aforoMaximo());
-        evento.asignarResponsables(obtenerResponsablesValidos(solicitud.responsables()));
         return convertirEvento(evento);
     }
 
@@ -102,7 +118,18 @@ public class EventoService {
                 .orElseThrow(() -> new ExcepcionNoEncontrado("Evento no encontrado"));
     }
 
+    private Categoria buscarCategoria(Long idCategoria) {
+        if (idCategoria == null) {
+            throw new IllegalArgumentException("La categoria del evento es obligatoria");
+        }
+        return categoriaRepository.findById(idCategoria)
+                .orElseThrow(() -> new ExcepcionNoEncontrado("Categoria no encontrada"));
+    }
+
     private Set<Usuario> obtenerResponsablesValidos(Set<Long> idsResponsables) {
+        if (idsResponsables == null || idsResponsables.isEmpty()) {
+            return Set.of();
+        }
         Set<Usuario> responsables = idsResponsables.stream()
                 .map(id -> usuarioRepository.findById(id)
                         .orElseThrow(() -> new ExcepcionNoEncontrado("Responsable no encontrado")))
@@ -122,22 +149,45 @@ public class EventoService {
     }
 
     private void validarFechas(OffsetDateTime fechaInicio, OffsetDateTime fechaFin) {
-        if (fechaFin == null || !fechaFin.isAfter(fechaInicio)) {
+        if (fechaFin != null && !fechaFin.isAfter(fechaInicio)) {
             throw new IllegalArgumentException("La fecha de fin debe ser posterior a la fecha de inicio");
         }
     }
 
     private Espacio validarProgramacion(GuardarEventoSolicitud solicitud, Long idEvento) {
+        if (solicitud.idEspacio() == null) {
+            throw new IllegalArgumentException("El espacio es obligatorio");
+        }
+        if (solicitud.aforoMaximo() == null) {
+            throw new IllegalArgumentException("El aforo maximo es obligatorio");
+        }
         Espacio espacio = espacioRepository.findById(solicitud.idEspacio())
                 .orElseThrow(() -> new ExcepcionNoEncontrado("Espacio no encontrado"));
         if (solicitud.aforoMaximo() > espacio.getCapacidad()) {
             throw new IllegalArgumentException("El aforo del evento no puede superar la capacidad del espacio");
         }
-        if (eventoRepository.existeConflictoProgramacion(
-                espacio.getId(), solicitud.fechaInicio(), solicitud.fechaFin(), idEvento)) {
+        if (existeConflictoProgramacion(espacio.getId(), solicitud.fechaInicio(), solicitud.fechaFin(), idEvento)) {
             throw new IllegalArgumentException("El espacio ya esta ocupado en el horario seleccionado");
         }
         return espacio;
+    }
+
+    private boolean existeConflictoProgramacion(
+            Long idEspacio,
+            OffsetDateTime fechaInicio,
+            OffsetDateTime fechaFin,
+            Long idEvento
+    ) {
+        if (idEvento == null) {
+            return fechaFin == null
+                    ? eventoRepository.existeConflictoProgramacionCrearSinFin(idEspacio, fechaInicio)
+                    : eventoRepository.existeConflictoProgramacionCrearConFin(idEspacio, fechaInicio, fechaFin);
+        }
+        return fechaFin == null
+                ? eventoRepository.existeConflictoProgramacionEditarSinFin(idEspacio, fechaInicio, idEvento)
+                : eventoRepository.existeConflictoProgramacionEditarConFin(
+                        idEspacio, fechaInicio, fechaFin, idEvento
+                );
     }
 
     private String normalizarTexto(String valor) {
@@ -148,26 +198,53 @@ public class EventoService {
     }
 
     private EventoRespuesta convertirEvento(Evento evento) {
+        CategoriaRespuesta categoria = convertirCategoria(evento.getCategoria());
         return new EventoRespuesta(
                 evento.getId(),
                 evento.getNombre(),
                 evento.getDescripcion(),
-                evento.getCategoria(),
                 evento.getFechaInicio(),
                 evento.getFechaFin(),
                 evento.getLugarPrincipal(),
-                evento.getEspacio() == null ? null : new EspacioEventoRespuesta(
-                        evento.getEspacio().getId(),
-                        evento.getEspacio().getNombre(),
-                        evento.getEspacio().getUbicacion(),
-                        evento.getEspacio().getCapacidad()
-                ),
+                categoria,
+                categoria == null ? null : categoria.nombre(),
+                convertirEspacio(evento.getEspacio()),
                 evento.getAforoMaximo(),
                 evento.getEstado().name(),
                 evento.getResponsables().stream()
                         .sorted(Comparator.comparing(Usuario::getApellidos).thenComparing(Usuario::getNombres))
                         .map(this::convertirResponsable)
                         .toList()
+        );
+    }
+
+    private String nombreCategoria(Evento evento) {
+        Categoria categoria = evento.getCategoria();
+        return categoria == null || categoria.getNombre() == null ? "" : categoria.getNombre();
+    }
+
+    private CategoriaRespuesta convertirCategoria(Categoria categoria) {
+        if (categoria == null) {
+            return null;
+        }
+        return new CategoriaRespuesta(
+                categoria.getId(),
+                categoria.getNombre(),
+                categoria.getDescripcion(),
+                categoria.getFechaCreacion(),
+                categoria.getFechaActualizacion()
+        );
+    }
+
+    private EspacioEventoRespuesta convertirEspacio(Espacio espacio) {
+        if (espacio == null) {
+            return null;
+        }
+        return new EspacioEventoRespuesta(
+                espacio.getId(),
+                espacio.getNombre(),
+                espacio.getUbicacion(),
+                espacio.getCapacidad()
         );
     }
 

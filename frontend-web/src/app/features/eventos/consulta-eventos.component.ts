@@ -23,7 +23,13 @@ export class ConsultaEventosComponent implements OnInit {
     this.consultado.set(true);
     this.cargando.set(true);
     this.api.listarEventos(this.termino, this.categoria).subscribe({
-      next: (eventos) => { this.eventos.set(eventos); this.categorias.set(Array.from(new Set(eventos.map((e) => e.categoria))).sort()); this.cargando.set(false); },
+      next: (eventos) => {
+        this.eventos.set(eventos);
+        this.categorias.set(
+          Array.from(new Set(eventos.map((evento) => this.nombreCategoria(evento)))).sort(),
+        );
+        this.cargando.set(false);
+      },
       error: (error) => { this.error.set(obtenerMensajeError(error, 'No fue posible consultar los eventos')); this.eventos.set([]); this.cargando.set(false); },
     });
   }
@@ -36,4 +42,5 @@ export class ConsultaEventosComponent implements OnInit {
   }
   verDetalle(evento: Evento) { this.detalle.set(evento); }
   cerrarDetalle() { this.detalle.set(null); }
+  nombreCategoria(evento: Evento) { return evento.categoria?.nombre ?? evento.categoriaNombre ?? 'GENERAL'; }
 }

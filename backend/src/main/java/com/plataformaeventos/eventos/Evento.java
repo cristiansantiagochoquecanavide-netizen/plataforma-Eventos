@@ -1,7 +1,8 @@
 package com.plataformaeventos.eventos;
 
-import com.plataformaeventos.usuarios.Usuario;
+import com.plataformaeventos.categorias.Categoria;
 import com.plataformaeventos.espacios.Espacio;
+import com.plataformaeventos.usuarios.Usuario;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -37,9 +38,6 @@ public class Evento {
     @Column(length = 500)
     private String descripcion;
 
-    @Column(nullable = false, length = 80)
-    private String categoria;
-
     @Column(name = "fecha_inicio", nullable = false)
     private OffsetDateTime fechaInicio;
 
@@ -48,6 +46,10 @@ public class Evento {
 
     @Column(name = "lugar_principal", length = 150)
     private String lugarPrincipal;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "id_categoria", nullable = false)
+    private Categoria categoria;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_espacio")
@@ -77,34 +79,37 @@ public class Evento {
     protected Evento() {
     }
 
-    // Mantiene compatibles los servicios y pruebas que crean eventos sin categoria.
     public Evento(
             String nombre,
             String descripcion,
             OffsetDateTime fechaInicio,
             OffsetDateTime fechaFin,
             String lugarPrincipal,
-            EstadoEvento estado
+            EstadoEvento estado,
+            Categoria categoria
     ) {
-        this(nombre, descripcion, "GENERAL", fechaInicio, fechaFin, lugarPrincipal, estado);
+        this.nombre = nombre;
+        this.descripcion = descripcion;
+        this.fechaInicio = fechaInicio;
+        this.fechaFin = fechaFin;
+        this.lugarPrincipal = lugarPrincipal;
+        this.estado = estado;
+        this.categoria = categoria;
     }
 
     public Evento(
             String nombre,
             String descripcion,
-            String categoria,
             OffsetDateTime fechaInicio,
             OffsetDateTime fechaFin,
             String lugarPrincipal,
-            EstadoEvento estado
+            EstadoEvento estado,
+            Categoria categoria,
+            Espacio espacio,
+            Integer aforoMaximo
     ) {
-        this.nombre = nombre;
-        this.descripcion = descripcion;
-        this.categoria = categoria;
-        this.fechaInicio = fechaInicio;
-        this.fechaFin = fechaFin;
-        this.lugarPrincipal = lugarPrincipal;
-        this.estado = estado;
+        this(nombre, descripcion, fechaInicio, fechaFin, lugarPrincipal, estado, categoria);
+        configurarProgramacion(espacio, aforoMaximo);
     }
 
     @PrePersist
@@ -136,10 +141,6 @@ public class Evento {
         return descripcion;
     }
 
-    public String getCategoria() {
-        return categoria;
-    }
-
     public OffsetDateTime getFechaInicio() {
         return fechaInicio;
     }
@@ -150,6 +151,10 @@ public class Evento {
 
     public String getLugarPrincipal() {
         return lugarPrincipal;
+    }
+
+    public Categoria getCategoria() {
+        return categoria;
     }
 
     public Espacio getEspacio() {
@@ -171,19 +176,19 @@ public class Evento {
     public void actualizarDatos(
             String nombre,
             String descripcion,
-            String categoria,
             OffsetDateTime fechaInicio,
             OffsetDateTime fechaFin,
             String lugarPrincipal,
-            EstadoEvento estado
+            EstadoEvento estado,
+            Categoria categoria
     ) {
         this.nombre = nombre;
         this.descripcion = descripcion;
-        this.categoria = categoria;
         this.fechaInicio = fechaInicio;
         this.fechaFin = fechaFin;
         this.lugarPrincipal = lugarPrincipal;
         this.estado = estado;
+        this.categoria = categoria;
     }
 
     public void configurarProgramacion(Espacio espacio, Integer aforoMaximo) {

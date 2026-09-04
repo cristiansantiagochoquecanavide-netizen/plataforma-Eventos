@@ -4,6 +4,7 @@ import { environment } from '../../environments/environment';
 import {
   ActualizarRecursoSolicitud,
   AsignacionRecurso,
+  Categoria,
   Convocatoria,
   CrearAsignacionSolicitud,
   CrearConvocatoriaSolicitud,
@@ -13,11 +14,13 @@ import {
   EstadoRecurso,
   Espacio,
   Evento,
+  GuardarCategoriaSolicitud,
   GuardarEventoSolicitud,
   GuardarEspacioSolicitud,
   PaginaUsuarios,
   Permiso,
   Recurso,
+  ResponsableEvento,
   Rol,
   RolPermisos,
   SesionRespuesta,
@@ -141,6 +144,30 @@ export class ApiService {
 
   asignarResponsablesEvento(id: number, responsables: number[]) {
     return this.http.put<Evento>(`${this.url}/eventos/${id}/responsables`, { responsables });
+  }
+
+  listarResponsablesDisponiblesEvento() {
+    return this.http.get<ResponsableEvento[]>(`${this.url}/eventos/responsables-disponibles`);
+  }
+
+  listarCategorias() {
+    return this.http.get<Categoria[]>(`${this.url}/categorias`);
+  }
+
+  obtenerCategoria(id: number) {
+    return this.http.get<Categoria>(`${this.url}/categorias/${id}`);
+  }
+
+  crearCategoria(datos: GuardarCategoriaSolicitud) {
+    return this.http.post<Categoria>(`${this.url}/categorias`, datos);
+  }
+
+  actualizarCategoria(id: number, datos: GuardarCategoriaSolicitud) {
+    return this.http.put<Categoria>(`${this.url}/categorias/${id}`, datos);
+  }
+
+  eliminarCategoria(id: number) {
+    return this.http.delete<void>(`${this.url}/categorias/${id}`);
   }
 
   listarEspacios() {

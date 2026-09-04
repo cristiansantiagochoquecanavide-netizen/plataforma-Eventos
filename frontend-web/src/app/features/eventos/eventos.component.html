@@ -1,13 +1,15 @@
 <section class="page-heading">
-  <p class="eyebrow">Gestión de Eventos, Programación y Recursos</p>
+  <p class="eyebrow">Gestion de Eventos, Programacion y Recursos</p>
   <h1>Eventos</h1>
-  <p>Planificación, sedes y responsables asignados para cada evento.</p>
-  <div style="margin-top: 14px;">
-    <button class="primary" type="button" (click)="abrirModalCrear()" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px; color: #ffffff;">
-      <span style="font-weight: 800; font-size: 1.15rem; line-height: 1; color: #ffffff;">+</span>
-      <span style="color: #ffffff; font-weight: 700;">Crear Nuevo Evento</span>
-    </button>
-  </div>
+  <p>Planificacion, sedes y responsables asignados para cada evento.</p>
+  @if (puedeCrear()) {
+    <div style="margin-top: 14px;">
+      <button class="primary" type="button" (click)="abrirModalCrear()" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px; color: #ffffff;">
+        <span style="font-weight: 800; font-size: 1.15rem; line-height: 1; color: #ffffff;">+</span>
+        <span style="color: #ffffff; font-weight: 700;">Crear Nuevo Evento</span>
+      </button>
+    </div>
+  }
 </section>
 
 @if (mensaje()) {
@@ -27,10 +29,11 @@
       <thead>
         <tr>
           <th>Evento</th>
-           <th>Fechas</th>
-           <th>Lugar Principal</th>
-           <th>Espacio / Aforo</th>
-           <th>Responsables</th>
+          <th>Fechas</th>
+          <th>Lugar Principal</th>
+          <th>Categoria</th>
+          <th>Espacio / Aforo</th>
+          <th>Responsables</th>
           <th>Estado</th>
           <th style="text-align: right;">Acciones</th>
         </tr>
@@ -40,7 +43,7 @@
           <tr>
             <td>
               <strong>{{ evento.nombre }}</strong>
-              <small>{{ evento.descripcion || 'Sin descripción' }}</small>
+              <small>{{ evento.descripcion || 'Sin descripcion' }}</small>
             </td>
             <td>
               {{ evento.fechaInicio | date: 'dd/MM/yyyy HH:mm' }}
@@ -49,6 +52,13 @@
               }
             </td>
             <td>{{ evento.lugarPrincipal || 'Sin lugar asignado' }}</td>
+            <td>
+              @if (evento.categoria) {
+                <span class="inline-chip">{{ evento.categoria.nombre }}</span>
+              } @else {
+                <small style="color: var(--muted);">Sin categoria</small>
+              }
+            </td>
             <td>
               {{ evento.espacio?.nombre || 'Sin espacio' }}
               @if (evento.aforoMaximo) {
@@ -68,12 +78,14 @@
               </span>
             </td>
             <td class="actions" style="text-align: right; display: flex; justify-content: flex-end; gap: 8px;">
-              <button type="button" (click)="editar(evento, $event)">Editar</button>
+              @if (puedeEditar()) {
+                <button type="button" (click)="editar(evento, $event)">Editar</button>
+              }
             </td>
           </tr>
         } @empty {
           <tr>
-             <td colspan="7" style="text-align: center; padding: 32px;"><small>No hay eventos registrados.</small></td>
+            <td colspan="8" style="text-align: center; padding: 32px;"><small>No hay eventos registrados.</small></td>
           </tr>
         }
       </tbody>
@@ -81,7 +93,6 @@
   </div>
 </section>
 
-<!-- MODAL FLOTANTE: CREAR / EDITAR EVENTO -->
 @if (modalAbierto()) {
   <div class="modal-overlay" (click)="cerrarModal()">
     <div class="modal-dialog" (click)="$event.stopPropagation()">
@@ -89,10 +100,10 @@
         <div>
           <h2>{{ eventoSeleccionado() ? 'Editar Evento' : 'Crear Nuevo Evento' }}</h2>
           <small style="color: var(--muted);">
-            {{ eventoSeleccionado() ? 'Modifica los detalles, cronograma y responsables del evento' : 'Registra la información inicial, fechas y responsables del nuevo evento' }}
+            {{ eventoSeleccionado() ? 'Modifica los detalles y cronograma del evento' : 'Registra la informacion inicial y fechas del nuevo evento' }}
           </small>
         </div>
-        <button class="btn-close" type="button" (click)="cerrarModal()" title="Cerrar">✕</button>
+        <button class="btn-close" type="button" (click)="cerrarModal()" title="Cerrar">x</button>
       </div>
 
       <div class="modal-body">
@@ -103,28 +114,34 @@
         <form [formGroup]="formulario" (ngSubmit)="guardar()" class="form-grid" novalidate>
           <label class="full" [class.invalid]="campoConError('nombre')">
             Nombre del Evento *
-            <input formControlName="nombre" placeholder="Ej: Conferencia Anual de Tecnología 2026" />
+            <input formControlName="nombre" placeholder="Ej: Conferencia Anual de Tecnologia 2026" />
             @if (campoConError('nombre')) {
               <small class="field-error">{{ mensajeCampo('nombre') }}</small>
             }
           </label>
 
           <label class="full" [class.invalid]="campoConError('descripcion')">
-            Descripción
-            <textarea formControlName="descripcion" rows="3" placeholder="Detalla los objetivos, público y características del evento..."></textarea>
+            Descripcion
+            <textarea formControlName="descripcion" rows="3" placeholder="Detalla los objetivos, publico y caracteristicas del evento..."></textarea>
             @if (campoConError('descripcion')) {
               <small class="field-error">{{ mensajeCampo('descripcion') }}</small>
             }
           </label>
 
-          <label class="full">
-            Categoría *
-            <input formControlName="categoria" placeholder="Ej: Tecnología, Cultura o Deportes" />
-            <small style="color: var(--muted);">Permite encontrar el evento desde la consulta web y móvil.</small>
+          <label class="full" [class.invalid]="campoConError('idCategoria')">
+            Categoria *
+            <select formControlName="idCategoria">
+              <option [ngValue]="0">Selecciona una categoria</option>
+              @for (categoria of categorias(); track categoria.id) {
+                <option [ngValue]="categoria.id">{{ categoria.nombre }}</option>
+              }
+            </select>
+            @if (campoConError('idCategoria')) {
+              <small class="field-error">{{ mensajeCampo('idCategoria') }}</small>
+            }
           </label>
 
           <div class="full" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-            <!-- INICIO -->
             <div style="background: #f8faf9; padding: 12px; border-radius: 8px; border: 1px solid var(--line);">
               <span style="font-weight: 700; font-size: 0.88rem; color: var(--ink); margin-bottom: 8px; display: block;">
                 Inicio del Evento *
@@ -147,7 +164,6 @@
               </div>
             </div>
 
-            <!-- FIN -->
             <div style="background: #f8faf9; padding: 12px; border-radius: 8px; border: 1px solid var(--line);">
               <span style="font-weight: 700; font-size: 0.88rem; color: var(--ink); margin-bottom: 8px; display: block;">
                 Fin del Evento (Opcional)
@@ -173,7 +189,7 @@
             }
           </label>
 
-          <label class="full">
+          <label class="full" [class.invalid]="campoConError('idEspacio')">
             Espacio o sala *
             <select formControlName="idEspacio">
               <option [ngValue]="null">Selecciona un espacio</option>
@@ -181,15 +197,19 @@
                 <option [ngValue]="espacio.id">{{ espacio.nombre }} - {{ espacio.ubicacion }} ({{ espacio.capacidad }} personas)</option>
               }
             </select>
-            @if (formulario.controls.idEspacio.invalid && intentoEnvio()) {
-              <small class="field-error">Debes seleccionar un espacio.</small>
+            @if (campoConError('idEspacio')) {
+              <small class="field-error">{{ mensajeCampo('idEspacio') }}</small>
             }
           </label>
 
-          <label class="full">
+          <label class="full" [class.invalid]="campoConError('aforoMaximo')">
             Aforo del evento *
             <input type="number" min="1" formControlName="aforoMaximo" placeholder="Ej: 100" />
-            <small style="color: var(--muted);">No puede superar la capacidad del espacio seleccionado.</small>
+            @if (campoConError('aforoMaximo')) {
+              <small class="field-error">{{ mensajeCampo('aforoMaximo') }}</small>
+            } @else {
+              <small style="color: var(--muted);">No puede superar la capacidad del espacio seleccionado.</small>
+            }
           </label>
 
           <label class="full">
@@ -204,29 +224,31 @@
             </select>
           </label>
 
-          <div class="full" style="margin-top: 8px;">
-            <div class="card-title inline-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <h3 style="font-size: 0.95rem; margin: 0;">Responsables del Evento *</h3>
-              <span class="role-chip">{{ responsablesSeleccionados().size }} seleccionados</span>
+          @if (eventoSeleccionado() && puedeAsignarResponsables()) {
+            <div class="full" style="margin-top: 8px;">
+              <div class="card-title inline-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h3 style="font-size: 0.95rem; margin: 0;">Responsables del Evento</h3>
+                <span class="role-chip">{{ responsablesSeleccionados().size }} seleccionados</span>
+              </div>
+              <div class="responsable-list" style="max-height: 180px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 8px; display: grid; gap: 6px;">
+                @for (usuario of responsables(); track usuario.id) {
+                  <label class="permission-option" style="display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 6px; cursor: pointer;">
+                    <input
+                      type="checkbox"
+                      [checked]="responsablesSeleccionados().has(usuario.id)"
+                      (change)="alternarResponsable(usuario.id, $any($event.target).checked)"
+                    />
+                    <span>
+                      <strong>{{ usuario.nombres }} {{ usuario.apellidos }}</strong>
+                      <small style="color: var(--muted); display: block;">{{ usuario.correo }} ({{ usuario.roles.join(', ') }})</small>
+                    </span>
+                  </label>
+                } @empty {
+                  <p class="empty-inline" style="color: var(--muted); font-size: 0.85rem; padding: 8px;">No hay usuarios activos con rol ORGANIZADOR o STAFF disponibles.</p>
+                }
+              </div>
             </div>
-            <div class="responsable-list" style="max-height: 180px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 8px; display: grid; gap: 6px;">
-              @for (usuario of responsablesDisponibles(); track usuario.id) {
-                <label class="permission-option" style="display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 6px; cursor: pointer;">
-                  <input
-                    type="checkbox"
-                    [checked]="responsablesSeleccionados().has(usuario.id)"
-                    (change)="alternarResponsable(usuario.id, $any($event.target).checked)"
-                  />
-                  <span>
-                    <strong>{{ usuario.nombres }} {{ usuario.apellidos }}</strong>
-                    <small style="color: var(--muted); display: block;">{{ usuario.correo }} ({{ usuario.roles.join(', ') }})</small>
-                  </span>
-                </label>
-              } @empty {
-                <p class="empty-inline" style="color: var(--muted); font-size: 0.85rem; padding: 8px;">No hay usuarios activos con rol ORGANIZADOR o STAFF disponibles.</p>
-              }
-            </div>
-          </div>
+          }
 
           <div class="button-row full" style="margin-top: 16px;">
             <button type="button" (click)="cerrarModal()">Cancelar</button>
