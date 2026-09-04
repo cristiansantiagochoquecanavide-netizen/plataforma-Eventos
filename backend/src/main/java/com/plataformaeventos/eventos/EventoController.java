@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -32,15 +33,18 @@ public class EventoController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('EVENTO_VER', 'RECURSO_VER', 'ROLE_ADMINISTRADOR', 'ROLE_ORGANIZADOR')")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Listar eventos activos")
     @ApiResponse(responseCode = "200", description = "Eventos consultados")
-    public ResponseEntity<List<EventoRespuesta>> listarEventos() {
-        return ResponseEntity.ok(eventoService.listarEventos());
+    public ResponseEntity<List<EventoRespuesta>> listarEventos(
+            @RequestParam(required = false) String termino,
+            @RequestParam(required = false) String categoria
+    ) {
+        return ResponseEntity.ok(eventoService.listarEventos(termino, categoria));
     }
 
     @GetMapping("/{idEvento}")
-    @PreAuthorize("hasAnyAuthority('EVENTO_VER', 'RECURSO_VER', 'ROLE_ADMINISTRADOR', 'ROLE_ORGANIZADOR')")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Consultar evento por identificador")
     @ApiResponse(responseCode = "200", description = "Evento consultado")
     @ApiResponse(responseCode = "404", description = "Evento no encontrado", content = @Content)

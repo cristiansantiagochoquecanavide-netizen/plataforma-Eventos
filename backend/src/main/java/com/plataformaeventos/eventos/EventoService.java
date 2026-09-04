@@ -4,6 +4,8 @@ import com.plataformaeventos.categorias.Categoria;
 import com.plataformaeventos.categorias.CategoriaRepository;
 import com.plataformaeventos.categorias.CategoriaRespuesta;
 import com.plataformaeventos.excepciones.ExcepcionNoEncontrado;
+import com.plataformaeventos.espacios.Espacio;
+import com.plataformaeventos.espacios.EspacioRepository;
 import com.plataformaeventos.roles.Rol;
 import com.plataformaeventos.usuarios.EstadoUsuario;
 import com.plataformaeventos.usuarios.Usuario;
@@ -25,21 +27,29 @@ public class EventoService {
     private final EventoRepository eventoRepository;
     private final CategoriaRepository categoriaRepository;
     private final UsuarioRepository usuarioRepository;
+    private final EspacioRepository espacioRepository;
 
     public EventoService(
             EventoRepository eventoRepository,
             CategoriaRepository categoriaRepository,
-            UsuarioRepository usuarioRepository
+            UsuarioRepository usuarioRepository,
+            EspacioRepository espacioRepository
     ) {
         this.eventoRepository = eventoRepository;
         this.categoriaRepository = categoriaRepository;
         this.usuarioRepository = usuarioRepository;
+        this.espacioRepository = espacioRepository;
     }
 
     @Transactional(readOnly = true)
-    public List<EventoRespuesta> listarEventos() {
+    public List<EventoRespuesta> listarEventos(String termino, String categoria) {
+        String texto = termino == null ? "" : termino.trim().toLowerCase();
+        String filtroCategoria = categoria == null ? "" : categoria.trim().toLowerCase();
         return eventoRepository.findByEstadoNotOrderByFechaInicioAsc(EstadoEvento.CANCELADO)
                 .stream()
+                // Se filtra en el servicio para que web y movil reciban exactamente el mismo resultado.
+                .filter(evento -> texto.isEmpty() || evento.getNombre().toLowerCase().contains(texto))
+                .filter(evento -> filtroCategoria.isEmpty() || nombreCategoria(evento).toLowerCase().equals(filtroCategoria))
                 .map(this::convertirEvento)
                 .toList();
     }
@@ -53,6 +63,7 @@ public class EventoService {
     public EventoRespuesta crearEvento(GuardarEventoSolicitud solicitud) {
         validarFechas(solicitud.fechaInicio(), solicitud.fechaFin());
         Categoria categoria = buscarCategoria(solicitud.idCategoria());
+        Espacio espacio = validarProgramacion(solicitud, null);
         Evento evento = new Evento(
                 solicitud.nombre().trim(),
                 normalizarTexto(solicitud.descripcion()),
@@ -62,6 +73,7 @@ public class EventoService {
                 solicitud.estado() == null ? EstadoEvento.PLANIFICADO : solicitud.estado(),
                 categoria
         );
+        evento.configurarProgramacion(espacio, solicitud.aforoMaximo());
         evento.asignarResponsables(obtenerResponsablesValidos(solicitud.responsables()));
         return convertirEvento(eventoRepository.save(evento));
     }
@@ -71,6 +83,7 @@ public class EventoService {
         validarFechas(solicitud.fechaInicio(), solicitud.fechaFin());
         Evento evento = buscarEvento(idEvento);
         Categoria categoria = buscarCategoria(solicitud.idCategoria());
+        Espacio espacio = validarProgramacion(solicitud, idEvento);
         evento.actualizarDatos(
                 solicitud.nombre().trim(),
                 normalizarTexto(solicitud.descripcion()),
@@ -80,6 +93,7 @@ public class EventoService {
                 solicitud.estado() == null ? evento.getEstado() : solicitud.estado(),
                 categoria
         );
+        evento.configurarProgramacion(espacio, solicitud.aforoMaximo());
         evento.asignarResponsables(obtenerResponsablesValidos(solicitud.responsables()));
         return convertirEvento(evento);
     }
@@ -124,9 +138,28 @@ public class EventoService {
     }
 
     private void validarFechas(OffsetDateTime fechaInicio, OffsetDateTime fechaFin) {
-        if (fechaFin != null && fechaFin.isBefore(fechaInicio)) {
-            throw new IllegalArgumentException("La fecha de fin no puede ser anterior a la fecha de inicio");
+        if (fechaFin != null && !fechaFin.isAfter(fechaInicio)) {
+            throw new IllegalArgumentException("La fecha de fin debe ser posterior a la fecha de inicio");
         }
+    }
+
+    private Espacio validarProgramacion(GuardarEventoSolicitud solicitud, Long idEvento) {
+        if (solicitud.idEspacio() == null) {
+            throw new IllegalArgumentException("El espacio es obligatorio");
+        }
+        if (solicitud.aforoMaximo() == null) {
+            throw new IllegalArgumentException("El aforo maximo es obligatorio");
+        }
+        Espacio espacio = espacioRepository.findById(solicitud.idEspacio())
+                .orElseThrow(() -> new ExcepcionNoEncontrado("Espacio no encontrado"));
+        if (solicitud.aforoMaximo() > espacio.getCapacidad()) {
+            throw new IllegalArgumentException("El aforo del evento no puede superar la capacidad del espacio");
+        }
+        if (eventoRepository.existeConflictoProgramacion(
+                espacio.getId(), solicitud.fechaInicio(), solicitud.fechaFin(), idEvento)) {
+            throw new IllegalArgumentException("El espacio ya esta ocupado en el horario seleccionado");
+        }
+        return espacio;
     }
 
     private String normalizarTexto(String valor) {
@@ -137,6 +170,7 @@ public class EventoService {
     }
 
     private EventoRespuesta convertirEvento(Evento evento) {
+        CategoriaRespuesta categoria = convertirCategoria(evento.getCategoria());
         return new EventoRespuesta(
                 evento.getId(),
                 evento.getNombre(),
@@ -144,13 +178,21 @@ public class EventoService {
                 evento.getFechaInicio(),
                 evento.getFechaFin(),
                 evento.getLugarPrincipal(),
-                convertirCategoria(evento.getCategoria()),
+                categoria,
+                categoria == null ? null : categoria.nombre(),
+                convertirEspacio(evento.getEspacio()),
+                evento.getAforoMaximo(),
                 evento.getEstado().name(),
                 evento.getResponsables().stream()
                         .sorted(Comparator.comparing(Usuario::getApellidos).thenComparing(Usuario::getNombres))
                         .map(this::convertirResponsable)
                         .toList()
         );
+    }
+
+    private String nombreCategoria(Evento evento) {
+        Categoria categoria = evento.getCategoria();
+        return categoria == null || categoria.getNombre() == null ? "" : categoria.getNombre();
     }
 
     private CategoriaRespuesta convertirCategoria(Categoria categoria) {
@@ -163,6 +205,18 @@ public class EventoService {
                 categoria.getDescripcion(),
                 categoria.getFechaCreacion(),
                 categoria.getFechaActualizacion()
+        );
+    }
+
+    private EspacioEventoRespuesta convertirEspacio(Espacio espacio) {
+        if (espacio == null) {
+            return null;
+        }
+        return new EspacioEventoRespuesta(
+                espacio.getId(),
+                espacio.getNombre(),
+                espacio.getUbicacion(),
+                espacio.getCapacidad()
         );
     }
 

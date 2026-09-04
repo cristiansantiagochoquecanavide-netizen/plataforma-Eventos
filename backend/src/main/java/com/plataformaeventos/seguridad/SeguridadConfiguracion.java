@@ -53,9 +53,10 @@ public class SeguridadConfiguracion {
                         .accessDeniedHandler(manejadorAccesoDenegado))
                 .authorizeHttpRequests(autorizacion -> autorizacion
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/salud", "/actuator/health", "/swagger-ui/**", "/swagger-ui.html", "/api-docs/**")
-                        .permitAll()
-                        .requestMatchers("/api/autenticacion/**").permitAll()
+                         .requestMatchers("/api/salud", "/actuator/health", "/swagger-ui/**", "/swagger-ui.html", "/api-docs/**")
+                         .permitAll()
+                         .requestMatchers("/api/autenticacion/usuario-actual").authenticated()
+                         .requestMatchers("/api/autenticacion/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFiltro, UsernamePasswordAuthenticationFilter.class)
                 .build();

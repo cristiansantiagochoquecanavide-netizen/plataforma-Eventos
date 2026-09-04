@@ -13,6 +13,9 @@ public record EventoRespuesta(
         OffsetDateTime fechaFin,
         String lugarPrincipal,
         CategoriaRespuesta categoria,
+        String categoriaNombre,
+        EspacioEventoRespuesta espacio,
+        Integer aforoMaximo,
         String estado,
         List<ResponsableEventoRespuesta> responsables
 ) {

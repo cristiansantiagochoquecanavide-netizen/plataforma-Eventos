@@ -12,9 +12,11 @@ import {
   EstadoAsignacion,
   EstadoConvocatoria,
   EstadoRecurso,
+  Espacio,
   Evento,
   GuardarCategoriaSolicitud,
   GuardarEventoSolicitud,
+  GuardarEspacioSolicitud,
   PaginaUsuarios,
   Permiso,
   Recurso,
@@ -120,8 +122,15 @@ export class ApiService {
     return this.http.put<RolPermisos>(`${this.url}/roles/${idRol}/permisos`, { permisos });
   }
 
-  listarEventos() {
-    return this.http.get<Evento[]>(`${this.url}/eventos`);
+  listarEventos(termino = '', categoria = '') {
+    let params = new HttpParams();
+    if (termino.trim()) params = params.set('termino', termino.trim());
+    if (categoria) params = params.set('categoria', categoria);
+    return this.http.get<Evento[]>(`${this.url}/eventos`, { params });
+  }
+
+  obtenerEvento(id: number) {
+    return this.http.get<Evento>(`${this.url}/eventos/${id}`);
   }
 
   crearEvento(datos: GuardarEventoSolicitud) {
@@ -154,6 +163,18 @@ export class ApiService {
 
   eliminarCategoria(id: number) {
     return this.http.delete<void>(`${this.url}/categorias/${id}`);
+  }
+
+  listarEspacios() {
+    return this.http.get<Espacio[]>(`${this.url}/espacios`);
+  }
+
+  crearEspacio(datos: GuardarEspacioSolicitud) {
+    return this.http.post<Espacio>(`${this.url}/espacios`, datos);
+  }
+
+  actualizarEspacio(id: number, datos: GuardarEspacioSolicitud) {
+    return this.http.put<Espacio>(`${this.url}/espacios/${id}`, datos);
   }
 
   // --- CU19: Gestion y Consulta de Recursos ---

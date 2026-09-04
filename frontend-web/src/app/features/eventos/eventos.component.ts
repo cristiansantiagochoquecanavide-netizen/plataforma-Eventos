@@ -4,8 +4,18 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { switchMap } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { obtenerMensajeError } from '../../core/mensajes-error';
-import { Categoria, EstadoEvento, Evento, GuardarEventoSolicitud, Usuario } from '../../core/modelos';
+import { Categoria, EstadoEvento, Espacio, Evento, GuardarEventoSolicitud, Usuario } from '../../core/modelos';
 import { ToastService } from '../../core/toast.service';
+
+type CampoEvento =
+  | 'nombre'
+  | 'descripcion'
+  | 'fechaInicio'
+  | 'horaInicio'
+  | 'lugarPrincipal'
+  | 'idCategoria'
+  | 'idEspacio'
+  | 'aforoMaximo';
 
 @Component({
   selector: 'app-eventos',
@@ -17,6 +27,7 @@ export class EventosComponent implements OnInit {
   readonly eventos = signal<Evento[]>([]);
   readonly categorias = signal<Categoria[]>([]);
   readonly usuarios = signal<Usuario[]>([]);
+  readonly espacios = signal<Espacio[]>([]);
   readonly responsablesSeleccionados = signal<Set<number>>(new Set());
   readonly eventoSeleccionado = signal<Evento | null>(null);
   readonly modalAbierto = signal(false);
@@ -40,6 +51,8 @@ export class EventosComponent implements OnInit {
     horaFin: ['18:00'],
     lugarPrincipal: ['', Validators.maxLength(150)],
     idCategoria: [0, [Validators.required, Validators.min(1)]],
+    idEspacio: [null as number | null, Validators.required],
+    aforoMaximo: [null as number | null, [Validators.required, Validators.min(1)]],
     estado: ['PLANIFICADO' as EstadoEvento],
   });
 
@@ -52,6 +65,7 @@ export class EventosComponent implements OnInit {
     this.cargarEventos();
     this.cargarCategorias();
     this.cargarUsuarios();
+    this.cargarEspacios();
   }
 
   cargarEventos() {
@@ -81,6 +95,17 @@ export class EventosComponent implements OnInit {
       next: (categorias) => this.categorias.set(categorias),
       error: (error) => {
         const mensaje = obtenerMensajeError(error, 'No fue posible cargar categorias');
+        this.error.set(mensaje);
+        this.toast.error(mensaje);
+      },
+    });
+  }
+
+  cargarEspacios() {
+    this.api.listarEspacios().subscribe({
+      next: (espacios) => this.espacios.set(espacios),
+      error: (error) => {
+        const mensaje = obtenerMensajeError(error, 'No fue posible cargar espacios');
         this.error.set(mensaje);
         this.toast.error(mensaje);
       },
@@ -126,6 +151,8 @@ export class EventosComponent implements OnInit {
       horaFin: dFin ? this.obtenerHoraISO(dFin) : '18:00',
       lugarPrincipal: evento.lugarPrincipal ?? '',
       idCategoria: evento.categoria?.id ?? 0,
+      idEspacio: evento.espacio?.id ?? null,
+      aforoMaximo: evento.aforoMaximo,
       estado: evento.estado,
     });
   }
@@ -144,6 +171,8 @@ export class EventosComponent implements OnInit {
       horaFin: '18:00',
       lugarPrincipal: '',
       idCategoria: 0,
+      idEspacio: null,
+      aforoMaximo: null,
       estado: 'PLANIFICADO',
     });
   }
@@ -180,8 +209,8 @@ export class EventosComponent implements OnInit {
       fechaFin = new Date(`${valor.fechaFin}T${horaF}:00`);
     }
 
-    if (fechaFin && fechaFin < fechaInicio) {
-      const mensaje = 'La fecha de fin no puede ser anterior a la fecha de inicio.';
+    if (fechaFin && fechaFin <= fechaInicio) {
+      const mensaje = 'La fecha de fin debe ser posterior a la fecha de inicio.';
       this.error.set(mensaje);
       this.toast.error(mensaje);
       return;
@@ -198,6 +227,8 @@ export class EventosComponent implements OnInit {
       fechaFin: fechaFin?.toISOString() ?? null,
       lugarPrincipal: valor.lugarPrincipal.trim() || null,
       idCategoria: valor.idCategoria,
+      idEspacio: valor.idEspacio!,
+      aforoMaximo: valor.aforoMaximo!,
       estado: valor.estado,
       responsables,
     };
@@ -224,33 +255,37 @@ export class EventosComponent implements OnInit {
     });
   }
 
-  campoConError(
-    nombre: 'nombre' | 'descripcion' | 'fechaInicio' | 'horaInicio' | 'lugarPrincipal' | 'idCategoria',
-  ) {
+  campoConError(nombre: CampoEvento) {
     const control = this.formulario.controls[nombre];
     return control.invalid && (control.touched || this.intentoEnvio());
   }
 
-  mensajeCampo(
-    nombre: 'nombre' | 'descripcion' | 'fechaInicio' | 'horaInicio' | 'lugarPrincipal' | 'idCategoria',
-  ) {
+  mensajeCampo(nombre: CampoEvento) {
     const control = this.formulario.controls[nombre];
-    if (control.hasError('required')) return 'Este campo es obligatorio.';
-    if (control.hasError('min')) return 'Selecciona una categoria.';
+    if (control.hasError('required')) {
+      if (nombre === 'idCategoria') return 'Selecciona una categoria.';
+      if (nombre === 'idEspacio') return 'Selecciona un espacio.';
+      if (nombre === 'aforoMaximo') return 'Ingresa el aforo del evento.';
+      return 'Este campo es obligatorio.';
+    }
+    if (control.hasError('min')) {
+      if (nombre === 'idCategoria') return 'Selecciona una categoria.';
+      if (nombre === 'aforoMaximo') return 'El aforo debe ser mayor que cero.';
+    }
     if (control.hasError('maxlength')) return 'Supera la longitud permitida.';
     return '';
   }
 
   private mensajeFormularioInvalido() {
-    const orden: Array<
-      'nombre' | 'descripcion' | 'fechaInicio' | 'horaInicio' | 'lugarPrincipal' | 'idCategoria'
-    > = [
+    const orden: CampoEvento[] = [
       'nombre',
       'descripcion',
+      'idCategoria',
       'fechaInicio',
       'horaInicio',
       'lugarPrincipal',
-      'idCategoria',
+      'idEspacio',
+      'aforoMaximo',
     ];
     const campo = orden.find((nombre) => this.formulario.controls[nombre].invalid);
     return campo ? this.mensajeCampo(campo) : 'Revisa los datos del evento.';

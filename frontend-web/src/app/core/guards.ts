@@ -33,6 +33,10 @@ export const recursosGuard: CanActivateFn = () => {
   );
 };
 
+export const eventosGuard: CanActivateFn = recursosGuard;
+
+export const espaciosGuard: CanActivateFn = recursosGuard;
+
 export const convocatoriasGuard: CanActivateFn = () => {
   const sesion = inject(SesionService);
   const router = inject(Router);

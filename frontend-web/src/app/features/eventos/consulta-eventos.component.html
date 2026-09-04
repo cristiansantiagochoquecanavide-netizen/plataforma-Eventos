@@ -1,0 +1,99 @@
+<section class="page-heading">
+  <p class="eyebrow">Caso de uso 7</p>
+  <h1>Consulta y Busqueda de Eventos</h1>
+  <p>Encuentra actividades por nombre o categoria y revisa su informacion.</p>
+</section>
+
+<section class="card" style="padding: 20px; margin-bottom: 22px;">
+  <form (ngSubmit)="buscar()" style="display: grid; grid-template-columns: minmax(220px, 1fr) 220px auto auto; gap: 12px; align-items: end;">
+    <label>
+      Buscar por titulo o nombre
+      <input [(ngModel)]="termino" name="termino" placeholder="Ej: Congreso, Hackathon..." />
+    </label>
+    <label>
+      Categoria
+      <select [(ngModel)]="categoria" name="categoria">
+        <option value="">Todas las categorias</option>
+        @for (item of categorias(); track item) {
+          <option [value]="item">{{ item }}</option>
+        }
+      </select>
+    </label>
+    <button class="primary" type="submit" [disabled]="cargando()">
+      {{ cargando() ? 'Buscando...' : 'Buscar' }}
+    </button>
+    <button type="button" (click)="limpiar()">Limpiar</button>
+  </form>
+</section>
+
+@if (error()) {
+  <p class="notice error">{{ error() }}</p>
+}
+
+<section class="card table-card">
+  <div class="card-title compact" style="display: flex; justify-content: space-between; align-items: center;">
+    <h2>Eventos disponibles</h2>
+    @if (consultado()) {
+      <span class="role-chip">{{ eventos().length }} resultados</span>
+    }
+  </div>
+  <div class="table-wrap">
+    @if (consultado()) {
+      <table>
+        <thead>
+          <tr>
+            <th>Evento</th>
+            <th>Categoria</th>
+            <th>Fecha</th>
+            <th>Lugar</th>
+            <th>Accion</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (evento of eventos(); track evento.id) {
+            <tr>
+              <td>
+                <strong>{{ evento.nombre }}</strong>
+                <small>{{ evento.descripcion || 'Sin descripcion' }}</small>
+              </td>
+              <td><span class="inline-chip">{{ nombreCategoria(evento) }}</span></td>
+              <td>{{ evento.fechaInicio | date: 'dd/MM/yyyy HH:mm' }}</td>
+              <td>{{ evento.lugarPrincipal || 'Sin lugar asignado' }}</td>
+              <td><button type="button" (click)="verDetalle(evento)">Ver detalle</button></td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" style="text-align: center; padding: 38px;">No se encontraron eventos con los criterios seleccionados.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <p style="text-align: center; padding: 38px; color: var(--muted);">Utiliza los filtros y pulsa Buscar para consultar eventos.</p>
+    }
+  </div>
+</section>
+
+@if (detalle(); as evento) {
+  <div class="modal-overlay" (click)="cerrarDetalle()">
+    <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Detalle del evento</p>
+          <h2>{{ evento.nombre }}</h2>
+        </div>
+        <button class="btn-close" type="button" (click)="cerrarDetalle()">x</button>
+      </div>
+      <div class="modal-body">
+        <p><strong>Categoria:</strong> {{ nombreCategoria(evento) }}</p>
+        <p><strong>Descripcion:</strong> {{ evento.descripcion || 'Sin descripcion' }}</p>
+        <p><strong>Inicio:</strong> {{ evento.fechaInicio | date: 'dd/MM/yyyy HH:mm' }}</p>
+        @if (evento.fechaFin) {
+          <p><strong>Fin:</strong> {{ evento.fechaFin | date: 'dd/MM/yyyy HH:mm' }}</p>
+        }
+        <p><strong>Lugar:</strong> {{ evento.lugarPrincipal || 'Sin lugar asignado' }}</p>
+        <p><strong>Estado:</strong> {{ evento.estado }}</p>
+      </div>
+    </div>
+  </div>
+}

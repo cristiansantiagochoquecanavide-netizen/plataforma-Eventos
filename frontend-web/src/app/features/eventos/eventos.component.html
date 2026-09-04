@@ -1,7 +1,7 @@
 <section class="page-heading">
-  <p class="eyebrow">Gestión de Eventos, Programación y Recursos</p>
+  <p class="eyebrow">Gestion de Eventos, Programacion y Recursos</p>
   <h1>Eventos</h1>
-  <p>Planificación, sedes y responsables asignados para cada evento.</p>
+  <p>Planificacion, sedes y responsables asignados para cada evento.</p>
   <div style="margin-top: 14px;">
     <button class="primary" type="button" (click)="abrirModalCrear()" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px; color: #ffffff;">
       <span style="font-weight: 800; font-size: 1.15rem; line-height: 1; color: #ffffff;">+</span>
@@ -30,6 +30,7 @@
           <th>Fechas</th>
           <th>Lugar Principal</th>
           <th>Categoria</th>
+          <th>Espacio / Aforo</th>
           <th>Responsables</th>
           <th>Estado</th>
           <th style="text-align: right;">Acciones</th>
@@ -40,7 +41,7 @@
           <tr>
             <td>
               <strong>{{ evento.nombre }}</strong>
-              <small>{{ evento.descripcion || 'Sin descripción' }}</small>
+              <small>{{ evento.descripcion || 'Sin descripcion' }}</small>
             </td>
             <td>
               {{ evento.fechaInicio | date: 'dd/MM/yyyy HH:mm' }}
@@ -54,6 +55,12 @@
                 <span class="inline-chip">{{ evento.categoria.nombre }}</span>
               } @else {
                 <small style="color: var(--muted);">Sin categoria</small>
+              }
+            </td>
+            <td>
+              {{ evento.espacio?.nombre || 'Sin espacio' }}
+              @if (evento.aforoMaximo) {
+                <small>Aforo: {{ evento.aforoMaximo }}</small>
               }
             </td>
             <td>
@@ -74,7 +81,7 @@
           </tr>
         } @empty {
           <tr>
-            <td colspan="7" style="text-align: center; padding: 32px;"><small>No hay eventos registrados.</small></td>
+            <td colspan="8" style="text-align: center; padding: 32px;"><small>No hay eventos registrados.</small></td>
           </tr>
         }
       </tbody>
@@ -82,7 +89,6 @@
   </div>
 </section>
 
-<!-- MODAL FLOTANTE: CREAR / EDITAR EVENTO -->
 @if (modalAbierto()) {
   <div class="modal-overlay" (click)="cerrarModal()">
     <div class="modal-dialog" (click)="$event.stopPropagation()">
@@ -90,10 +96,10 @@
         <div>
           <h2>{{ eventoSeleccionado() ? 'Editar Evento' : 'Crear Nuevo Evento' }}</h2>
           <small style="color: var(--muted);">
-            {{ eventoSeleccionado() ? 'Modifica los detalles, cronograma y responsables del evento' : 'Registra la información inicial, fechas y responsables del nuevo evento' }}
+            {{ eventoSeleccionado() ? 'Modifica los detalles, cronograma y responsables del evento' : 'Registra la informacion inicial, fechas y responsables del nuevo evento' }}
           </small>
         </div>
-        <button class="btn-close" type="button" (click)="cerrarModal()" title="Cerrar">✕</button>
+        <button class="btn-close" type="button" (click)="cerrarModal()" title="Cerrar">x</button>
       </div>
 
       <div class="modal-body">
@@ -104,15 +110,15 @@
         <form [formGroup]="formulario" (ngSubmit)="guardar()" class="form-grid" novalidate>
           <label class="full" [class.invalid]="campoConError('nombre')">
             Nombre del Evento *
-            <input formControlName="nombre" placeholder="Ej: Conferencia Anual de Tecnología 2026" />
+            <input formControlName="nombre" placeholder="Ej: Conferencia Anual de Tecnologia 2026" />
             @if (campoConError('nombre')) {
               <small class="field-error">{{ mensajeCampo('nombre') }}</small>
             }
           </label>
 
           <label class="full" [class.invalid]="campoConError('descripcion')">
-            Descripción
-            <textarea formControlName="descripcion" rows="3" placeholder="Detalla los objetivos, público y características del evento..."></textarea>
+            Descripcion
+            <textarea formControlName="descripcion" rows="3" placeholder="Detalla los objetivos, publico y caracteristicas del evento..."></textarea>
             @if (campoConError('descripcion')) {
               <small class="field-error">{{ mensajeCampo('descripcion') }}</small>
             }
@@ -132,7 +138,6 @@
           </label>
 
           <div class="full" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-            <!-- INICIO -->
             <div style="background: #f8faf9; padding: 12px; border-radius: 8px; border: 1px solid var(--line);">
               <span style="font-weight: 700; font-size: 0.88rem; color: var(--ink); margin-bottom: 8px; display: block;">
                 Inicio del Evento *
@@ -155,7 +160,6 @@
               </div>
             </div>
 
-            <!-- FIN -->
             <div style="background: #f8faf9; padding: 12px; border-radius: 8px; border: 1px solid var(--line);">
               <span style="font-weight: 700; font-size: 0.88rem; color: var(--ink); margin-bottom: 8px; display: block;">
                 Fin del Evento (Opcional)
@@ -178,6 +182,29 @@
             <input formControlName="lugarPrincipal" placeholder="Ej: Auditorio Central - Campus FICCT" />
             @if (campoConError('lugarPrincipal')) {
               <small class="field-error">{{ mensajeCampo('lugarPrincipal') }}</small>
+            }
+          </label>
+
+          <label class="full" [class.invalid]="campoConError('idEspacio')">
+            Espacio o sala *
+            <select formControlName="idEspacio">
+              <option [ngValue]="null">Selecciona un espacio</option>
+              @for (espacio of espacios(); track espacio.id) {
+                <option [ngValue]="espacio.id">{{ espacio.nombre }} - {{ espacio.ubicacion }} ({{ espacio.capacidad }} personas)</option>
+              }
+            </select>
+            @if (campoConError('idEspacio')) {
+              <small class="field-error">{{ mensajeCampo('idEspacio') }}</small>
+            }
+          </label>
+
+          <label class="full" [class.invalid]="campoConError('aforoMaximo')">
+            Aforo del evento *
+            <input type="number" min="1" formControlName="aforoMaximo" placeholder="Ej: 100" />
+            @if (campoConError('aforoMaximo')) {
+              <small class="field-error">{{ mensajeCampo('aforoMaximo') }}</small>
+            } @else {
+              <small style="color: var(--muted);">No puede superar la capacidad del espacio seleccionado.</small>
             }
           </label>
 

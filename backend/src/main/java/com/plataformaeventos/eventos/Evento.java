@@ -1,6 +1,7 @@
 package com.plataformaeventos.eventos;
 
 import com.plataformaeventos.categorias.Categoria;
+import com.plataformaeventos.espacios.Espacio;
 import com.plataformaeventos.usuarios.Usuario;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -50,6 +51,13 @@ public class Evento {
     @JoinColumn(name = "id_categoria", nullable = false)
     private Categoria categoria;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_espacio")
+    private Espacio espacio;
+
+    @Column(name = "aforo_maximo")
+    private Integer aforoMaximo;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private EstadoEvento estado;
@@ -87,6 +95,21 @@ public class Evento {
         this.lugarPrincipal = lugarPrincipal;
         this.estado = estado;
         this.categoria = categoria;
+    }
+
+    public Evento(
+            String nombre,
+            String descripcion,
+            OffsetDateTime fechaInicio,
+            OffsetDateTime fechaFin,
+            String lugarPrincipal,
+            EstadoEvento estado,
+            Categoria categoria,
+            Espacio espacio,
+            Integer aforoMaximo
+    ) {
+        this(nombre, descripcion, fechaInicio, fechaFin, lugarPrincipal, estado, categoria);
+        configurarProgramacion(espacio, aforoMaximo);
     }
 
     @PrePersist
@@ -134,6 +157,14 @@ public class Evento {
         return categoria;
     }
 
+    public Espacio getEspacio() {
+        return espacio;
+    }
+
+    public Integer getAforoMaximo() {
+        return aforoMaximo;
+    }
+
     public EstadoEvento getEstado() {
         return estado;
     }
@@ -158,6 +189,11 @@ public class Evento {
         this.lugarPrincipal = lugarPrincipal;
         this.estado = estado;
         this.categoria = categoria;
+    }
+
+    public void configurarProgramacion(Espacio espacio, Integer aforoMaximo) {
+        this.espacio = espacio;
+        this.aforoMaximo = aforoMaximo;
     }
 
     public void asignarResponsables(Set<Usuario> responsables) {
