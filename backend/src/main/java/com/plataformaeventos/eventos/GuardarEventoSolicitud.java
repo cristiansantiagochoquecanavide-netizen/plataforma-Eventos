@@ -1,7 +1,6 @@
 package com.plataformaeventos.eventos;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
@@ -37,7 +36,6 @@ public record GuardarEventoSolicitud(
 
         EstadoEvento estado,
 
-        @NotEmpty(message = "Debe asignarse al menos un responsable")
         Set<@NotNull(message = "El responsable es obligatorio") Long> responsables
 ) {
 }

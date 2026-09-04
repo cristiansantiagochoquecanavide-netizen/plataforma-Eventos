@@ -71,12 +71,28 @@ export class SesionService {
   }
 
   tieneAccesoEventos() {
-    return this.tieneAlgunPermiso([
-      'EVENTO_VER',
-      'EVENTO_CREAR',
-      'EVENTO_EDITAR',
-      'EVENTO_ASIGNAR_RESPONSABLE',
-    ]);
+    return (
+      this.puedeVerEventos() ||
+      this.puedeCrearEventos() ||
+      this.puedeEditarEventos() ||
+      this.puedeAsignarResponsablesEvento()
+    );
+  }
+
+  puedeVerEventos() {
+    return this.tienePermiso('EVENTO_VER');
+  }
+
+  puedeCrearEventos() {
+    return this.tienePermiso('EVENTO_CREAR');
+  }
+
+  puedeEditarEventos() {
+    return this.tienePermiso('EVENTO_EDITAR');
+  }
+
+  puedeAsignarResponsablesEvento() {
+    return this.tienePermiso('EVENTO_ASIGNAR_RESPONSABLE');
   }
 
   tieneAccesoRecursos() {

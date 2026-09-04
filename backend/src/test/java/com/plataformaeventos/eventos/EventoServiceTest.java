@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class EventoServiceTest {
@@ -68,6 +69,11 @@ class EventoServiceTest {
 
         EventoRespuesta respuesta = eventoService.crearEvento(solicitud);
 
+        verify(eventoRepository).existeConflictoProgramacionCrearConFin(
+                3L,
+                solicitud.fechaInicio(),
+                solicitud.fechaFin()
+        );
         verify(eventoRepository).save(captor.capture());
         assertThat(captor.getValue().getCategoria()).isSameAs(categoria);
         assertThat(captor.getValue().getEspacio()).isSameAs(espacio);
@@ -81,6 +87,42 @@ class EventoServiceTest {
         assertThat(respuesta.categoriaNombre()).isEqualTo("Academico");
         assertThat(respuesta.espacio()).isNotNull();
         assertThat(respuesta.espacio().id()).isEqualTo(3L);
+    }
+
+    @Test
+    void crearEventoPermiteResponsablesOmitidos() {
+        Categoria categoria = categoriaConId(4L, "Academico");
+        Espacio espacio = espacioConId(3L, 120);
+        GuardarEventoSolicitud solicitud = new GuardarEventoSolicitud(
+                "Congreso de IA",
+                "Programa academico",
+                OffsetDateTime.now().plusDays(10),
+                null,
+                "Auditorio Central",
+                4L,
+                3L,
+                90,
+                EstadoEvento.PUBLICADO,
+                null
+        );
+
+        when(categoriaRepository.findById(4L)).thenReturn(Optional.of(categoria));
+        when(espacioRepository.findById(3L)).thenReturn(Optional.of(espacio));
+        when(eventoRepository.save(any(Evento.class))).thenAnswer(invocacion -> {
+            Evento evento = invocacion.getArgument(0);
+            ReflectionTestUtils.setField(evento, "id", 34L);
+            return evento;
+        });
+
+        EventoRespuesta respuesta = eventoService.crearEvento(solicitud);
+
+        verify(eventoRepository).existeConflictoProgramacionCrearSinFin(
+                3L,
+                solicitud.fechaInicio()
+        );
+        assertThat(respuesta.id()).isEqualTo(34L);
+        assertThat(respuesta.responsables()).isEmpty();
+        verifyNoInteractions(usuarioRepository);
     }
 
     @Test
@@ -109,7 +151,6 @@ class EventoServiceTest {
         Categoria anterior = categoriaConId(1L, "General");
         Categoria nueva = categoriaConId(2L, "Tecnologia");
         Espacio espacio = espacioConId(5L, 80);
-        Usuario responsable = responsableConRol(9L, "STAFF");
         Evento evento = new Evento(
                 "Evento inicial",
                 null,
@@ -137,10 +178,15 @@ class EventoServiceTest {
         when(eventoRepository.findById(20L)).thenReturn(Optional.of(evento));
         when(categoriaRepository.findById(2L)).thenReturn(Optional.of(nueva));
         when(espacioRepository.findById(5L)).thenReturn(Optional.of(espacio));
-        when(usuarioRepository.findById(9L)).thenReturn(Optional.of(responsable));
 
         EventoRespuesta respuesta = eventoService.actualizarEvento(20L, solicitud);
 
+        verify(eventoRepository).existeConflictoProgramacionEditarConFin(
+                5L,
+                solicitud.fechaInicio(),
+                solicitud.fechaFin(),
+                20L
+        );
         assertThat(evento.getCategoria()).isSameAs(nueva);
         assertThat(evento.getEspacio()).isSameAs(espacio);
         assertThat(evento.getAforoMaximo()).isEqualTo(60);
@@ -149,6 +195,80 @@ class EventoServiceTest {
         assertThat(respuesta.espacio()).isNotNull();
         assertThat(respuesta.espacio().id()).isEqualTo(5L);
         assertThat(respuesta.estado()).isEqualTo("PUBLICADO");
+    }
+
+    @Test
+    void actualizarEventoNoRequiereResponsablesNiModificaAsignaciones() {
+        Categoria anterior = categoriaConId(1L, "General");
+        Categoria nueva = categoriaConId(2L, "Tecnologia");
+        Espacio espacio = espacioConId(5L, 80);
+        Usuario responsable = responsableConRol(9L, "STAFF");
+        Evento evento = new Evento(
+                "Evento inicial",
+                null,
+                OffsetDateTime.now().plusDays(5),
+                OffsetDateTime.now().plusDays(6),
+                "Salon",
+                EstadoEvento.PLANIFICADO,
+                anterior
+        );
+        evento.asignarResponsables(Set.of(responsable));
+        ReflectionTestUtils.setField(evento, "id", 20L);
+
+        GuardarEventoSolicitud solicitud = new GuardarEventoSolicitud(
+                "Evento actualizado",
+                null,
+                OffsetDateTime.now().plusDays(7),
+                null,
+                "Salon 2",
+                2L,
+                5L,
+                60,
+                EstadoEvento.PUBLICADO,
+                null
+        );
+
+        when(eventoRepository.findById(20L)).thenReturn(Optional.of(evento));
+        when(categoriaRepository.findById(2L)).thenReturn(Optional.of(nueva));
+        when(espacioRepository.findById(5L)).thenReturn(Optional.of(espacio));
+
+        EventoRespuesta respuesta = eventoService.actualizarEvento(20L, solicitud);
+
+        verify(eventoRepository).existeConflictoProgramacionEditarSinFin(
+                5L,
+                solicitud.fechaInicio(),
+                20L
+        );
+        assertThat(respuesta.responsables()).hasSize(1);
+        assertThat(evento.getResponsables()).containsExactly(responsable);
+        verifyNoInteractions(usuarioRepository);
+    }
+
+    @Test
+    void asignarResponsablesPermiteDejarEventoSinResponsables() {
+        Categoria categoria = categoriaConId(1L, "General");
+        Usuario responsable = responsableConRol(9L, "STAFF");
+        Evento evento = new Evento(
+                "Evento inicial",
+                null,
+                OffsetDateTime.now().plusDays(5),
+                OffsetDateTime.now().plusDays(6),
+                "Salon",
+                EstadoEvento.PLANIFICADO,
+                categoria
+        );
+        evento.asignarResponsables(Set.of(responsable));
+        ReflectionTestUtils.setField(evento, "id", 20L);
+
+        when(eventoRepository.findById(20L)).thenReturn(Optional.of(evento));
+
+        EventoRespuesta respuesta = eventoService.asignarResponsables(
+                20L,
+                new AsignarResponsablesSolicitud(Set.of())
+        );
+
+        assertThat(respuesta.responsables()).isEmpty();
+        assertThat(evento.getResponsables()).isEmpty();
     }
 
     private Categoria categoriaConId(Long id, String nombre) {

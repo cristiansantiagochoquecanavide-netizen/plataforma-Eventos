@@ -7,7 +7,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
@@ -20,6 +22,17 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     @EntityGraph(attributePaths = {"roles", "roles.permisos"})
     @Query("select usuario from Usuario usuario where usuario.correo = :correo")
     Optional<Usuario> findByCorreoConRolesYPermisos(@Param("correo") String correo);
+
+    @EntityGraph(attributePaths = "roles")
+    @Query("""
+            select distinct usuario from Usuario usuario
+            join usuario.roles rol
+            where usuario.estado = com.plataformaeventos.usuarios.EstadoUsuario.ACTIVO
+              and rol.estado = com.plataformaeventos.roles.EstadoRol.ACTIVO
+              and rol.nombre in :roles
+            order by usuario.apellidos asc, usuario.nombres asc
+            """)
+    List<Usuario> findResponsablesDisponibles(@Param("roles") Set<String> roles);
 
     boolean existsByCorreo(String correo);
 

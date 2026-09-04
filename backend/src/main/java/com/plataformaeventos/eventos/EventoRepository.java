@@ -15,11 +15,48 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
             select count(e) > 0 from Evento e
             where e.espacio.id = :idEspacio
               and e.estado <> com.plataformaeventos.eventos.EstadoEvento.CANCELADO
-              and (:fechaFin is null or e.fechaInicio < :fechaFin)
               and (e.fechaFin is null or e.fechaFin > :fechaInicio)
-              and (:idEvento is null or e.id <> :idEvento)
             """)
-    boolean existeConflictoProgramacion(
+    boolean existeConflictoProgramacionCrearSinFin(
+            @Param("idEspacio") Long idEspacio,
+            @Param("fechaInicio") OffsetDateTime fechaInicio
+    );
+
+    @Query("""
+            select count(e) > 0 from Evento e
+            where e.espacio.id = :idEspacio
+              and e.estado <> com.plataformaeventos.eventos.EstadoEvento.CANCELADO
+              and e.fechaInicio < :fechaFin
+              and (e.fechaFin is null or e.fechaFin > :fechaInicio)
+            """)
+    boolean existeConflictoProgramacionCrearConFin(
+            @Param("idEspacio") Long idEspacio,
+            @Param("fechaInicio") OffsetDateTime fechaInicio,
+            @Param("fechaFin") OffsetDateTime fechaFin
+    );
+
+    @Query("""
+            select count(e) > 0 from Evento e
+            where e.espacio.id = :idEspacio
+              and e.estado <> com.plataformaeventos.eventos.EstadoEvento.CANCELADO
+              and (e.fechaFin is null or e.fechaFin > :fechaInicio)
+              and e.id <> :idEvento
+            """)
+    boolean existeConflictoProgramacionEditarSinFin(
+            @Param("idEspacio") Long idEspacio,
+            @Param("fechaInicio") OffsetDateTime fechaInicio,
+            @Param("idEvento") Long idEvento
+    );
+
+    @Query("""
+            select count(e) > 0 from Evento e
+            where e.espacio.id = :idEspacio
+              and e.estado <> com.plataformaeventos.eventos.EstadoEvento.CANCELADO
+              and e.fechaInicio < :fechaFin
+              and (e.fechaFin is null or e.fechaFin > :fechaInicio)
+              and e.id <> :idEvento
+            """)
+    boolean existeConflictoProgramacionEditarConFin(
             @Param("idEspacio") Long idEspacio,
             @Param("fechaInicio") OffsetDateTime fechaInicio,
             @Param("fechaFin") OffsetDateTime fechaFin,

@@ -59,6 +59,13 @@ public class EventoService {
         return convertirEvento(buscarEvento(idEvento));
     }
 
+    @Transactional(readOnly = true)
+    public List<ResponsableEventoRespuesta> listarResponsablesDisponibles() {
+        return usuarioRepository.findResponsablesDisponibles(ROLES_RESPONSABLES).stream()
+                .map(this::convertirResponsable)
+                .toList();
+    }
+
     @Transactional
     public EventoRespuesta crearEvento(GuardarEventoSolicitud solicitud) {
         validarFechas(solicitud.fechaInicio(), solicitud.fechaFin());
@@ -74,7 +81,9 @@ public class EventoService {
                 categoria
         );
         evento.configurarProgramacion(espacio, solicitud.aforoMaximo());
-        evento.asignarResponsables(obtenerResponsablesValidos(solicitud.responsables()));
+        if (solicitud.responsables() != null) {
+            evento.asignarResponsables(obtenerResponsablesValidos(solicitud.responsables()));
+        }
         return convertirEvento(eventoRepository.save(evento));
     }
 
@@ -94,7 +103,6 @@ public class EventoService {
                 categoria
         );
         evento.configurarProgramacion(espacio, solicitud.aforoMaximo());
-        evento.asignarResponsables(obtenerResponsablesValidos(solicitud.responsables()));
         return convertirEvento(evento);
     }
 
@@ -119,6 +127,9 @@ public class EventoService {
     }
 
     private Set<Usuario> obtenerResponsablesValidos(Set<Long> idsResponsables) {
+        if (idsResponsables == null || idsResponsables.isEmpty()) {
+            return Set.of();
+        }
         Set<Usuario> responsables = idsResponsables.stream()
                 .map(id -> usuarioRepository.findById(id)
                         .orElseThrow(() -> new ExcepcionNoEncontrado("Responsable no encontrado")))
@@ -155,11 +166,28 @@ public class EventoService {
         if (solicitud.aforoMaximo() > espacio.getCapacidad()) {
             throw new IllegalArgumentException("El aforo del evento no puede superar la capacidad del espacio");
         }
-        if (eventoRepository.existeConflictoProgramacion(
-                espacio.getId(), solicitud.fechaInicio(), solicitud.fechaFin(), idEvento)) {
+        if (existeConflictoProgramacion(espacio.getId(), solicitud.fechaInicio(), solicitud.fechaFin(), idEvento)) {
             throw new IllegalArgumentException("El espacio ya esta ocupado en el horario seleccionado");
         }
         return espacio;
+    }
+
+    private boolean existeConflictoProgramacion(
+            Long idEspacio,
+            OffsetDateTime fechaInicio,
+            OffsetDateTime fechaFin,
+            Long idEvento
+    ) {
+        if (idEvento == null) {
+            return fechaFin == null
+                    ? eventoRepository.existeConflictoProgramacionCrearSinFin(idEspacio, fechaInicio)
+                    : eventoRepository.existeConflictoProgramacionCrearConFin(idEspacio, fechaInicio, fechaFin);
+        }
+        return fechaFin == null
+                ? eventoRepository.existeConflictoProgramacionEditarSinFin(idEspacio, fechaInicio, idEvento)
+                : eventoRepository.existeConflictoProgramacionEditarConFin(
+                        idEspacio, fechaInicio, fechaFin, idEvento
+                );
     }
 
     private String normalizarTexto(String valor) {

@@ -20,6 +20,7 @@ import {
   PaginaUsuarios,
   Permiso,
   Recurso,
+  ResponsableEvento,
   Rol,
   RolPermisos,
   SesionRespuesta,
@@ -143,6 +144,10 @@ export class ApiService {
 
   asignarResponsablesEvento(id: number, responsables: number[]) {
     return this.http.put<Evento>(`${this.url}/eventos/${id}/responsables`, { responsables });
+  }
+
+  listarResponsablesDisponiblesEvento() {
+    return this.http.get<ResponsableEvento[]>(`${this.url}/eventos/responsables-disponibles`);
   }
 
   listarCategorias() {

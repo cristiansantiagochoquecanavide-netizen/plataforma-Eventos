@@ -95,7 +95,7 @@ export interface GuardarEventoSolicitud {
   idEspacio: number;
   aforoMaximo: number;
   estado: EstadoEvento;
-  responsables: number[];
+  responsables?: number[];
 }
 
 export interface Espacio {
