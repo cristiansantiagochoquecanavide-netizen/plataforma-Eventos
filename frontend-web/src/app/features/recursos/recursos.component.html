@@ -1,23 +1,21 @@
-<section class="page-heading" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
-  <div>
-    <p class="eyebrow">Gestión de Eventos, Programación y Recursos</p>
-    <h1>Recursos y Asignaciones</h1>
-    <p>Control de inventario de recursos (CU19) y asignación a eventos y salas (CU20).</p>
-  </div>
-  <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+<section class="page-heading">
+  <p class="eyebrow">Gestión de Eventos, Programación y Recursos</p>
+  <h1>Recursos y Asignaciones</h1>
+  <p>Control de inventario de recursos y asignación a eventos y salas.</p>
+  <div style="margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap;">
     @if (pestanaActiva() === 'inventario') {
-      <button class="primary" type="button" (click)="abrirModalCrear()" style="display: flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px; color: #ffffff;">
+      <button class="primary" type="button" (click)="abrirModalCrear()" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px; color: #ffffff;">
         <span style="font-weight: 800; font-size: 1.15rem; line-height: 1; color: #ffffff;">+</span>
         <span style="color: #ffffff; font-weight: 700;">Crear Nuevo Recurso</span>
       </button>
-      <button type="button" (click)="abrirModalAsignar()" style="display: flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px;">
+      <button type="button" (click)="abrirModalAsignar()" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px;">
         <span>📋</span>
         <span>Asignar a Evento</span>
       </button>
     } @else {
-      <button class="primary" type="button" (click)="abrirModalAsignar()" style="display: flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px; color: #ffffff;">
+      <button class="primary" type="button" (click)="abrirModalAsignar()" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px; color: #ffffff;">
         <span style="font-weight: 800; font-size: 1.15rem; line-height: 1; color: #ffffff;">+</span>
-        <span style="color: #ffffff; font-weight: 700;">Nueva Asignación (CU20)</span>
+        <span style="color: #ffffff; font-weight: 700;">Nueva Asignación</span>
       </button>
     }
   </div>
@@ -33,7 +31,7 @@
     style="font-size: 0.95rem; padding: 10px 20px; border-radius: 8px; border: 0;"
     (click)="cambiarPestana('inventario')"
   >
-    📦 Inventario de Recursos (CU19)
+    📦 Inventario de Recursos
   </button>
   <button
     type="button"
@@ -43,7 +41,7 @@
     style="font-size: 0.95rem; padding: 10px 20px; border-radius: 8px; border: 0;"
     (click)="cambiarPestana('asignaciones')"
   >
-    📋 Asignaciones a Eventos y Salas (CU20)
+    📋 Asignaciones a Eventos y Salas
   </button>
 </div>
 
@@ -151,7 +149,7 @@
                       (click)="abrirModalAsignar(recurso)"
                       title="Asignar este recurso a un evento y sala"
                     >
-                      Asignar (CU20)
+                      Asignar
                     </button>
                   }
                   <button type="button" (click)="editar(recurso)">Editar</button>
@@ -299,7 +297,7 @@
     <div class="modal-dialog" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <div>
-          <h2>{{ editando() ? 'Editar Recurso' : 'Crear Nuevo Recurso (CU19)' }}</h2>
+          <h2>{{ editando() ? 'Editar Recurso' : 'Crear Nuevo Recurso' }}</h2>
           <small style="color: var(--muted);">{{ editando() ? 'Actualiza los datos y estado del recurso' : 'Ingresa la información para registrar el recurso en inventario' }}</small>
         </div>
         <button class="btn-close" type="button" (click)="cerrarModal()" title="Cerrar">✕</button>
@@ -407,7 +405,7 @@
     <div class="modal-dialog" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <div>
-          <h2>Asignar Recurso a Evento y Sala (CU20)</h2>
+          <h2>Asignar Recurso a Evento y Sala</h2>
           <small style="color: var(--muted);">Vincula recursos disponibles a un evento y su respectivo espacio</small>
         </div>
         <button class="btn-close" type="button" (click)="cerrarModalAsignacion()" title="Cerrar">✕</button>
