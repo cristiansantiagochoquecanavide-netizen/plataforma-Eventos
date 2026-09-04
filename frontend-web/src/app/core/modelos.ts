@@ -11,6 +11,7 @@ export interface Usuario {
   correo: string;
   estado?: string;
   roles: string[];
+  permisos?: string[];
 }
 
 export interface PaginaUsuarios {

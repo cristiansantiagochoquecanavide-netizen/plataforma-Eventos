@@ -8,6 +8,7 @@ public record UsuarioActualRespuesta(
         String apellidos,
         String correo,
         String estado,
-        List<String> roles
+        List<String> roles,
+        List<String> permisos
 ) {
 }

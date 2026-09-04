@@ -51,21 +51,66 @@ export class SesionService {
     return this.usuario()?.roles.includes('ADMINISTRADOR') ?? false;
   }
 
+  tieneAccesoUsuarios() {
+    return this.tieneAlgunPermiso([
+      'USUARIO_VER',
+      'USUARIO_CREAR',
+      'USUARIO_EDITAR',
+      'USUARIO_CAMBIAR_ESTADO',
+    ]);
+  }
+
+  tieneAccesoRoles() {
+    return this.tieneAlgunPermiso([
+      'ROL_VER',
+      'ROL_CREAR',
+      'ROL_EDITAR',
+      'PERMISO_VER',
+      'PERMISO_ASIGNAR',
+    ]);
+  }
+
+  tieneAccesoEventos() {
+    return this.tieneAlgunPermiso([
+      'EVENTO_VER',
+      'EVENTO_CREAR',
+      'EVENTO_EDITAR',
+      'EVENTO_ASIGNAR_RESPONSABLE',
+    ]);
+  }
+
   tieneAccesoRecursos() {
-    const roles = this.usuario()?.roles ?? [];
-    return roles.includes('ADMINISTRADOR') || roles.includes('ORGANIZADOR');
+    return this.tieneAlgunPermiso([
+      'RECURSO_VER',
+      'RECURSO_CREAR',
+      'RECURSO_EDITAR',
+      'RECURSO_CAMBIAR_ESTADO',
+    ]);
+  }
+
+  tieneAccesoEspacios() {
+    return this.tieneAlgunPermiso([
+      'ESPACIO_VER',
+      'ESPACIO_CREAR',
+      'ESPACIO_EDITAR',
+      'PROGRAMACION_VERIFICAR',
+    ]);
+  }
+
+  tieneAccesoEventosProgramacionORecursos() {
+    return this.tieneAccesoEventos() || this.tieneAccesoRecursos() || this.tieneAccesoEspacios();
   }
 
   tieneAccesoConvocatorias() {
-    const roles = this.usuario()?.roles ?? [];
-    return roles.some((rol) =>
-      ['ADMINISTRADOR', 'ORGANIZADOR', 'STAFF', 'PARTICIPANTE'].includes(rol),
-    );
+    return this.tienePermiso('CONVOCATORIA_VER');
   }
 
   puedeGestionarConvocatorias() {
-    const roles = this.usuario()?.roles ?? [];
-    return roles.includes('ADMINISTRADOR') || roles.includes('ORGANIZADOR');
+    return this.tieneAlgunPermiso([
+      'CONVOCATORIA_CREAR',
+      'CONVOCATORIA_CERRAR',
+      'CONVOCATORIA_CANCELAR',
+    ]);
   }
 
   cerrar() {
@@ -99,5 +144,13 @@ export class SesionService {
       localStorage.removeItem(CLAVE_SESION);
       return null;
     }
+  }
+
+  private tienePermiso(permiso: string) {
+    return this.usuario()?.permisos?.includes(permiso) ?? false;
+  }
+
+  private tieneAlgunPermiso(permisos: string[]) {
+    return permisos.some((permiso) => this.tienePermiso(permiso));
   }
 }

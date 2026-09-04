@@ -17,6 +17,10 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     @Query("select usuario from Usuario usuario where usuario.correo = :correo")
     Optional<Usuario> findByCorreoConRoles(@Param("correo") String correo);
 
+    @EntityGraph(attributePaths = {"roles", "roles.permisos"})
+    @Query("select usuario from Usuario usuario where usuario.correo = :correo")
+    Optional<Usuario> findByCorreoConRolesYPermisos(@Param("correo") String correo);
+
     boolean existsByCorreo(String correo);
 
     @EntityGraph(attributePaths = "roles")

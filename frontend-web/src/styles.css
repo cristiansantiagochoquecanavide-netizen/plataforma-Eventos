@@ -334,9 +334,14 @@ small {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  overflow: hidden;
   padding: 28px 18px;
   background: #133a34;
   color: white;
+}
+
+.sidebar .brand {
+  flex: 0 0 auto;
 }
 
 .brand {
@@ -345,7 +350,13 @@ small {
 
 .sidebar nav {
   display: grid;
+  flex: 1 1 auto;
   gap: 6px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-color: #86aaa0 transparent;
+  overscroll-behavior: contain;
 }
 
 .sidebar nav a {
@@ -377,7 +388,8 @@ small {
 }
 
 .logout {
-  margin-top: auto;
+  flex: 0 0 auto;
+  margin-top: 18px;
   background: rgba(255, 255, 255, 0.08);
   color: #d6e5df;
   text-align: left;
@@ -838,11 +850,14 @@ td strong {
   .sidebar {
     position: static;
     height: auto;
+    overflow: visible;
   }
 
   .sidebar nav {
     display: flex;
     flex-wrap: wrap;
+    overflow: visible;
+    padding-right: 0;
   }
 
   .brand {
