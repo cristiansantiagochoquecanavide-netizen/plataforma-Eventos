@@ -1,7 +1,7 @@
 package com.plataformaeventos.seguridad;
 
-import com.plataformaeventos.usuarios.EstadoUsuario;
-import com.plataformaeventos.usuarios.Usuario;
+import com.plataformaeventos.usuarios.modelo.EstadoUsuario;
+import com.plataformaeventos.usuarios.modelo.Usuario;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.mail.SimpleMailMessage;

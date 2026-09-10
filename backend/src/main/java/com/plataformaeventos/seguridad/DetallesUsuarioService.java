@@ -1,11 +1,11 @@
 package com.plataformaeventos.seguridad;
 
-import com.plataformaeventos.permisos.Permiso;
-import com.plataformaeventos.roles.EstadoRol;
-import com.plataformaeventos.roles.Rol;
-import com.plataformaeventos.usuarios.EstadoUsuario;
-import com.plataformaeventos.usuarios.Usuario;
-import com.plataformaeventos.usuarios.UsuarioRepository;
+import com.plataformaeventos.permisos.modelo.Permiso;
+import com.plataformaeventos.roles.modelo.EstadoRol;
+import com.plataformaeventos.roles.modelo.Rol;
+import com.plataformaeventos.usuarios.modelo.EstadoUsuario;
+import com.plataformaeventos.usuarios.modelo.Usuario;
+import com.plataformaeventos.usuarios.repositorio.UsuarioRepository;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;

@@ -1,6 +1,6 @@
 package com.plataformaeventos.convocatorias.dto;
 
-import com.plataformaeventos.convocatorias.TipoPersonal;
+import com.plataformaeventos.convocatorias.modelo.TipoPersonal;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

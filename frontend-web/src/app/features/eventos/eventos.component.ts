@@ -2,16 +2,18 @@ import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { of, switchMap } from 'rxjs';
-import { ApiService } from '../../core/api.service';
+import { EventosService } from './servicios/eventos.service';
+import { CategoriasService } from '../categorias/servicios/categorias.service';
+import { EspaciosService } from '../espacios/servicios/espacios.service';
 import { obtenerMensajeError } from '../../core/mensajes-error';
 import {
-  Categoria,
   EstadoEvento,
-  Espacio,
   Evento,
   GuardarEventoSolicitud,
   ResponsableEvento,
-} from '../../core/modelos';
+} from './modelos/evento.modelo';
+import { Categoria } from '../categorias/modelos/categoria.modelo';
+import { Espacio } from '../espacios/modelos/espacio.modelo';
 import { SesionService } from '../../core/sesion.service';
 import { ToastService } from '../../core/toast.service';
 
@@ -64,7 +66,9 @@ export class EventosComponent implements OnInit {
   });
 
   constructor(
-    private readonly api: ApiService,
+    private readonly eventosService: EventosService,
+    private readonly categoriasService: CategoriasService,
+    private readonly espaciosService: EspaciosService,
     readonly sesion: SesionService,
     private readonly toast: ToastService,
   ) {}
@@ -81,7 +85,7 @@ export class EventosComponent implements OnInit {
   }
 
   cargarEventos() {
-    this.api.listarEventos().subscribe({
+    this.eventosService.listarEventos().subscribe({
       next: (eventos) => this.eventos.set(eventos),
       error: (error) => {
         const mensaje = obtenerMensajeError(error, 'No fue posible cargar eventos');
@@ -92,7 +96,7 @@ export class EventosComponent implements OnInit {
   }
 
   cargarResponsablesDisponibles() {
-    this.api.listarResponsablesDisponiblesEvento().subscribe({
+    this.eventosService.listarResponsablesDisponiblesEvento().subscribe({
       next: (responsables) => this.responsables.set(responsables),
       error: (error) => {
         const mensaje = obtenerMensajeError(error, 'No fue posible cargar responsables');
@@ -103,7 +107,7 @@ export class EventosComponent implements OnInit {
   }
 
   cargarCategorias() {
-    this.api.listarCategorias().subscribe({
+    this.categoriasService.listarCategorias().subscribe({
       next: (categorias) => this.categorias.set(categorias),
       error: (error) => {
         const mensaje = obtenerMensajeError(error, 'No fue posible cargar categorias');
@@ -114,7 +118,7 @@ export class EventosComponent implements OnInit {
   }
 
   cargarEspacios() {
-    this.api.listarEspacios().subscribe({
+    this.espaciosService.listarEspacios().subscribe({
       next: (espacios) => this.espacios.set(espacios),
       error: (error) => {
         const mensaje = obtenerMensajeError(error, 'No fue posible cargar espacios');
@@ -247,16 +251,16 @@ export class EventosComponent implements OnInit {
       estado: valor.estado,
     };
     const solicitud = evento
-      ? this.api
+      ? this.eventosService
           .actualizarEvento(evento.id, datos)
           .pipe(
             switchMap((actualizado) =>
               this.puedeAsignarResponsables()
-                ? this.api.asignarResponsablesEvento(evento.id, responsables)
+                ? this.eventosService.asignarResponsablesEvento(evento.id, responsables)
                 : of(actualizado),
             ),
           )
-      : this.api.crearEvento(datos);
+      : this.eventosService.crearEvento(datos);
     solicitud.subscribe({
       next: () => {
         const mensaje = evento ? 'Evento actualizado correctamente.' : 'Evento creado correctamente.';

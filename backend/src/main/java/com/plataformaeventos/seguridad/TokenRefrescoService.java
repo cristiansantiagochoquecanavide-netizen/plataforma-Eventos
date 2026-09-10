@@ -1,6 +1,6 @@
 package com.plataformaeventos.seguridad;
 
-import com.plataformaeventos.usuarios.Usuario;
+import com.plataformaeventos.usuarios.modelo.Usuario;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

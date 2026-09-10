@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ApiService } from '../../core/api.service';
+import { EspaciosService } from './servicios/espacios.service';
 import { obtenerMensajeError } from '../../core/mensajes-error';
-import { Espacio, GuardarEspacioSolicitud } from '../../core/modelos';
+import { Espacio, GuardarEspacioSolicitud } from './modelos/espacio.modelo';
 import { ToastService } from '../../core/toast.service';
 
 @Component({
@@ -23,12 +23,12 @@ export class EspaciosComponent implements OnInit {
     capacidad: [1, [Validators.required, Validators.min(1)]],
   });
 
-  constructor(private readonly api: ApiService, private readonly toast: ToastService) {}
+  constructor(private readonly espaciosService: EspaciosService, private readonly toast: ToastService) {}
 
   ngOnInit() { this.cargar(); }
 
   cargar() {
-    this.api.listarEspacios().subscribe({
+    this.espaciosService.listarEspacios().subscribe({
       next: (espacios) => this.espacios.set(espacios),
       error: (error) => this.mostrarError(error, 'No fue posible cargar los espacios'),
     });
@@ -58,7 +58,7 @@ export class EspaciosComponent implements OnInit {
     this.guardando.set(true);
     const datos: GuardarEspacioSolicitud = this.formulario.getRawValue();
     const espacio = this.seleccionado();
-    const solicitud = espacio ? this.api.actualizarEspacio(espacio.id, datos) : this.api.crearEspacio(datos);
+    const solicitud = espacio ? this.espaciosService.actualizarEspacio(espacio.id, datos) : this.espaciosService.crearEspacio(datos);
     solicitud.subscribe({
       next: () => {
         this.toast.exito(espacio ? 'Espacio actualizado correctamente.' : 'Espacio registrado correctamente.');

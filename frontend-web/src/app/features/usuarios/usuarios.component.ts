@@ -1,8 +1,10 @@
 import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ApiService } from '../../core/api.service';
+import { UsuariosService } from './servicios/usuarios.service';
+import { RolesService } from '../roles/servicios/roles.service';
 import { obtenerMensajeError } from '../../core/mensajes-error';
-import { Rol, Usuario } from '../../core/modelos';
+import { Usuario } from './modelos/usuario.modelo';
+import { Rol } from '../roles/modelos/rol.modelo';
 import { ToastService } from '../../core/toast.service';
 import { mensajeClaveInvalida, validadorClaveSegura } from '../../core/validacion-clave';
 import { RequisitosClaveComponent } from '../../shared/requisitos-clave.component';
@@ -32,13 +34,14 @@ export class UsuariosComponent implements OnInit {
   });
 
   constructor(
-    private readonly api: ApiService,
+    private readonly usuariosService: UsuariosService,
+    private readonly rolesService: RolesService,
     private readonly toast: ToastService,
   ) {}
 
   ngOnInit() {
     this.cargar();
-    this.api.listarRoles().subscribe({
+    this.rolesService.listarRoles().subscribe({
       next: (roles) => this.roles.set(roles),
       error: (error) => {
         const mensaje = obtenerMensajeError(error, 'No fue posible cargar roles');
@@ -49,7 +52,7 @@ export class UsuariosComponent implements OnInit {
   }
 
   cargar() {
-    this.api.listarUsuarios().subscribe({
+    this.usuariosService.listarUsuarios().subscribe({
       next: (pagina) => this.usuarios.set(pagina.elementos),
       error: (error) => {
         const mensaje = obtenerMensajeError(error, 'No fue posible cargar usuarios');
@@ -119,13 +122,13 @@ export class UsuariosComponent implements OnInit {
       .filter(Boolean);
     const editando = this.editando();
     const solicitud = editando
-      ? this.api.actualizarUsuario(editando.id, {
+      ? this.usuariosService.actualizarUsuario(editando.id, {
           nombres: valor.nombres,
           apellidos: valor.apellidos,
           correo: valor.correo,
           roles,
         })
-      : this.api.crearUsuario({ ...valor, roles });
+      : this.usuariosService.crearUsuario({ ...valor, roles });
     solicitud.subscribe({
       next: () => {
         const mensaje = editando
@@ -151,7 +154,7 @@ export class UsuariosComponent implements OnInit {
     this.limpiarAvisos();
     this.idCambiandoEstado.set(usuario.id);
     const estado = usuario.estado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO';
-    this.api.cambiarEstadoUsuario(usuario.id, estado).subscribe({
+    this.usuariosService.cambiarEstadoUsuario(usuario.id, estado).subscribe({
       next: () => {
         const mensaje = `Usuario ${estado.toLowerCase()} correctamente.`;
         this.mensaje.set(mensaje);
