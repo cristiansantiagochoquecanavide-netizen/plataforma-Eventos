@@ -1,9 +1,9 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ApiService } from '../../core/api.service';
+import { EventosService } from './servicios/eventos.service';
 import { obtenerMensajeError } from '../../core/mensajes-error';
-import { Evento } from '../../core/modelos';
+import { Evento } from './modelos/evento.modelo';
 
 @Component({ selector: 'app-consulta-eventos', imports: [DatePipe, FormsModule], templateUrl: './consulta-eventos.component.html', changeDetection: ChangeDetectionStrategy.OnPush })
 export class ConsultaEventosComponent implements OnInit {
@@ -16,13 +16,13 @@ export class ConsultaEventosComponent implements OnInit {
   termino = '';
   categoria = '';
 
-  constructor(private readonly api: ApiService) {}
+  constructor(private readonly eventosService: EventosService) {}
   ngOnInit() {}
 
   buscar() {
     this.consultado.set(true);
     this.cargando.set(true);
-    this.api.listarEventos(this.termino, this.categoria).subscribe({
+    this.eventosService.listarEventos(this.termino, this.categoria).subscribe({
       next: (eventos) => {
         this.eventos.set(eventos);
         this.categorias.set(

@@ -1,6 +1,6 @@
 package com.plataformaeventos.seguridad;
 
-import com.plataformaeventos.usuarios.Usuario;
+import com.plataformaeventos.usuarios.modelo.Usuario;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;

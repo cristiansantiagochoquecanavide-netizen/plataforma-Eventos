@@ -1,9 +1,9 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ApiService } from '../../core/api.service';
+import { CategoriasService } from './servicios/categorias.service';
 import { obtenerMensajeError } from '../../core/mensajes-error';
-import { Categoria, GuardarCategoriaSolicitud } from '../../core/modelos';
+import { Categoria, GuardarCategoriaSolicitud } from './modelos/categoria.modelo';
 import { ToastService } from '../../core/toast.service';
 
 @Component({
@@ -29,7 +29,7 @@ export class CategoriasComponent implements OnInit {
   });
 
   constructor(
-    private readonly api: ApiService,
+    private readonly categoriasService: CategoriasService,
     private readonly toast: ToastService,
   ) {}
 
@@ -39,7 +39,7 @@ export class CategoriasComponent implements OnInit {
 
   cargarCategorias() {
     this.cargando.set(true);
-    this.api.listarCategorias().subscribe({
+    this.categoriasService.listarCategorias().subscribe({
       next: (categorias) => {
         this.categorias.set(categorias);
         this.cargando.set(false);
@@ -103,8 +103,8 @@ export class CategoriasComponent implements OnInit {
     this.limpiarAvisos();
     const categoria = this.categoriaSeleccionada();
     const solicitud = categoria
-      ? this.api.actualizarCategoria(categoria.id, datos)
-      : this.api.crearCategoria(datos);
+      ? this.categoriasService.actualizarCategoria(categoria.id, datos)
+      : this.categoriasService.crearCategoria(datos);
 
     solicitud.subscribe({
       next: () => {
@@ -131,7 +131,7 @@ export class CategoriasComponent implements OnInit {
 
     this.eliminandoId.set(categoria.id);
     this.limpiarAvisos();
-    this.api.eliminarCategoria(categoria.id).subscribe({
+    this.categoriasService.eliminarCategoria(categoria.id).subscribe({
       next: () => {
         const mensaje = 'Categoria eliminada correctamente.';
         this.mensaje.set(mensaje);

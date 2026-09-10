@@ -1,16 +1,20 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ApiService } from '../../core/api.service';
+import { RecursosService } from './servicios/recursos.service';
+import { EventosService } from '../eventos/servicios/eventos.service';
 import { obtenerMensajeError } from '../../core/mensajes-error';
 import {
+  ActualizarRecursoSolicitud,
   AsignacionRecurso,
+  CrearAsignacionSolicitud,
+  CrearRecursoSolicitud,
   EstadoAsignacion,
   EstadoRecurso,
-  Evento,
   Recurso,
   TipoRecurso,
-} from '../../core/modelos';
+} from './modelos/recurso.modelo';
+import { Evento } from '../eventos/modelos/evento.modelo';
 import { ToastService } from '../../core/toast.service';
 
 @Component({
@@ -101,7 +105,8 @@ export class RecursosComponent implements OnInit {
   });
 
   constructor(
-    private readonly api: ApiService,
+    private readonly recursosService: RecursosService,
+    private readonly eventosService: EventosService,
     private readonly toast: ToastService,
   ) {}
 
@@ -124,7 +129,7 @@ export class RecursosComponent implements OnInit {
 
   cargar() {
     this.cargando.set(true);
-    this.api
+    this.recursosService
       .listarRecursos(this.filtroTermino(), this.filtroTipo(), this.filtroEstado())
       .subscribe({
         next: (recursos) => {
@@ -141,7 +146,7 @@ export class RecursosComponent implements OnInit {
   }
 
   cargarEventos() {
-    this.api.listarEventos().subscribe({
+    this.eventosService.listarEventos().subscribe({
       next: (eventos) => this.eventos.set(eventos),
       error: () => {},
     });
@@ -150,7 +155,7 @@ export class RecursosComponent implements OnInit {
   cargarAsignaciones() {
     this.cargandoAsignaciones.set(true);
     const idEvento = this.filtroEventoId() > 0 ? this.filtroEventoId() : undefined;
-    this.api
+    this.recursosService
       .listarAsignaciones(idEvento, undefined, this.filtroEstadoAsignacion())
       .subscribe({
         next: (asignaciones) => {
@@ -282,7 +287,7 @@ export class RecursosComponent implements OnInit {
 
     const recursoActual = this.editando();
     if (recursoActual) {
-      this.api
+      this.recursosService
         .actualizarRecurso(recursoActual.id, {
           codigo: valor.codigo,
           nombre: valor.nombre,
@@ -309,7 +314,7 @@ export class RecursosComponent implements OnInit {
           },
         });
     } else {
-      this.api
+      this.recursosService
         .crearRecurso({
           codigo: valor.codigo,
           nombre: valor.nombre,
@@ -338,7 +343,7 @@ export class RecursosComponent implements OnInit {
 
   cambiarEstado(recurso: Recurso, nuevoEstado: EstadoRecurso) {
     this.idCambiandoEstado.set(recurso.id);
-    this.api.cambiarEstadoRecurso(recurso.id, nuevoEstado).subscribe({
+    this.recursosService.cambiarEstadoRecurso(recurso.id, nuevoEstado).subscribe({
       next: () => {
         this.toast.exito(`Estado de ${recurso.codigo} actualizado a ${nuevoEstado}.`);
         this.cargar();
@@ -427,7 +432,7 @@ export class RecursosComponent implements OnInit {
     this.guardandoAsignacion.set(true);
     this.error.set('');
 
-    this.api
+    this.recursosService
       .crearAsignacion({
         idEvento: valor.idEvento,
         idRecurso: valor.idRecurso,
@@ -457,7 +462,7 @@ export class RecursosComponent implements OnInit {
     if (asignacion.estado !== 'ACTIVA') return;
     this.idLiberando.set(asignacion.id);
 
-    this.api.liberarAsignacion(asignacion.id).subscribe({
+    this.recursosService.liberarAsignacion(asignacion.id).subscribe({
       next: () => {
         this.toast.exito(`Asignación liberada. Se reintegraron ${asignacion.cantidadAsignada} unidades de ${asignacion.codigoRecurso}.`);
         this.cargar();

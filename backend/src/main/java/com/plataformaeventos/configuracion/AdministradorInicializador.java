@@ -1,10 +1,10 @@
 package com.plataformaeventos.configuracion;
 
-import com.plataformaeventos.roles.Rol;
-import com.plataformaeventos.roles.RolRepository;
-import com.plataformaeventos.usuarios.EstadoUsuario;
-import com.plataformaeventos.usuarios.Usuario;
-import com.plataformaeventos.usuarios.UsuarioRepository;
+import com.plataformaeventos.roles.modelo.Rol;
+import com.plataformaeventos.roles.repositorio.RolRepository;
+import com.plataformaeventos.usuarios.modelo.EstadoUsuario;
+import com.plataformaeventos.usuarios.modelo.Usuario;
+import com.plataformaeventos.usuarios.repositorio.UsuarioRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,8 +27,8 @@ public class AdministradorInicializador {
             UsuarioRepository usuarioRepository,
             RolRepository rolRepository,
             PasswordEncoder codificadorClave,
-            @Value("${ADMIN_CORREO:}") String correoAdministrador,
-            @Value("${ADMIN_CLAVE:}") String claveAdministrador
+            @Value("${ADMIN_CORREO:AdminEventos@gmail.com}") String correoAdministrador,
+            @Value("${ADMIN_CLAVE:Admin123}") String claveAdministrador
     ) {
         return argumentos -> crearAdministrador(
                 usuarioRepository,
@@ -94,9 +94,9 @@ public class AdministradorInicializador {
             RolRepository rolRepository,
             PasswordEncoder codificadorClave
     ) {
-        crearUsuarioSiNoExiste(usuarioRepository, rolRepository, codificadorClave, "Organizador", "Logistica", "organizador@eventos.local", "Organizador123", "ORGANIZADOR");
-        crearUsuarioSiNoExiste(usuarioRepository, rolRepository, codificadorClave, "Staff", "Apoyo", "staff@eventos.local", "Staff123", "STAFF");
-        crearUsuarioSiNoExiste(usuarioRepository, rolRepository, codificadorClave, "Participante", "Publico", "participante@eventos.local", "Participante123", "PARTICIPANTE");
+        crearUsuarioSiNoExiste(usuarioRepository, rolRepository, codificadorClave, "Organizador", "Logistica", "OrganizadorEventos@gmail.com", "Organizador123", "ORGANIZADOR");
+        crearUsuarioSiNoExiste(usuarioRepository, rolRepository, codificadorClave, "Staff", "Apoyo", "StaffEventos@gmail.com", "Staff123", "STAFF");
+        crearUsuarioSiNoExiste(usuarioRepository, rolRepository, codificadorClave, "Participante", "Publico", "ParticipanteEvento@gmail.com", "Participante123", "PARTICIPANTE");
     }
 
     private void crearUsuarioSiNoExiste(

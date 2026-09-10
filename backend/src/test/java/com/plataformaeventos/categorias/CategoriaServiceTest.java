@@ -1,6 +1,11 @@
 package com.plataformaeventos.categorias;
 
-import com.plataformaeventos.eventos.EventoRepository;
+import com.plataformaeventos.categorias.dto.CategoriaRespuesta;
+import com.plataformaeventos.categorias.dto.GuardarCategoriaSolicitud;
+import com.plataformaeventos.categorias.modelo.Categoria;
+import com.plataformaeventos.categorias.repositorio.CategoriaRepository;
+import com.plataformaeventos.categorias.servicio.CategoriaService;
+import com.plataformaeventos.eventos.repositorio.EventoRepository;
 import com.plataformaeventos.excepciones.ExcepcionNoEncontrado;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

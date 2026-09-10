@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ApiService } from '../../core/api.service';
+import { AuthService } from './servicios/auth.service';
 import { obtenerMensajeError } from '../../core/mensajes-error';
 import { ToastService } from '../../core/toast.service';
 
@@ -24,7 +24,7 @@ export class RecuperarClaveComponent {
   });
 
   constructor(
-    private readonly api: ApiService,
+    private readonly auth: AuthService,
     private readonly toast: ToastService,
   ) {}
 
@@ -43,7 +43,7 @@ export class RecuperarClaveComponent {
     this.mensaje.set('');
     this.enviando.set(true);
     const { correo } = this.formulario.getRawValue();
-    this.api.recuperarClave(correo).subscribe({
+    this.auth.recuperarClave(correo).subscribe({
       next: () => {
         this.mensaje.set(this.mensajeSolicitudCorrecta);
         this.toast.exito(this.mensajeSolicitudCorrecta);

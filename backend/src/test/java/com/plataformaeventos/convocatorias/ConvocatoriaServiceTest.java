@@ -1,11 +1,16 @@
 package com.plataformaeventos.convocatorias;
 
-import com.plataformaeventos.categorias.Categoria;
+import com.plataformaeventos.categorias.modelo.Categoria;
 import com.plataformaeventos.convocatorias.dto.ConvocatoriaRespuesta;
 import com.plataformaeventos.convocatorias.dto.CrearConvocatoriaSolicitud;
-import com.plataformaeventos.eventos.EstadoEvento;
-import com.plataformaeventos.eventos.Evento;
-import com.plataformaeventos.eventos.EventoRepository;
+import com.plataformaeventos.convocatorias.modelo.Convocatoria;
+import com.plataformaeventos.convocatorias.modelo.EstadoConvocatoria;
+import com.plataformaeventos.convocatorias.modelo.TipoPersonal;
+import com.plataformaeventos.convocatorias.repositorio.ConvocatoriaRepository;
+import com.plataformaeventos.convocatorias.servicio.ConvocatoriaService;
+import com.plataformaeventos.eventos.modelo.EstadoEvento;
+import com.plataformaeventos.eventos.modelo.Evento;
+import com.plataformaeventos.eventos.repositorio.EventoRepository;
 import com.plataformaeventos.excepciones.ExcepcionNoEncontrado;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;

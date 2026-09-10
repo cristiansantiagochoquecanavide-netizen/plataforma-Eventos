@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ApiService } from '../../core/api.service';
+import { PerfilService } from './servicios/perfil.service';
 import { obtenerMensajeError } from '../../core/mensajes-error';
 import { SesionService } from '../../core/sesion.service';
 import { ToastService } from '../../core/toast.service';
@@ -35,13 +35,13 @@ export class PerfilComponent implements OnInit {
   });
 
   constructor(
-    private readonly api: ApiService,
+    private readonly perfilService: PerfilService,
     private readonly sesion: SesionService,
     private readonly toast: ToastService,
   ) {}
 
   ngOnInit() {
-    this.api.obtenerPerfil().subscribe({
+    this.perfilService.obtenerPerfil().subscribe({
       next: (usuario) => this.perfil.patchValue(usuario),
       error: (error) => {
         const mensaje = obtenerMensajeError(error, 'No fue posible cargar el perfil');
@@ -69,7 +69,7 @@ export class PerfilComponent implements OnInit {
 
     this.limpiarAvisos();
     this.guardandoPerfil.set(true);
-    this.api.actualizarPerfil(this.perfil.getRawValue()).subscribe({
+    this.perfilService.actualizarPerfil(this.perfil.getRawValue()).subscribe({
       next: (usuario) => {
         this.sesion.usuario.set(usuario);
         const mensaje = 'Perfil actualizado correctamente.';
@@ -100,7 +100,7 @@ export class PerfilComponent implements OnInit {
     this.limpiarAvisos();
     this.actualizandoClave.set(true);
     const { claveActual, nuevaClave } = this.clave.getRawValue();
-    this.api.cambiarClave(claveActual, nuevaClave).subscribe({
+    this.perfilService.cambiarClave(claveActual, nuevaClave).subscribe({
       next: () => {
         this.clave.reset();
         const mensaje = 'Contrasena actualizada correctamente.';

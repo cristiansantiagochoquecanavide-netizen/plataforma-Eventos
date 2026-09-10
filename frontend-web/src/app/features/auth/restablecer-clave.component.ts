@@ -7,7 +7,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { ApiService } from '../../core/api.service';
+import { AuthService } from './servicios/auth.service';
 import { obtenerMensajeError } from '../../core/mensajes-error';
 import { ToastService } from '../../core/toast.service';
 import { validadorClaveSegura } from '../../core/validacion-clave';
@@ -37,7 +37,7 @@ export class RestablecerClaveComponent implements OnInit {
   );
 
   constructor(
-    private readonly api: ApiService,
+    private readonly auth: AuthService,
     private readonly ruta: ActivatedRoute,
     private readonly router: Router,
     private readonly toast: ToastService,
@@ -63,7 +63,7 @@ export class RestablecerClaveComponent implements OnInit {
     this.error.set('');
     this.enviando.set(true);
     const { token, nuevaClave } = this.formulario.getRawValue();
-    this.api.restablecerClave(token, nuevaClave).subscribe({
+    this.auth.restablecerClave(token, nuevaClave).subscribe({
       next: () => {
         this.toast.exito('Contrase\u00f1a restablecida correctamente.');
         this.router.navigateByUrl('/iniciar-sesion');

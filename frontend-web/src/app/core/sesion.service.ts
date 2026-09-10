@@ -1,8 +1,9 @@
 import { Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Observable, catchError, map, of, switchMap, tap } from 'rxjs';
-import { ApiService } from './api.service';
-import { SesionRespuesta, Usuario } from './modelos';
+import { AuthService } from '../features/auth/servicios/auth.service';
+import { SesionRespuesta } from '../features/auth/modelos/auth.modelo';
+import { Usuario } from '../features/usuarios/modelos/usuario.modelo';
 
 const CLAVE_SESION = 'plataforma-eventos.sesion';
 
@@ -12,21 +13,21 @@ export class SesionService {
   private sesion: SesionRespuesta | null = this.leerSesion();
 
   constructor(
-    private readonly api: ApiService,
+    private readonly auth: AuthService,
     private readonly router: Router,
   ) {}
 
   iniciar(correo: string, clave: string): Observable<Usuario> {
-    return this.api.iniciarSesion(correo, clave).pipe(
+    return this.auth.iniciarSesion(correo, clave).pipe(
       tap((sesion) => this.guardarSesion(sesion)),
-      switchMap(() => this.api.usuarioActual()),
+      switchMap(() => this.auth.usuarioActual()),
       tap((usuario) => this.usuario.set(usuario)),
     );
   }
 
   restaurar(): Observable<boolean> {
     if (!this.sesion) return of(false);
-    return this.api.usuarioActual().pipe(
+    return this.auth.usuarioActual().pipe(
       tap((usuario) => this.usuario.set(usuario)),
       map(() => true),
       catchError(() => {
@@ -38,7 +39,7 @@ export class SesionService {
 
   renovar(): Observable<SesionRespuesta> {
     if (!this.sesion) throw new Error('No existe una sesion para renovar');
-    return this.api
+    return this.auth
       .refrescar(this.sesion.refreshToken)
       .pipe(tap((sesion) => this.guardarSesion(sesion)));
   }
@@ -133,7 +134,7 @@ export class SesionService {
     const token = this.sesion?.refreshToken;
     this.limpiarSesion();
     if (token)
-      this.api
+      this.auth
         .cerrarSesion(token)
         .pipe(catchError(() => of(undefined)))
         .subscribe();
