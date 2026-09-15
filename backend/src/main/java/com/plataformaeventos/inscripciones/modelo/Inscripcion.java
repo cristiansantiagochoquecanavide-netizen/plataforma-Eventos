@@ -1,0 +1,108 @@
+package com.plataformaeventos.inscripciones.modelo;
+
+import com.plataformaeventos.eventos.modelo.Evento;
+import com.plataformaeventos.usuarios.modelo.Usuario;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+
+import java.time.OffsetDateTime;
+
+@Entity
+@Table(name = "inscripcion")
+public class Inscripcion {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id_inscripcion")
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "id_evento", nullable = false)
+    private Evento evento;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "id_participante", nullable = false)
+    private Usuario participante;
+
+    @Column(name = "fecha_inscripcion", nullable = false)
+    private OffsetDateTime fechaInscripcion;
+
+    @Column(name = "codigo_qr", nullable = false, unique = true, length = 255)
+    private String codigoQr;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private EstadoInscripcion estado;
+
+    protected Inscripcion() {
+    }
+
+    public Inscripcion(Evento evento, Usuario participante, String codigoQr) {
+        this.evento = evento;
+        this.participante = participante;
+        this.codigoQr = codigoQr;
+        this.estado = EstadoInscripcion.CONFIRMADA;
+        this.fechaInscripcion = OffsetDateTime.now();
+    }
+
+    @PrePersist
+    void prePersist() {
+        if (fechaInscripcion == null) {
+            fechaInscripcion = OffsetDateTime.now();
+        }
+        if (estado == null) {
+            estado = EstadoInscripcion.CONFIRMADA;
+        }
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public Evento getEvento() {
+        return evento;
+    }
+
+    public Usuario getParticipante() {
+        return participante;
+    }
+
+    public OffsetDateTime getFechaInscripcion() {
+        return fechaInscripcion;
+    }
+
+    public String getCodigoQr() {
+        return codigoQr;
+    }
+
+    public EstadoInscripcion getEstado() {
+        return estado;
+    }
+
+    public void cancelar() {
+        if (this.estado == EstadoInscripcion.CANCELADA) {
+            throw new IllegalStateException("La inscripción ya se encuentra cancelada");
+        }
+        this.estado = EstadoInscripcion.CANCELADA;
+    }
+
+    public void reactivar(String nuevoCodigoQr) {
+        this.estado = EstadoInscripcion.CONFIRMADA;
+        this.codigoQr = nuevoCodigoQr;
+        this.fechaInscripcion = OffsetDateTime.now();
+    }
+
+    public boolean estaConfirmada() {
+        return this.estado == EstadoInscripcion.CONFIRMADA;
+    }
+}

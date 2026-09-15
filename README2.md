@@ -22,9 +22,10 @@ Sistema integral para la planificación, administración, control de acceso y as
 
 Al iniciar el sistema por primera vez, el componente `AdministradorInicializador` siembra automáticamente los roles del sistema y usuarios de prueba listos para iniciar sesión:
 
-| Servicio | URL | Credenciales Sembradas (Seed) |
+| Servicio | URL / Acceso | Credenciales Sembradas (Seed) |
 | :--- | :--- | :--- |
 | **Frontend Web** | [http://localhost:4200](http://localhost:4200) | **Administrador:** `AdminEventos@gmail.com` / `Admin123`<br>**Organizador:** `OrganizadorEventos@gmail.com` / `Organizador123`<br>**Staff:** `StaffEventos@gmail.com` / `Staff123`<br>**Participante:** `ParticipanteEvento@gmail.com` / `Participante123` |
+| **App Móvil (Flutter)** | Emulador Android (`10.0.2.2:8080/api`)<br>Dispositivo Físico / APK (`--dart-define=API_URL=...`) | **Participante:** `ParticipanteEvento@gmail.com` / `Participante123`<br>*(Permite también registro libre desde "Crear cuenta")* |
 | **Documentación Swagger / OpenAPI** | [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) | — |
 | **Bandeja de Correos Local (Mailpit)** | [http://localhost:8025](http://localhost:8025) | — |
 | **Health Check (Actuator)** | [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health) | — |
@@ -292,6 +293,27 @@ cd frontend-web
 npm run build
 ```
 > **Resultado esperado:** Compilación exitosa en `dist/frontend-web` con 0 errores de tipado.
+
+### App Móvil (Flutter - Casos de Uso CU11, CU12, CU13)
+Para ejecutar la suite de pruebas automatizadas de widgets y flujos de inscripción:
+```bash
+cd aplicacion-movil
+flutter test
+```
+> **Resultado esperado:** `All tests passed!` (7/7 tests en verde).
+
+**Ejecución en Emulador Android:**
+```bash
+cd aplicacion-movil
+flutter run
+```
+*(Se conecta automáticamente a `http://10.0.2.2:8080/api`).*
+
+**Compilación de APK para celulares físicos o servidores remotos:**
+```bash
+cd aplicacion-movil
+flutter build apk --dart-define=API_URL=https://tu-servidor.com/api
+```
 
 ---
 
