@@ -71,6 +71,14 @@ public class ManejadorExcepciones {
         return crearRespuesta(HttpStatus.BAD_REQUEST, excepcion.getMessage(), solicitud);
     }
 
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorRespuesta> manejarEstadoIlegal(
+            IllegalStateException excepcion,
+            HttpServletRequest solicitud
+    ) {
+        return crearRespuesta(HttpStatus.BAD_REQUEST, excepcion.getMessage(), solicitud);
+    }
+
     @ExceptionHandler(ExcepcionNoEncontrado.class)
     public ResponseEntity<ErrorRespuesta> manejarNoEncontrado(
             ExcepcionNoEncontrado excepcion,

@@ -67,4 +67,73 @@ void main() {
       'token-prueba',
     );
   });
+
+  testWidgets('renderiza HomeShell con sus tres destinos de navegacion', (
+    tester,
+  ) async {
+    final session = SessionController(ApiClient('http://localhost:8080/api'));
+    session.user = const UserProfile(
+      id: 1,
+      names: 'Carlos',
+      lastNames: 'Mendez',
+      email: 'carlos@eventos.local',
+      roles: ['PARTICIPANTE'],
+    );
+
+    await tester.pumpWidget(MaterialApp(home: HomeShell(session: session)));
+
+    expect(find.text('Eventos'), findsWidgets);
+    expect(find.text('Inscripciones'), findsOneWidget);
+    expect(find.text('Mi Perfil'), findsOneWidget);
+  });
+
+  testWidgets('muestra la pantalla de Mis Inscripciones con su encabezado', (
+    tester,
+  ) async {
+    final session = SessionController(ApiClient('http://localhost:8080/api'));
+    session.user = const UserProfile(
+      id: 1,
+      names: 'Carlos',
+      lastNames: 'Mendez',
+      email: 'carlos@eventos.local',
+      roles: ['PARTICIPANTE'],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: MyInscriptionsPage(session: session)),
+    );
+
+    expect(find.text('Mis inscripciones'), findsOneWidget);
+    expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
+  });
+
+  testWidgets('renderiza el modal de detalle de evento con fecha y aforo', (
+    tester,
+  ) async {
+    final session = SessionController(ApiClient('http://localhost:8080/api'));
+    final event = EventModel(
+      id: 5,
+      name: 'Hackathon Innovacion',
+      description: 'Competencia tecnologica de desarrollo agil',
+      category: 'TECNOLOGIA',
+      start: DateTime.now().add(const Duration(days: 3)),
+      end: DateTime.now().add(const Duration(days: 4)),
+      place: 'Auditorio Principal',
+      status: 'PUBLICADO',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: EventDetailModal(event: event, session: session),
+        ),
+      ),
+    );
+
+    expect(find.text('Hackathon Innovacion'), findsOneWidget);
+    expect(find.text('TECNOLOGIA'), findsOneWidget);
+    expect(find.text('Fecha de inicio'), findsOneWidget);
+    expect(find.text('Auditorio Principal'), findsOneWidget);
+  });
 }
+

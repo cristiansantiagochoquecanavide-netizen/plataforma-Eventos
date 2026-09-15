@@ -143,7 +143,7 @@ class _SessionGateState extends State<SessionGate> {
             }
             return widget.session.user == null
                 ? LoginPage(session: widget.session)
-                : EventsPage(session: widget.session);
+                : HomeShell(session: widget.session);
           },
         );
       },
@@ -755,11 +755,71 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
-// Pantalla del CU7: consulta eventos, busca por nombre, filtra por categoria y abre el detalle.
-class EventsPage extends StatefulWidget {
-  const EventsPage({required this.session, super.key});
+class HomeShell extends StatefulWidget {
+  const HomeShell({required this.session, super.key});
 
   final SessionController session;
+
+  @override
+  State<HomeShell> createState() => _HomeShellState();
+}
+
+class _HomeShellState extends State<HomeShell> {
+  int _currentIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: _currentIndex,
+        children: [
+          EventsPage(
+            session: widget.session,
+            onGoToInscriptions: () => setState(() => _currentIndex = 1),
+          ),
+          MyInscriptionsPage(
+            session: widget.session,
+          ),
+          ProfilePage(
+            session: widget.session,
+          ),
+        ],
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (index) => setState(() => _currentIndex = index),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.event_outlined),
+            selectedIcon: Icon(Icons.event_rounded),
+            label: 'Eventos',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.confirmation_number_outlined),
+            selectedIcon: Icon(Icons.confirmation_number_rounded),
+            label: 'Inscripciones',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline_rounded),
+            selectedIcon: Icon(Icons.person_rounded),
+            label: 'Mi Perfil',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Pantalla del CU7: consulta eventos, busca por nombre, filtra por categoria y abre el detalle (CU11).
+class EventsPage extends StatefulWidget {
+  const EventsPage({
+    required this.session,
+    this.onGoToInscriptions,
+    super.key,
+  });
+
+  final SessionController session;
+  final VoidCallback? onGoToInscriptions;
 
   @override
   State<EventsPage> createState() => _EventsPageState();
@@ -819,20 +879,13 @@ class _EventsPageState extends State<EventsPage> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.fromLTRB(22, 4, 22, 30),
-        child: Wrap(
-          runSpacing: 12,
-          children: [
-            Text(event.name, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-            Chip(label: Text(event.category)),
-            Text(event.description.isEmpty ? 'Sin descripcion' : event.description),
-            ListTile(leading: const Icon(Icons.calendar_today_rounded), title: Text(_formatDate(event.start)), subtitle: const Text('Fecha de inicio')),
-            if (event.end != null) ListTile(leading: const Icon(Icons.event_available_rounded), title: Text(_formatDate(event.end!)), subtitle: const Text('Fecha de finalizacion')),
-            ListTile(leading: const Icon(Icons.place_outlined), title: Text(event.place.isEmpty ? 'Sin lugar asignado' : event.place), subtitle: const Text('Lugar')),
-            Text('Estado: ${event.status}', style: const TextStyle(fontWeight: FontWeight.w700)),
-          ],
-        ),
+      builder: (context) => EventDetailModal(
+        event: event,
+        session: widget.session,
+        onInscribed: () {
+          _loadEvents();
+          widget.onGoToInscriptions?.call();
+        },
       ),
     );
   }
@@ -845,6 +898,19 @@ class _EventsPageState extends State<EventsPage> {
       appBar: AppBar(
         title: const Text('Eventos disponibles'),
         actions: [
+          IconButton(
+            onPressed: () {
+              if (widget.onGoToInscriptions != null) {
+                widget.onGoToInscriptions!();
+              } else {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => MyInscriptionsPage(session: widget.session)),
+                );
+              }
+            },
+            icon: const Icon(Icons.confirmation_number_outlined),
+            tooltip: 'Mis inscripciones',
+          ),
           IconButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProfilePage(session: widget.session))), icon: const Icon(Icons.person_outline_rounded), tooltip: 'Mi perfil'),
           IconButton(onPressed: () => widget.session.logout(), icon: const Icon(Icons.logout_rounded), tooltip: 'Cerrar sesion'),
         ],
@@ -914,6 +980,632 @@ class _EventsPageState extends State<EventsPage> {
 ),          ],
         ),
       ),
+    );
+  }
+}
+
+// Modal interactivo de Detalle de Evento con Aforo y Botón de Inscripción (CU11)
+class EventDetailModal extends StatefulWidget {
+  const EventDetailModal({
+    required this.event,
+    required this.session,
+    this.onInscribed,
+    super.key,
+  });
+
+  final EventModel event;
+  final SessionController session;
+  final VoidCallback? onInscribed;
+
+  @override
+  State<EventDetailModal> createState() => _EventDetailModalState();
+}
+
+class _EventDetailModalState extends State<EventDetailModal> {
+  DisponibilidadModel? _disponibilidad;
+  bool _loading = true;
+  bool _inscribiendo = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDisponibilidad();
+  }
+
+  Future<void> _loadDisponibilidad() async {
+    try {
+      final disp = await widget.session.obtenerDisponibilidad(widget.event.id);
+      if (mounted) setState(() { _disponibilidad = disp; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _inscribir() async {
+    setState(() {
+      _inscribiendo = true;
+      _error = null;
+    });
+    try {
+      final ins = await widget.session.inscribirAEvento(widget.event.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('¡Inscrito con éxito! Código: ${ins.codigoQr}'),
+          backgroundColor: AppColors.forest,
+        ),
+      );
+      await _loadDisponibilidad();
+      widget.onInscribed?.call();
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() => _error = e.message);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _inscribiendo = false);
+    }
+  }
+
+  String _formatDate(DateTime date) =>
+      '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    final event = widget.event;
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 22,
+        right: 22,
+        top: 4,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 26,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    event.name,
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineSmall
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Chip(label: Text(event.category)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(event.description.isEmpty ? 'Sin descripción' : event.description),
+            const SizedBox(height: 12),
+            const Divider(),
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.calendar_today_rounded),
+              title: Text(_formatDate(event.start)),
+              subtitle: const Text('Fecha de inicio'),
+            ),
+            if (event.end != null)
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.event_available_rounded),
+                title: Text(_formatDate(event.end!)),
+                subtitle: const Text('Fecha de finalización'),
+              ),
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.place_outlined),
+              title: Text(event.place.isEmpty ? 'Sin lugar asignado' : event.place),
+              subtitle: const Text('Lugar'),
+            ),
+            const Divider(),
+            const SizedBox(height: 4),
+            // Sección CU11: Aforo y Control de Cupos
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+              )
+            else if (_disponibilidad != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.canvas,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.people_alt_outlined, color: AppColors.forest),
+                        const SizedBox(width: 8),
+                        Text(
+                          _disponibilidad!.aforoMaximo != null
+                              ? 'Cupos: ${_disponibilidad!.cuposOcupados} / ${_disponibilidad!.aforoMaximo}'
+                              : 'Ocupados: ${_disponibilidad!.cuposOcupados} (sin límite)',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                    if (_disponibilidad!.cuposDisponibles != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _disponibilidad!.tieneCupo ? Colors.green.shade100 : Colors.red.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${_disponibilidad!.cuposDisponibles} disp.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: _disponibilidad!.tieneCupo ? Colors.green.shade900 : Colors.red.shade900,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(_error!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+                ),
+              const SizedBox(height: 12),
+              if (_disponibilidad!.estaInscrito)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    border: Border.all(color: Colors.green.shade400),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.check_circle_rounded, color: Colors.green),
+                      SizedBox(width: 8),
+                      Text(
+                        'Ya estás inscrito a este evento',
+                        style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: (!_disponibilidad!.tieneCupo || _inscribiendo) ? null : _inscribir,
+                    icon: _inscribiendo
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.how_to_reg_rounded),
+                    label: Text(_inscribiendo
+                        ? 'Inscribiendo...'
+                        : (_disponibilidad!.tieneCupo ? 'Inscribirme al evento' : 'Cupos agotados')),
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Pantalla de Consulta de Estado de Inscripciones (CU12) y Cancelación (CU13)
+class MyInscriptionsPage extends StatefulWidget {
+  const MyInscriptionsPage({required this.session, super.key});
+
+  final SessionController session;
+
+  @override
+  State<MyInscriptionsPage> createState() => _MyInscriptionsPageState();
+}
+
+class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
+  List<InscripcionModel> _inscriptions = [];
+  String _selectedFilter = 'CONFIRMADA';
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInscriptions();
+  }
+
+  Future<void> _loadInscriptions() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final list = await widget.session.listarMisInscripciones();
+      if (!mounted) return;
+      setState(() {
+        _inscriptions = list;
+        _loading = false;
+      });
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.message;
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _cancelarInscripcion(InscripcionModel inscripcion) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Cancelar inscripción?'),
+        content: Text(
+          'Se cancelará tu inscripción al evento "${inscripcion.nombreEvento}" y se liberará el cupo para otros participantes.\n\n¿Estás seguro de continuar?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('No, mantener'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sí, cancelar inscripción'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true || !mounted) return;
+
+    try {
+      await widget.session.cancelarInscripcion(inscripcion.idInscripcion);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tu inscripción ha sido cancelada exitosamente.'),
+          backgroundColor: AppColors.forest,
+        ),
+      );
+      await _loadInscriptions();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
+  }
+
+  String _formatDate(DateTime date) =>
+      '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Mis inscripciones'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Actualizar lista',
+            onPressed: _loadInscriptions,
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadInscriptions,
+        child: _buildBody(),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          Center(
+            child: Column(
+              children: [
+                const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.danger),
+                const SizedBox(height: 12),
+                Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.danger)),
+                const SizedBox(height: 16),
+                FilledButton(onPressed: _loadInscriptions, child: const Text('Reintentar')),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (_inscriptions.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.all(32),
+        children: [
+          Center(
+            child: Column(
+              children: [
+                const SizedBox(height: 40),
+                Icon(Icons.confirmation_number_outlined, size: 64, color: AppColors.muted.withOpacity(0.5)),
+                const SizedBox(height: 16),
+                const Text(
+                  'Aún no tienes inscripciones',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Explora los eventos disponibles e inscríbete para ver tus confirmaciones y credenciales aquí.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.muted),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    final activasCount = _inscriptions.where((i) => i.estado == 'CONFIRMADA').length;
+    final canceladasCount = _inscriptions.where((i) => i.estado == 'CANCELADA').length;
+
+    final filtered = _inscriptions.where((ins) {
+      if (_selectedFilter == 'CONFIRMADA') return ins.estado == 'CONFIRMADA';
+      if (_selectedFilter == 'CANCELADA') return ins.estado == 'CANCELADA';
+      return true;
+    }).toList();
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<String>(
+              showSelectedIcon: false,
+              segments: [
+                ButtonSegment(
+                  value: 'CONFIRMADA',
+                  label: Text('Activas ($activasCount)'),
+                  icon: const Icon(Icons.check_circle_outline, size: 16),
+                ),
+                ButtonSegment(
+                  value: 'CANCELADA',
+                  label: Text('Canceladas ($canceladasCount)'),
+                  icon: const Icon(Icons.cancel_outlined, size: 16),
+                ),
+                ButtonSegment(
+                  value: 'TODAS',
+                  label: Text('Todas (${_inscriptions.length})'),
+                ),
+              ],
+              selected: {_selectedFilter},
+              onSelectionChanged: (set) => setState(() => _selectedFilter = set.first),
+            ),
+          ),
+        ),
+        Expanded(
+          child: filtered.isEmpty
+              ? ListView(
+                  padding: const EdgeInsets.all(32),
+                  children: [
+                    Center(
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 30),
+                          Icon(
+                            _selectedFilter == 'CONFIRMADA'
+                                ? Icons.event_available_outlined
+                                : Icons.history_rounded,
+                            size: 48,
+                            color: AppColors.muted.withOpacity(0.5),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            _selectedFilter == 'CONFIRMADA'
+                                ? 'No tienes entradas activas'
+                                : 'No hay inscripciones canceladas',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _selectedFilter == 'CONFIRMADA'
+                                ? 'Inscríbete a un evento en la pestaña "Eventos" para ver tu entrada y QR aquí.'
+                                : 'Cuando canceles una inscripción, quedará registrada en esta sección.',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    final ins = filtered[index];
+                    final isConfirmada = ins.estado == 'CONFIRMADA';
+
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      color: isConfirmada ? null : Colors.grey.shade50,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    ins.nombreEvento,
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w800,
+                                      color: isConfirmada ? null : Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: isConfirmada ? Colors.green.shade50 : Colors.grey.shade200,
+                                    border: Border.all(
+                                      color: isConfirmada ? Colors.green.shade400 : Colors.grey.shade400,
+                                    ),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        isConfirmada ? Icons.check_circle_outline : Icons.cancel_outlined,
+                                        size: 14,
+                                        color: isConfirmada ? Colors.green.shade800 : Colors.grey.shade700,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        ins.estado,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: isConfirmada ? Colors.green.shade800 : Colors.grey.shade700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 4,
+                              children: [
+                                Chip(label: Text(ins.categoriaEvento)),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.calendar_today_rounded, size: 14, color: AppColors.muted),
+                                    const SizedBox(width: 4),
+                                    Text(_formatDate(ins.fechaInicioEvento), style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                const Icon(Icons.place_outlined, size: 16, color: AppColors.muted),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    ins.lugarEvento,
+                                    style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Código QR / Hash (CU12)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isConfirmada ? AppColors.canvas : Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    isConfirmada ? Icons.qr_code_2_rounded : Icons.qr_code_scanner_rounded,
+                                    size: 20,
+                                    color: isConfirmada ? AppColors.forest : Colors.grey.shade600,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      ins.codigoQr,
+                                      style: TextStyle(
+                                        fontFamily: 'monospace',
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                        color: isConfirmada ? null : Colors.grey.shade600,
+                                        decoration: isConfirmada ? null : TextDecoration.lineThrough,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (!isConfirmada)
+                                    Text(
+                                      'ANULADO',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.red.shade400,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Inscrito el: ${_formatDate(ins.fechaInscripcion)}',
+                              style: const TextStyle(color: AppColors.muted, fontSize: 11),
+                            ),
+                            if (isConfirmada) ...[
+                              const SizedBox(height: 12),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.danger,
+                                    side: const BorderSide(color: AppColors.danger),
+                                  ),
+                                  onPressed: () => _cancelarInscripcion(ins),
+                                  icon: const Icon(Icons.cancel_outlined, size: 16),
+                                  label: const Text('Cancelar inscripción'),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 }
@@ -1333,6 +2025,18 @@ class SessionController extends ChangeNotifier {
   Future<List<EventModel>> listEvents(String term, String category) =>
       _authorized((tokens) => _api.listEvents(tokens, term, category));
 
+  Future<InscripcionModel> inscribirAEvento(int idEvento) =>
+      _authorized((tokens) => _api.inscribirAEvento(tokens, idEvento));
+
+  Future<List<InscripcionModel>> listarMisInscripciones() =>
+      _authorized((tokens) => _api.listarMisInscripciones(tokens));
+
+  Future<InscripcionModel> cancelarInscripcion(int idInscripcion) =>
+      _authorized((tokens) => _api.cancelarInscripcion(tokens, idInscripcion));
+
+  Future<DisponibilidadModel> obtenerDisponibilidad(int idEvento) =>
+      _authorized((tokens) => _api.obtenerDisponibilidad(tokens, idEvento));
+
   Future<T> _authorized<T>(Future<T> Function(SessionTokens) action) async {
     if (_tokens == null) {
       throw const ApiException('La sesion ya no esta disponible');
@@ -1468,17 +2172,42 @@ class ApiClient {
         .toList();
   }
 
+  Future<InscripcionModel> inscribirAEvento(SessionTokens tokens, int idEvento) async {
+    final response = await _send('POST', '/inscripciones/eventos/$idEvento', tokens);
+    return InscripcionModel.fromJson(_data(response) as Map<String, dynamic>);
+  }
+
+  Future<List<InscripcionModel>> listarMisInscripciones(SessionTokens tokens) async {
+    final response = await _get('/inscripciones/mis-inscripciones', tokens);
+    final data = _data(response);
+    return (data as List<dynamic>)
+        .map((item) => InscripcionModel.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<InscripcionModel> cancelarInscripcion(SessionTokens tokens, int idInscripcion) async {
+    final response = await _send('PATCH', '/inscripciones/$idInscripcion/cancelar', tokens);
+    return InscripcionModel.fromJson(_data(response) as Map<String, dynamic>);
+  }
+
+  Future<DisponibilidadModel> obtenerDisponibilidad(SessionTokens tokens, int idEvento) async {
+    final response = await _get('/inscripciones/eventos/$idEvento/disponibilidad', tokens);
+    return DisponibilidadModel.fromJson(_data(response) as Map<String, dynamic>);
+  }
+
   Future<http.Response> _get(String path, SessionTokens tokens) =>
       http.get(Uri.parse('$baseUrl$path'), headers: _headers(tokens));
   Future<http.Response> _send(
     String method,
     String path,
-    SessionTokens tokens,
-    Map<String, String> body,
-  ) {
+    SessionTokens tokens, [
+    Map<String, dynamic> body = const {},
+  ]) {
     final request = http.Request(method, Uri.parse('$baseUrl$path'))
-      ..headers.addAll(_headers(tokens))
-      ..body = jsonEncode(body);
+      ..headers.addAll(_headers(tokens));
+    if (body.isNotEmpty || method == 'POST' || method == 'PUT' || method == 'PATCH') {
+      request.body = jsonEncode(body);
+    }
     return http.Client().send(request).then(http.Response.fromStream);
   }
 
@@ -1544,8 +2273,81 @@ class EventModel {
   }
 }
 
+class InscripcionModel {
+  const InscripcionModel({
+    required this.idInscripcion,
+    required this.idEvento,
+    required this.nombreEvento,
+    required this.descripcionEvento,
+    required this.categoriaEvento,
+    required this.fechaInicioEvento,
+    required this.fechaFinEvento,
+    required this.lugarEvento,
+    required this.estado,
+    required this.codigoQr,
+    required this.fechaInscripcion,
+  });
+
+  final int idInscripcion;
+  final int idEvento;
+  final String nombreEvento;
+  final String descripcionEvento;
+  final String categoriaEvento;
+  final DateTime fechaInicioEvento;
+  final DateTime? fechaFinEvento;
+  final String lugarEvento;
+  final String estado;
+  final String codigoQr;
+  final DateTime fechaInscripcion;
+
+  factory InscripcionModel.fromJson(Map<String, dynamic> json) => InscripcionModel(
+    idInscripcion: json['idInscripcion'] as int,
+    idEvento: json['idEvento'] as int,
+    nombreEvento: json['nombreEvento'] as String? ?? 'Evento',
+    descripcionEvento: json['descripcionEvento'] as String? ?? '',
+    categoriaEvento: json['categoriaEvento'] as String? ?? 'GENERAL',
+    fechaInicioEvento: DateTime.parse(json['fechaInicioEvento'] as String),
+    fechaFinEvento: json['fechaFinEvento'] != null ? DateTime.parse(json['fechaFinEvento'] as String) : null,
+    lugarEvento: json['lugarEvento'] as String? ?? '',
+    estado: json['estado'] as String? ?? 'CONFIRMADA',
+    codigoQr: json['codigoQr'] as String? ?? '',
+    fechaInscripcion: DateTime.parse(json['fechaInscripcion'] as String),
+  );
+}
+
+class DisponibilidadModel {
+  const DisponibilidadModel({
+    required this.idEvento,
+    required this.aforoMaximo,
+    required this.cuposOcupados,
+    required this.cuposDisponibles,
+    required this.tieneCupo,
+    required this.estaInscrito,
+    required this.idInscripcionActiva,
+  });
+
+  final int idEvento;
+  final int? aforoMaximo;
+  final int cuposOcupados;
+  final int? cuposDisponibles;
+  final bool tieneCupo;
+  final bool estaInscrito;
+  final int? idInscripcionActiva;
+
+  factory DisponibilidadModel.fromJson(Map<String, dynamic> json) => DisponibilidadModel(
+    idEvento: json['idEvento'] as int,
+    aforoMaximo: json['aforoMaximo'] as int?,
+    cuposOcupados: (json['cuposOcupados'] as num).toInt(),
+    cuposDisponibles: json['cuposDisponibles'] as int?,
+    tieneCupo: json['tieneCupo'] as bool? ?? true,
+    estaInscrito: json['estaInscrito'] as bool? ?? false,
+    idInscripcionActiva: json['idInscripcionActiva'] as int?,
+  );
+}
+
 class ApiException implements Exception {
   const ApiException(this.message, [this.status]);
   final String message;
   final int? status;
 }
+
