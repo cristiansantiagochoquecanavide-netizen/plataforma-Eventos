@@ -75,4 +75,8 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
     Optional<Evento> findById(Long id);
 
     boolean existsByCategoriaId(Long idCategoria);
+
+    @Query("SELECT COUNT(e) > 0 FROM Evento e JOIN e.responsables responsable " +
+            "WHERE e.id = :idEvento AND responsable.id = :idResponsable")
+    boolean esResponsable(@Param("idEvento") Long idEvento, @Param("idResponsable") Long idResponsable);
 }

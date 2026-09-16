@@ -20,6 +20,11 @@ public interface ConvocatoriaRepository extends JpaRepository<Convocatoria, Long
     @Query("SELECT c FROM Convocatoria c WHERE c.id = :id")
     Optional<Convocatoria> buscarParaPostulacion(@Param("id") Long id);
 
+    // Serializa la gestion con el cierre y protege el limite de cupos al seleccionar.
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Convocatoria c WHERE c.id = :id")
+    Optional<Convocatoria> buscarParaGestion(@Param("id") Long id);
+
     @Query("""
             SELECT c FROM Convocatoria c
             JOIN FETCH c.evento e

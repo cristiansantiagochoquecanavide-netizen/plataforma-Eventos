@@ -13,9 +13,11 @@ import {
 import { Evento } from '../eventos/modelos/evento.modelo';
 import { SesionService } from '../../core/sesion.service';
 import { ToastService } from '../../core/toast.service';
+import { PostulanteConvocatoria } from './modelos/postulante-convocatoria.modelo';
 
 /**
  * CU15: Gestion de Convocatorias de Staff y Voluntarios.
+ * CU17: Revision y seleccion de postulantes de las convocatorias.
  *
  * Esta pantalla permite consultar y filtrar las convocatorias existentes. Los
  * administradores y organizadores pueden registrar una necesidad de personal
@@ -39,6 +41,12 @@ export class ConvocatoriasComponent implements OnInit {
   readonly modalAbierto = signal(false);
   readonly intentoEnvio = signal(false);
   readonly error = signal('');
+  readonly convocatoriaPostulantes = signal<Convocatoria | null>(null);
+  readonly postulantes = signal<PostulanteConvocatoria[]>([]);
+  readonly cargandoPostulantes = signal(false);
+  readonly errorPostulantes = signal('');
+  readonly idPostulacionProcesando = signal<number | null>(null);
+  readonly postulanteDetalle = signal<PostulanteConvocatoria | null>(null);
 
   readonly filtroTermino = signal('');
   readonly filtroEvento = signal(0);
@@ -50,6 +58,9 @@ export class ConvocatoriasComponent implements OnInit {
   readonly fechaMinima = this.formatearFechaLocal(new Date());
 
   readonly puedeGestionar = computed(() => this.sesion.puedeGestionarConvocatorias());
+  readonly puedeGestionarPostulaciones = computed(() =>
+    this.sesion.puedeGestionarPostulaciones(),
+  );
   readonly eventosDisponibles = computed(() =>
     this.eventos().filter(
       (evento) => evento.estado !== 'CANCELADO' && evento.estado !== 'FINALIZADO',
@@ -118,6 +129,59 @@ export class ConvocatoriasComponent implements OnInit {
         this.toast.error(mensaje);
       },
     });
+  }
+
+  verPostulantes(convocatoria: Convocatoria) {
+    this.convocatoriaPostulantes.set(convocatoria);
+    this.postulanteDetalle.set(null);
+    this.postulantes.set([]);
+    this.errorPostulantes.set('');
+    this.cargandoPostulantes.set(true);
+    this.convocatoriasService.listarPostulantes(convocatoria.id).subscribe({
+      next: (postulantes) => {
+        if (this.convocatoriaPostulantes()?.id !== convocatoria.id) return;
+        this.postulantes.set(postulantes);
+        this.errorPostulantes.set('');
+        this.cargandoPostulantes.set(false);
+      },
+      error: (error) => {
+        if (this.convocatoriaPostulantes()?.id !== convocatoria.id) return;
+        this.cargandoPostulantes.set(false);
+        const mensaje = obtenerMensajeError(error, 'No fue posible cargar los postulantes.');
+        this.errorPostulantes.set(mensaje);
+        this.toast.error(mensaje);
+      },
+    });
+  }
+
+  cerrarPostulantes() {
+    this.convocatoriaPostulantes.set(null);
+    this.postulanteDetalle.set(null);
+    this.postulantes.set([]);
+    this.errorPostulantes.set('');
+  }
+
+  verDetalle(postulante: PostulanteConvocatoria) {
+    this.postulanteDetalle.set(postulante);
+  }
+
+  seleccionarPostulante(postulante: PostulanteConvocatoria) {
+    const tipo = this.etiquetaTipo(postulante.tipoPersonal);
+    if (!confirm(`¿Seleccionar a ${postulante.nombres} ${postulante.apellidos} como ${tipo}?`)) {
+      return;
+    }
+    this.procesarPostulacion(postulante, 'seleccionar');
+  }
+
+  rechazarPostulante(postulante: PostulanteConvocatoria) {
+    if (!confirm(`¿Rechazar la postulacion de ${postulante.nombres} ${postulante.apellidos}?`)) {
+      return;
+    }
+    this.procesarPostulacion(postulante, 'rechazar');
+  }
+
+  claseEstadoPostulacion(estado: string) {
+    return estado.toLowerCase();
   }
 
   abrirModal() {
@@ -248,6 +312,9 @@ export class ConvocatoriasComponent implements OnInit {
         this.convocatorias.update((actuales) =>
           actuales.map((item) => (item.id === actualizada.id ? actualizada : item)),
         );
+        if (this.convocatoriaPostulantes()?.id === actualizada.id) {
+          this.convocatoriaPostulantes.set(actualizada);
+        }
         this.idProcesando.set(null);
         this.toast.exito(
           destino === 'CERRADA' ? 'Convocatoria cerrada.' : 'Convocatoria cancelada.',
@@ -257,6 +324,41 @@ export class ConvocatoriasComponent implements OnInit {
         const mensaje = obtenerMensajeError(error, 'No fue posible actualizar la convocatoria.');
         this.toast.error(mensaje);
         this.idProcesando.set(null);
+      },
+    });
+  }
+
+  private procesarPostulacion(
+    postulante: PostulanteConvocatoria,
+    accion: 'seleccionar' | 'rechazar',
+  ) {
+    if (postulante.estado !== 'PENDIENTE') return;
+    this.idPostulacionProcesando.set(postulante.id);
+    const operacion =
+      accion === 'seleccionar'
+        ? this.convocatoriasService.seleccionarPostulante(postulante.id)
+        : this.convocatoriasService.rechazarPostulante(postulante.id);
+
+    operacion.subscribe({
+      next: (actualizada) => {
+        this.postulantes.update((actuales) =>
+          actuales.map((item) => (item.id === actualizada.id ? actualizada : item)),
+        );
+        if (this.postulanteDetalle()?.id === actualizada.id) {
+          this.postulanteDetalle.set(actualizada);
+        }
+        this.idPostulacionProcesando.set(null);
+        this.toast.exito(
+          accion === 'seleccionar'
+            ? `${actualizada.nombres} ${actualizada.apellidos} ya forma parte del equipo como ${this.etiquetaTipo(actualizada.tipoPersonal)}.`
+            : 'La postulacion fue rechazada.',
+        );
+      },
+      error: (error) => {
+        this.toast.error(
+          obtenerMensajeError(error, 'No fue posible actualizar el estado de la postulacion.'),
+        );
+        this.idPostulacionProcesando.set(null);
       },
     });
   }

@@ -156,3 +156,5 @@ El usuario administrador inicial no se crea mediante SQL: un inicializador Sprin
 | Sprint 4 | preferencia_usuario, consulta_evento, certificado, bitacora |
 
 Estas tablas no seran creadas ni referenciadas por las migraciones de Sprint 0.
+
+La migracion V16 de CU17 implementa `asignacion_staff` y la relacion unica con `postulacion_staff`. Cada asignacion hereda el evento y el tipo de personal solicitado desde la convocatoria asociada; el tipo no se duplica en la asignacion.

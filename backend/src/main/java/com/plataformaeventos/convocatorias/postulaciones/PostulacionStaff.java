@@ -70,10 +70,24 @@ public class PostulacionStaff {
     }
 
     public void retirar() {
-        if (estado != EstadoPostulacion.PENDIENTE) {
-            throw new IllegalArgumentException("Solo se puede retirar una postulacion pendiente");
-        }
+        validarPendiente("retirar");
         estado = EstadoPostulacion.RETIRADA;
+    }
+
+    public void seleccionar() {
+        validarPendiente("seleccionar");
+        estado = EstadoPostulacion.SELECCIONADA;
+    }
+
+    public void rechazar() {
+        validarPendiente("rechazar");
+        estado = EstadoPostulacion.RECHAZADA;
+    }
+
+    private void validarPendiente(String accion) {
+        if (estado != EstadoPostulacion.PENDIENTE) {
+            throw new IllegalArgumentException("Solo se puede " + accion + " una postulacion pendiente");
+        }
     }
 
     public Long getId() {
