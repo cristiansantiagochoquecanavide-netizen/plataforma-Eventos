@@ -65,6 +65,18 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
             @Param("idEvento") Long idEvento
     );
 
+    @Query("select count(e) > 0 from Evento e where e.espacio.id = :idEspacio and e.organizacion.id = :org and e.estado <> com.plataformaeventos.eventos.modelo.EstadoEvento.CANCELADO and (e.fechaFin is null or e.fechaFin > :fechaInicio)")
+    boolean existeConflictoProgramacionCrearSinFinTenant(@Param("idEspacio") Long idEspacio, @Param("fechaInicio") OffsetDateTime fechaInicio, @Param("org") Long org);
+
+    @Query("select count(e) > 0 from Evento e where e.espacio.id = :idEspacio and e.organizacion.id = :org and e.estado <> com.plataformaeventos.eventos.modelo.EstadoEvento.CANCELADO and e.fechaInicio < :fechaFin and (e.fechaFin is null or e.fechaFin > :fechaInicio)")
+    boolean existeConflictoProgramacionCrearConFinTenant(@Param("idEspacio") Long idEspacio, @Param("fechaInicio") OffsetDateTime fechaInicio, @Param("fechaFin") OffsetDateTime fechaFin, @Param("org") Long org);
+
+    @Query("select count(e) > 0 from Evento e where e.espacio.id = :idEspacio and e.organizacion.id = :org and e.estado <> com.plataformaeventos.eventos.modelo.EstadoEvento.CANCELADO and (e.fechaFin is null or e.fechaFin > :fechaInicio) and e.id <> :idEvento")
+    boolean existeConflictoProgramacionEditarSinFinTenant(@Param("idEspacio") Long idEspacio, @Param("fechaInicio") OffsetDateTime fechaInicio, @Param("idEvento") Long idEvento, @Param("org") Long org);
+
+    @Query("select count(e) > 0 from Evento e where e.espacio.id = :idEspacio and e.organizacion.id = :org and e.estado <> com.plataformaeventos.eventos.modelo.EstadoEvento.CANCELADO and e.fechaInicio < :fechaFin and (e.fechaFin is null or e.fechaFin > :fechaInicio) and e.id <> :idEvento")
+    boolean existeConflictoProgramacionEditarConFinTenant(@Param("idEspacio") Long idEspacio, @Param("fechaInicio") OffsetDateTime fechaInicio, @Param("fechaFin") OffsetDateTime fechaFin, @Param("idEvento") Long idEvento, @Param("org") Long org);
+
     @EntityGraph(attributePaths = {"categoria", "espacio", "responsables", "responsables.roles"})
     List<Evento> findByEstadoNotOrderByFechaInicioAsc(EstadoEvento estado);
 
@@ -73,6 +85,12 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
 
     @EntityGraph(attributePaths = {"categoria", "espacio", "responsables", "responsables.roles"})
     Optional<Evento> findById(Long id);
+
+    @EntityGraph(attributePaths = {"categoria", "espacio", "responsables", "responsables.roles"})
+    Optional<Evento> findByIdAndOrganizacionId(Long id, Long organizacionId);
+
+    @EntityGraph(attributePaths = {"categoria", "espacio", "responsables", "responsables.roles"})
+    List<Evento> findByOrganizacionIdAndEstadoNotOrderByFechaInicioAsc(Long organizacionId, EstadoEvento estado);
 
     boolean existsByCategoriaId(Long idCategoria);
 }

@@ -14,9 +14,13 @@ export const autenticacionInterceptor: HttpInterceptorFn = (solicitud, siguiente
     '/autenticacion/restablecer-clave',
   ].some((ruta) => solicitud.url.includes(ruta));
   const token = sesion.tokenAcceso();
+  const headers: Record<string, string> = {};
+  if (token && !esPublica) headers['Authorization'] = `Bearer ${token}`;
+  const organizacionId = sesion.organizacionActivaId();
+  if (organizacionId && !esPublica) headers['X-Organization-Id'] = String(organizacionId);
   const autorizada =
-    !esPublica && token
-      ? solicitud.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
+    Object.keys(headers).length > 0
+      ? solicitud.clone({ setHeaders: headers })
       : solicitud;
 
   return siguiente(autorizada).pipe(
@@ -26,7 +30,12 @@ export const autenticacionInterceptor: HttpInterceptorFn = (solicitud, siguiente
         switchMap((nuevaSesion) =>
           siguiente(
             solicitud.clone({
-              setHeaders: { Authorization: `Bearer ${nuevaSesion.accessToken}` },
+              setHeaders: {
+                Authorization: `Bearer ${nuevaSesion.accessToken}`,
+                ...(sesion.organizacionActivaId()
+                  ? { 'X-Organization-Id': String(sesion.organizacionActivaId()) }
+                  : {}),
+              },
             }),
           ),
         ),

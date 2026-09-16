@@ -12,6 +12,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.security.core.Authentication;
+import com.plataformaeventos.organizaciones.servicio.ContextoOrganizacion;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -34,65 +37,67 @@ import java.util.List;
 public class RecursoController {
 
     private final RecursoService recursoService;
+    private final ContextoOrganizacion contexto;
 
-    public RecursoController(RecursoService recursoService) {
+    public RecursoController(RecursoService recursoService, ContextoOrganizacion contexto) {
         this.recursoService = recursoService;
+        this.contexto = contexto;
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('RECURSO_VER', 'ROLE_ADMINISTRADOR', 'ROLE_ORGANIZADOR')")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'RECURSO_VER')")
     @Operation(summary = "Consultar recursos", description = "Lista recursos con filtros opcionales de busqueda por termino, tipo y estado.")
     @ApiResponse(responseCode = "200", description = "Lista de recursos obtenida")
     public ResponseEntity<List<RecursoRespuesta>> listarRecursos(
             @RequestParam(required = false) String termino,
             @RequestParam(required = false) TipoRecurso tipo,
-            @RequestParam(required = false) EstadoRecurso estado
+            @RequestParam(required = false) EstadoRecurso estado, Authentication auth, HttpServletRequest request
     ) {
-        return ResponseEntity.ok(recursoService.listarRecursos(termino, tipo, estado));
+        return ResponseEntity.ok(recursoService.listarRecursos(termino, tipo, estado, contexto.resolver(auth, request)));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('RECURSO_VER', 'ROLE_ADMINISTRADOR', 'ROLE_ORGANIZADOR')")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'RECURSO_VER')")
     @Operation(summary = "Obtener recurso por ID")
     @ApiResponse(responseCode = "200", description = "Detalle del recurso")
     @ApiResponse(responseCode = "404", description = "Recurso no encontrado")
-    public ResponseEntity<RecursoRespuesta> obtenerRecurso(@PathVariable Long id) {
-        return ResponseEntity.ok(recursoService.obtenerRecursoPorId(id));
+    public ResponseEntity<RecursoRespuesta> obtenerRecurso(@PathVariable Long id, Authentication auth, HttpServletRequest request) {
+        return ResponseEntity.ok(recursoService.obtenerRecursoPorId(id, contexto.resolver(auth, request)));
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('RECURSO_CREAR', 'ROLE_ADMINISTRADOR')")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'RECURSO_CREAR')")
     @Operation(summary = "Registrar nuevo recurso (CU19)")
     @ApiResponse(responseCode = "201", description = "Recurso registrado exitosamente")
     @ApiResponse(responseCode = "400", description = "Datos invalidos o codigo duplicado")
-    public ResponseEntity<RecursoRespuesta> crearRecurso(@Valid @RequestBody CrearRecursoSolicitud solicitud) {
-        RecursoRespuesta creado = recursoService.crearRecurso(solicitud);
+    public ResponseEntity<RecursoRespuesta> crearRecurso(@Valid @RequestBody CrearRecursoSolicitud solicitud, Authentication auth, HttpServletRequest request) {
+        RecursoRespuesta creado = recursoService.crearRecurso(solicitud, contexto.resolver(auth, request));
         return ResponseEntity.status(HttpStatus.CREATED).body(creado);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('RECURSO_EDITAR', 'ROLE_ADMINISTRADOR')")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'RECURSO_EDITAR')")
     @Operation(summary = "Actualizar informacion del recurso")
     @ApiResponse(responseCode = "200", description = "Recurso actualizado")
     @ApiResponse(responseCode = "400", description = "Datos invalidos")
     @ApiResponse(responseCode = "404", description = "Recurso no encontrado")
     public ResponseEntity<RecursoRespuesta> actualizarRecurso(
             @PathVariable Long id,
-            @Valid @RequestBody ActualizarRecursoSolicitud solicitud
+            @Valid @RequestBody ActualizarRecursoSolicitud solicitud, Authentication auth, HttpServletRequest request
     ) {
-        return ResponseEntity.ok(recursoService.actualizarRecurso(id, solicitud));
+        return ResponseEntity.ok(recursoService.actualizarRecurso(id, solicitud, contexto.resolver(auth, request)));
     }
 
     @PatchMapping("/{id}/estado")
-    @PreAuthorize("hasAnyAuthority('RECURSO_CAMBIAR_ESTADO', 'ROLE_ADMINISTRADOR')")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'RECURSO_CAMBIAR_ESTADO')")
     @Operation(summary = "Cambiar estado del recurso")
     @ApiResponse(responseCode = "200", description = "Estado del recurso actualizado")
     @ApiResponse(responseCode = "400", description = "Estado invalido")
     @ApiResponse(responseCode = "404", description = "Recurso no encontrado")
     public ResponseEntity<RecursoRespuesta> cambiarEstado(
             @PathVariable Long id,
-            @Valid @RequestBody CambiarEstadoRecursoSolicitud solicitud
+            @Valid @RequestBody CambiarEstadoRecursoSolicitud solicitud, Authentication auth, HttpServletRequest request
     ) {
-        return ResponseEntity.ok(recursoService.cambiarEstado(id, solicitud));
+        return ResponseEntity.ok(recursoService.cambiarEstado(id, solicitud, contexto.resolver(auth, request)));
     }
 }

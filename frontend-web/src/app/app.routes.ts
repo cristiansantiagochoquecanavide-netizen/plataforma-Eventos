@@ -7,20 +7,17 @@ import {
   rolesGuard,
   espaciosGuard,
   usuariosGuard,
+  postulacionesGuard,
+  asignacionesGuard,
+  bitacoraGuard,
+  miembrosGuard,
 } from './core/guards';
 import { InicioSesionComponent } from './features/auth/inicio-sesion.component';
 import { RecuperarClaveComponent } from './features/auth/recuperar-clave.component';
 import { RestablecerClaveComponent } from './features/auth/restablecer-clave.component';
-import { CategoriasComponent } from './features/categorias/categorias.component';
-import { ConvocatoriasComponent } from './features/convocatorias/convocatorias.component';
-import { EventosComponent } from './features/eventos/eventos.component';
 import { ConsultaEventosComponent } from './features/eventos/consulta-eventos.component';
 import { PanelComponent } from './features/panel/panel.component';
 import { PerfilComponent } from './features/perfil/perfil.component';
-import { RecursosComponent } from './features/recursos/recursos.component';
-import { EspaciosComponent } from './features/espacios/espacios.component';
-import { RolesComponent } from './features/roles/roles.component';
-import { UsuariosComponent } from './features/usuarios/usuarios.component';
 
 export const routes: Routes = [
   { path: 'iniciar-sesion', component: InicioSesionComponent },
@@ -33,16 +30,36 @@ export const routes: Routes = [
     children: [
       { path: 'perfil', component: PerfilComponent },
       { path: 'consulta-eventos', component: ConsultaEventosComponent },
-      { path: 'eventos', component: EventosComponent, canActivate: [eventosGuard] },
-      { path: 'categorias', component: CategoriasComponent, canActivate: [eventosGuard] },
-      { path: 'usuarios', component: UsuariosComponent, canActivate: [usuariosGuard] },
-      { path: 'roles', component: RolesComponent, canActivate: [rolesGuard] },
-      { path: 'recursos', component: RecursosComponent, canActivate: [recursosGuard] },
-      { path: 'espacios', component: EspaciosComponent, canActivate: [espaciosGuard] },
+      { path: 'eventos', loadComponent: () => import('./features/eventos/eventos.component').then((m) => m.EventosComponent), canActivate: [eventosGuard] },
+      { path: 'categorias', loadComponent: () => import('./features/categorias/categorias.component').then((m) => m.CategoriasComponent), canActivate: [eventosGuard] },
+      { path: 'usuarios', loadComponent: () => import('./features/usuarios/usuarios.component').then((m) => m.UsuariosComponent), canActivate: [usuariosGuard] },
+      { path: 'roles', loadComponent: () => import('./features/roles/roles.component').then((m) => m.RolesComponent), canActivate: [rolesGuard] },
+      { path: 'recursos', loadComponent: () => import('./features/recursos/recursos.component').then((m) => m.RecursosComponent), canActivate: [recursosGuard] },
+      { path: 'espacios', loadComponent: () => import('./features/espacios/espacios.component').then((m) => m.EspaciosComponent), canActivate: [espaciosGuard] },
       {
         path: 'convocatorias',
-        component: ConvocatoriasComponent,
+        loadComponent: () => import('./features/convocatorias/convocatorias.component').then((m) => m.ConvocatoriasComponent),
         canActivate: [convocatoriasGuard],
+      },
+      {
+        path: 'postulaciones',
+        loadComponent: () => import('./features/postulaciones/postulaciones.component').then((m) => m.PostulacionesComponent),
+        canActivate: [postulacionesGuard],
+      },
+      {
+        path: 'asignaciones',
+        loadComponent: () => import('./features/asignaciones/asignaciones.component').then((m) => m.AsignacionesComponent),
+        canActivate: [asignacionesGuard],
+      },
+      {
+        path: 'bitacora',
+        loadComponent: () => import('./features/bitacora/bitacora.component').then((m) => m.BitacoraComponent),
+        canActivate: [bitacoraGuard],
+      },
+      {
+        path: 'miembros-organizacion',
+        loadComponent: () => import('./features/organizaciones/miembros-organizacion.component').then((m) => m.MiembrosOrganizacionComponent),
+        canActivate: [miembrosGuard],
       },
       { path: '', pathMatch: 'full', redirectTo: 'perfil' },
     ],

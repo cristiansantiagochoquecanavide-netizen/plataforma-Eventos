@@ -436,6 +436,17 @@ small {
   white-space: nowrap;
 }
 
+.tenant-selector {
+  min-width: min(280px, 100%);
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.tenant-selector select {
+  min-height: 39px;
+  padding: 8px 10px;
+}
+
 .page-heading {
   max-width: 760px;
   margin-bottom: 26px;

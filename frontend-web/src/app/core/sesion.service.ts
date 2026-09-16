@@ -6,10 +6,12 @@ import { SesionRespuesta } from '../features/auth/modelos/auth.modelo';
 import { Usuario } from '../features/usuarios/modelos/usuario.modelo';
 
 const CLAVE_SESION = 'plataforma-eventos.sesion';
+const CLAVE_ORGANIZACION = 'plataforma-eventos.organizacion-activa';
 
 @Injectable({ providedIn: 'root' })
 export class SesionService {
   readonly usuario = signal<Usuario | null>(null);
+  readonly organizacionActivaId = signal<number | null>(this.leerOrganizacionActiva());
   private sesion: SesionRespuesta | null = this.leerSesion();
 
   constructor(
@@ -46,6 +48,11 @@ export class SesionService {
 
   tokenAcceso() {
     return this.sesion?.accessToken ?? null;
+  }
+
+  seleccionarOrganizacion(id: number) {
+    this.organizacionActivaId.set(id);
+    localStorage.setItem(CLAVE_ORGANIZACION, String(id));
   }
 
   esAdministrador() {
@@ -122,6 +129,12 @@ export class SesionService {
     return this.tienePermiso('CONVOCATORIA_VER');
   }
 
+  puedeCrearPostulacionesStaff() { return this.tienePermiso('POSTULACION_STAFF_CREAR'); }
+  puedeGestionarPostulacionesStaff() { return this.tienePermiso('POSTULACION_STAFF_GESTIONAR'); }
+  puedeGestionarAsignacionesStaff() { return this.tienePermiso('ASIGNACION_STAFF_GESTIONAR'); }
+  puedeVerBitacora() { return this.esAdministrador() || this.tienePermiso('BITACORA_VER'); }
+  puedeGestionarMiembros() { return this.esAdministrador(); }
+
   puedeGestionarConvocatorias() {
     return this.tieneAlgunPermiso([
       'CONVOCATORIA_CREAR',
@@ -150,6 +163,14 @@ export class SesionService {
     this.sesion = null;
     this.usuario.set(null);
     localStorage.removeItem(CLAVE_SESION);
+    localStorage.removeItem(CLAVE_ORGANIZACION);
+  }
+
+  private leerOrganizacionActiva(): number | null {
+    const valor = localStorage.getItem(CLAVE_ORGANIZACION);
+    if (!valor) return null;
+    const id = Number(valor);
+    return Number.isInteger(id) && id > 0 ? id : null;
   }
 
   private leerSesion(): SesionRespuesta | null {

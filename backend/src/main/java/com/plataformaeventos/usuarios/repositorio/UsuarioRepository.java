@@ -35,6 +35,14 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
             """)
     List<Usuario> findResponsablesDisponibles(@Param("roles") Set<String> roles);
 
+    @EntityGraph(attributePaths = "roles")
+    @Query("select distinct usuario from Usuario usuario join usuario.roles rol join MembresiaOrganizacion membresia on membresia.usuario.id = usuario.id where membresia.organizacion.id = :org and membresia.activo = true and usuario.estado = com.plataformaeventos.usuarios.modelo.EstadoUsuario.ACTIVO and rol.estado = com.plataformaeventos.roles.modelo.EstadoRol.ACTIVO and rol.nombre in :roles order by usuario.apellidos asc, usuario.nombres asc")
+    List<Usuario> findResponsablesDisponiblesPorOrganizacion(@Param("roles") Set<String> roles, @Param("org") Long org);
+
+    @EntityGraph(attributePaths = "roles")
+    @Query("select usuario from Usuario usuario join MembresiaOrganizacion membresia on membresia.usuario.id = usuario.id where usuario.id = :id and membresia.organizacion.id = :org and membresia.activo = true")
+    Optional<Usuario> findByIdAndOrganizacionId(@Param("id") Long id, @Param("org") Long org);
+
     boolean existsByCorreo(String correo);
 
     @EntityGraph(attributePaths = "roles")
@@ -42,4 +50,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
     @EntityGraph(attributePaths = "roles")
     Page<Usuario> findAll(Pageable pageable);
+
+    @EntityGraph(attributePaths = "roles")
+    @Query("select distinct usuario from Usuario usuario join MembresiaOrganizacion membresia on membresia.usuario.id = usuario.id where membresia.organizacion.id = :org and membresia.activo = true")
+    Page<Usuario> findAllByOrganizacionId(@Param("org") Long org, Pageable pageable);
 }

@@ -3,6 +3,7 @@ package com.plataformaeventos.eventos.modelo;
 import com.plataformaeventos.categorias.modelo.Categoria;
 import com.plataformaeventos.espacios.modelo.Espacio;
 import com.plataformaeventos.usuarios.modelo.Usuario;
+import com.plataformaeventos.organizaciones.modelo.Organizacion;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -26,6 +27,10 @@ import java.util.Set;
 @Entity
 @Table(name = "evento")
 public class Evento {
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_organizacion")
+    private Organizacion organizacion;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -132,6 +137,9 @@ public class Evento {
     public Long getId() {
         return id;
     }
+
+    public Organizacion getOrganizacion() { return organizacion; }
+    public void asignarOrganizacion(Organizacion organizacion) { this.organizacion = organizacion; }
 
     public String getNombre() {
         return nombre;

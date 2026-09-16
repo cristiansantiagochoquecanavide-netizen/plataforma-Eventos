@@ -3,6 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('parsea la respuesta de organizaciones del backend', () {
+    final organization = OrganizationModel.fromJson({
+      'id': 7,
+      'nombre': 'Comunidad Innovacion',
+      'slug': 'innovacion',
+      'estado': 'ACTIVA',
+    });
+
+    expect(organization.id, 7);
+    expect(organization.name, 'Comunidad Innovacion');
+    expect(organization.slug, 'innovacion');
+  });
+
   testWidgets('muestra el formulario de inicio de sesion', (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -87,6 +100,28 @@ void main() {
     expect(find.text('Mi Perfil'), findsOneWidget);
   });
 
+  testWidgets('informa cuando la sesion no tiene organizaciones', (
+    tester,
+  ) async {
+    final session = SessionController(ApiClient('http://localhost:8080/api'))
+      ..user = const UserProfile(
+        id: 1,
+        names: 'Carlos',
+        lastNames: 'Mendez',
+        email: 'carlos@eventos.local',
+        roles: ['PARTICIPANTE'],
+      )
+      ..organizationsLoaded = true;
+
+    await tester.pumpWidget(MaterialApp(home: HomeShell(session: session)));
+
+    expect(find.text('Organizacion requerida'), findsOneWidget);
+    expect(
+      find.textContaining('no pertenece a ninguna organizacion'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('muestra la pantalla de Mis Inscripciones con su encabezado', (
     tester,
   ) async {
@@ -136,4 +171,3 @@ void main() {
     expect(find.text('Auditorio Principal'), findsOneWidget);
   });
 }
-

@@ -9,6 +9,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.security.core.Authentication;
+import com.plataformaeventos.organizaciones.servicio.ContextoOrganizacion;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -30,46 +33,48 @@ import java.util.List;
 public class AsignacionRecursoController {
 
     private final AsignacionRecursoService asignacionService;
+    private final ContextoOrganizacion contexto;
 
-    public AsignacionRecursoController(AsignacionRecursoService asignacionService) {
+    public AsignacionRecursoController(AsignacionRecursoService asignacionService, ContextoOrganizacion contexto) {
         this.asignacionService = asignacionService;
+        this.contexto = contexto;
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('ASIGNACION_RECURSO_VER', 'RECURSO_VER', 'ROLE_ADMINISTRADOR', 'ROLE_ORGANIZADOR')")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'ASIGNACION_RECURSO_VER') or @contextoOrganizacion.tieneAutoridad(authentication, #request, 'RECURSO_VER')")
     @Operation(summary = "Consultar recursos asociados a eventos y salas (CU20)")
     @ApiResponse(responseCode = "200", description = "Lista de asignaciones obtenida")
     public ResponseEntity<List<AsignacionRecursoRespuesta>> listarAsignaciones(
             @RequestParam(required = false) Long idEvento,
             @RequestParam(required = false) Long idRecurso,
-            @RequestParam(required = false) EstadoAsignacion estado
+            @RequestParam(required = false) EstadoAsignacion estado, Authentication auth, HttpServletRequest request
     ) {
-        return ResponseEntity.ok(asignacionService.listarAsignaciones(idEvento, idRecurso, estado));
+        return ResponseEntity.ok(asignacionService.listarAsignaciones(idEvento, idRecurso, estado, contexto.resolver(auth, request).getId()));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ASIGNACION_RECURSO_VER', 'RECURSO_VER', 'ROLE_ADMINISTRADOR', 'ROLE_ORGANIZADOR')")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'ASIGNACION_RECURSO_VER') or @contextoOrganizacion.tieneAutoridad(authentication, #request, 'RECURSO_VER')")
     @Operation(summary = "Obtener detalle de una asignación")
-    public ResponseEntity<AsignacionRecursoRespuesta> obtenerPorId(@PathVariable Long id) {
-        return ResponseEntity.ok(asignacionService.obtenerPorId(id));
+    public ResponseEntity<AsignacionRecursoRespuesta> obtenerPorId(@PathVariable Long id, Authentication auth, HttpServletRequest request) {
+        return ResponseEntity.ok(asignacionService.obtenerPorId(id, contexto.resolver(auth, request).getId()));
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('ASIGNACION_RECURSO_CREAR', 'ROLE_ADMINISTRADOR', 'ROLE_ORGANIZADOR')")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'ASIGNACION_RECURSO_CREAR')")
     @Operation(summary = "Asignar recurso a evento y sala (CU20)")
     @ApiResponse(responseCode = "201", description = "Recurso asignado exitosamente")
     @ApiResponse(responseCode = "400", description = "Disponibilidad insuficiente o datos invalidos")
-    public ResponseEntity<AsignacionRecursoRespuesta> crearAsignacion(@Valid @RequestBody CrearAsignacionSolicitud solicitud) {
-        AsignacionRecursoRespuesta creada = asignacionService.crearAsignacion(solicitud);
+    public ResponseEntity<AsignacionRecursoRespuesta> crearAsignacion(@Valid @RequestBody CrearAsignacionSolicitud solicitud, Authentication auth, HttpServletRequest request) {
+        AsignacionRecursoRespuesta creada = asignacionService.crearAsignacion(solicitud, contexto.resolver(auth, request).getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(creada);
     }
 
     @PatchMapping("/{id}/liberar")
-    @PreAuthorize("hasAnyAuthority('ASIGNACION_RECURSO_LIBERAR', 'ROLE_ADMINISTRADOR', 'ROLE_ORGANIZADOR')")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'ASIGNACION_RECURSO_LIBERAR')")
     @Operation(summary = "Devolver o liberar recurso asignado")
     @ApiResponse(responseCode = "200", description = "Recurso devuelto y stock restituido")
     @ApiResponse(responseCode = "400", description = "Asignacion no valida para devolucion")
-    public ResponseEntity<AsignacionRecursoRespuesta> liberarAsignacion(@PathVariable Long id) {
-        return ResponseEntity.ok(asignacionService.liberarAsignacion(id));
+    public ResponseEntity<AsignacionRecursoRespuesta> liberarAsignacion(@PathVariable Long id, Authentication auth, HttpServletRequest request) {
+        return ResponseEntity.ok(asignacionService.liberarAsignacion(id, contexto.resolver(auth, request).getId()));
     }
 }

@@ -1,6 +1,7 @@
 package com.plataformaeventos.convocatorias.modelo;
 
 import com.plataformaeventos.eventos.modelo.Evento;
+import com.plataformaeventos.organizaciones.modelo.Organizacion;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -21,6 +22,10 @@ import java.time.OffsetDateTime;
 @Entity
 @Table(name = "convocatoria_personal")
 public class Convocatoria {
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_organizacion")
+    private Organizacion organizacion;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -110,6 +115,8 @@ public class Convocatoria {
     public Long getId() {
         return id;
     }
+    public Organizacion getOrganizacion() { return organizacion; }
+    public void asignarOrganizacion(Organizacion organizacion) { this.organizacion = organizacion; }
 
     public Evento getEvento() {
         return evento;

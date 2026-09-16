@@ -18,6 +18,7 @@ import com.plataformaeventos.roles.modelo.Rol;
 import com.plataformaeventos.usuarios.modelo.EstadoUsuario;
 import com.plataformaeventos.usuarios.modelo.Usuario;
 import com.plataformaeventos.usuarios.repositorio.UsuarioRepository;
+import com.plataformaeventos.organizaciones.modelo.Organizacion;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,9 +52,13 @@ public class EventoService {
 
     @Transactional(readOnly = true)
     public List<EventoRespuesta> listarEventos(String termino, String categoria) {
+        return listarEventos(termino, categoria, null);
+    }
+    @Transactional(readOnly = true)
+    public List<EventoRespuesta> listarEventos(String termino, String categoria, Organizacion organizacion) {
         String texto = termino == null ? "" : termino.trim().toLowerCase();
         String filtroCategoria = categoria == null ? "" : categoria.trim().toLowerCase();
-        return eventoRepository.findByEstadoNotOrderByFechaInicioAsc(EstadoEvento.CANCELADO)
+        return (organizacion == null ? eventoRepository.findByEstadoNotOrderByFechaInicioAsc(EstadoEvento.CANCELADO) : eventoRepository.findByOrganizacionIdAndEstadoNotOrderByFechaInicioAsc(organizacion.getId(), EstadoEvento.CANCELADO))
                 .stream()
                 // Se filtra en el servicio para que web y movil reciban exactamente el mismo resultado.
                 .filter(evento -> texto.isEmpty() || evento.getNombre().toLowerCase().contains(texto))
@@ -64,21 +69,34 @@ public class EventoService {
 
     @Transactional(readOnly = true)
     public EventoRespuesta obtenerEvento(Long idEvento) {
-        return convertirEvento(buscarEvento(idEvento));
+        return obtenerEvento(idEvento, null);
+    }
+    @Transactional(readOnly = true)
+    public EventoRespuesta obtenerEvento(Long idEvento, Organizacion organizacion) {
+        return convertirEvento(buscarEvento(idEvento, organizacion));
     }
 
     @Transactional(readOnly = true)
     public List<ResponsableEventoRespuesta> listarResponsablesDisponibles() {
-        return usuarioRepository.findResponsablesDisponibles(ROLES_RESPONSABLES).stream()
+        return listarResponsablesDisponibles(null);
+    }
+    @Transactional(readOnly = true)
+    public List<ResponsableEventoRespuesta> listarResponsablesDisponibles(Organizacion organizacion) {
+        return (organizacion == null ? usuarioRepository.findResponsablesDisponibles(ROLES_RESPONSABLES) : usuarioRepository.findResponsablesDisponiblesPorOrganizacion(ROLES_RESPONSABLES, organizacion.getId())).stream()
                 .map(this::convertirResponsable)
                 .toList();
     }
 
     @Transactional
     public EventoRespuesta crearEvento(GuardarEventoSolicitud solicitud) {
+        return crearEvento(solicitud, null);
+    }
+    @Transactional
+    @com.plataformaeventos.audit.servicio.OperacionAuditable(modulo = "EVENTOS", entidad = "EVENTO", accion = "CREAR")
+    public EventoRespuesta crearEvento(GuardarEventoSolicitud solicitud, Organizacion organizacion) {
         validarFechas(solicitud.fechaInicio(), solicitud.fechaFin());
-        Categoria categoria = buscarCategoria(solicitud.idCategoria());
-        Espacio espacio = validarProgramacion(solicitud, null);
+        Categoria categoria = buscarCategoria(solicitud.idCategoria(), organizacion);
+        Espacio espacio = validarProgramacion(solicitud, null, organizacion);
         Evento evento = new Evento(
                 solicitud.nombre().trim(),
                 normalizarTexto(solicitud.descripcion()),
@@ -88,19 +106,25 @@ public class EventoService {
                 solicitud.estado() == null ? EstadoEvento.PLANIFICADO : solicitud.estado(),
                 categoria
         );
+        evento.asignarOrganizacion(organizacion);
         evento.configurarProgramacion(espacio, solicitud.aforoMaximo());
         if (solicitud.responsables() != null) {
-            evento.asignarResponsables(obtenerResponsablesValidos(solicitud.responsables()));
+             evento.asignarResponsables(obtenerResponsablesValidos(solicitud.responsables(), organizacion));
         }
         return convertirEvento(eventoRepository.save(evento));
     }
 
     @Transactional
     public EventoRespuesta actualizarEvento(Long idEvento, GuardarEventoSolicitud solicitud) {
+        return actualizarEvento(idEvento, solicitud, null);
+    }
+    @Transactional
+    @com.plataformaeventos.audit.servicio.OperacionAuditable(modulo = "EVENTOS", entidad = "EVENTO", accion = "ACTUALIZAR")
+    public EventoRespuesta actualizarEvento(Long idEvento, GuardarEventoSolicitud solicitud, Organizacion organizacion) {
         validarFechas(solicitud.fechaInicio(), solicitud.fechaFin());
-        Evento evento = buscarEvento(idEvento);
-        Categoria categoria = buscarCategoria(solicitud.idCategoria());
-        Espacio espacio = validarProgramacion(solicitud, idEvento);
+        Evento evento = buscarEvento(idEvento, organizacion);
+        Categoria categoria = buscarCategoria(solicitud.idCategoria(), organizacion);
+        Espacio espacio = validarProgramacion(solicitud, idEvento, organizacion);
         evento.actualizarDatos(
                 solicitud.nombre().trim(),
                 normalizarTexto(solicitud.descripcion()),
@@ -116,13 +140,19 @@ public class EventoService {
 
     @Transactional
     public EventoRespuesta asignarResponsables(Long idEvento, AsignarResponsablesSolicitud solicitud) {
-        Evento evento = buscarEvento(idEvento);
-        evento.asignarResponsables(obtenerResponsablesValidos(solicitud.responsables()));
+        return asignarResponsables(idEvento, solicitud, null);
+    }
+    @Transactional
+    @com.plataformaeventos.audit.servicio.OperacionAuditable(modulo = "EVENTOS", entidad = "EVENTO", accion = "RESPONSABLES")
+    public EventoRespuesta asignarResponsables(Long idEvento, AsignarResponsablesSolicitud solicitud, Organizacion organizacion) {
+        Evento evento = buscarEvento(idEvento, organizacion);
+        evento.asignarResponsables(obtenerResponsablesValidos(solicitud.responsables(), organizacion));
         return convertirEvento(evento);
     }
 
-    private Evento buscarEvento(Long idEvento) {
-        return eventoRepository.findById(idEvento)
+    private Evento buscarEvento(Long idEvento) { return buscarEvento(idEvento, null); }
+    private Evento buscarEvento(Long idEvento, Organizacion organizacion) {
+        return (organizacion == null ? eventoRepository.findById(idEvento) : eventoRepository.findByIdAndOrganizacionId(idEvento, organizacion.getId()))
                 .orElseThrow(() -> new ExcepcionNoEncontrado("Evento no encontrado"));
     }
 
@@ -133,13 +163,18 @@ public class EventoService {
         return categoriaRepository.findById(idCategoria)
                 .orElseThrow(() -> new ExcepcionNoEncontrado("Categoria no encontrada"));
     }
+    private Categoria buscarCategoria(Long idCategoria, Organizacion organizacion) {
+        if (organizacion == null) return buscarCategoria(idCategoria);
+        return categoriaRepository.findByIdAndOrganizacionId(idCategoria, organizacion.getId())
+                .orElseThrow(() -> new ExcepcionNoEncontrado("Categoria no encontrada"));
+    }
 
-    private Set<Usuario> obtenerResponsablesValidos(Set<Long> idsResponsables) {
+    private Set<Usuario> obtenerResponsablesValidos(Set<Long> idsResponsables, Organizacion organizacion) {
         if (idsResponsables == null || idsResponsables.isEmpty()) {
             return Set.of();
         }
         Set<Usuario> responsables = idsResponsables.stream()
-                .map(id -> usuarioRepository.findById(id)
+                .map(id -> (organizacion == null ? usuarioRepository.findById(id) : usuarioRepository.findByIdAndOrganizacionId(id, organizacion.getId()))
                         .orElseThrow(() -> new ExcepcionNoEncontrado("Responsable no encontrado")))
                 .collect(Collectors.toSet());
         if (responsables.size() != idsResponsables.size()) {
@@ -162,19 +197,19 @@ public class EventoService {
         }
     }
 
-    private Espacio validarProgramacion(GuardarEventoSolicitud solicitud, Long idEvento) {
+    private Espacio validarProgramacion(GuardarEventoSolicitud solicitud, Long idEvento, Organizacion organizacion) {
         if (solicitud.idEspacio() == null) {
             throw new IllegalArgumentException("El espacio es obligatorio");
         }
         if (solicitud.aforoMaximo() == null) {
             throw new IllegalArgumentException("El aforo maximo es obligatorio");
         }
-        Espacio espacio = espacioRepository.findById(solicitud.idEspacio())
+        Espacio espacio = (organizacion == null ? espacioRepository.findById(solicitud.idEspacio()) : espacioRepository.findByIdAndOrganizacionId(solicitud.idEspacio(), organizacion.getId()))
                 .orElseThrow(() -> new ExcepcionNoEncontrado("Espacio no encontrado"));
         if (solicitud.aforoMaximo() > espacio.getCapacidad()) {
             throw new IllegalArgumentException("El aforo del evento no puede superar la capacidad del espacio");
         }
-        if (existeConflictoProgramacion(espacio.getId(), solicitud.fechaInicio(), solicitud.fechaFin(), idEvento)) {
+        if (existeConflictoProgramacion(espacio.getId(), solicitud.fechaInicio(), solicitud.fechaFin(), idEvento, organizacion)) {
             throw new IllegalArgumentException("El espacio ya esta ocupado en el horario seleccionado");
         }
         return espacio;
@@ -184,8 +219,18 @@ public class EventoService {
             Long idEspacio,
             OffsetDateTime fechaInicio,
             OffsetDateTime fechaFin,
-            Long idEvento
+            Long idEvento,
+            Organizacion organizacion
     ) {
+        if (organizacion != null) {
+            Long org = organizacion.getId();
+            if (idEvento == null) return fechaFin == null
+                    ? eventoRepository.existeConflictoProgramacionCrearSinFinTenant(idEspacio, fechaInicio, org)
+                    : eventoRepository.existeConflictoProgramacionCrearConFinTenant(idEspacio, fechaInicio, fechaFin, org);
+            return fechaFin == null
+                    ? eventoRepository.existeConflictoProgramacionEditarSinFinTenant(idEspacio, fechaInicio, idEvento, org)
+                    : eventoRepository.existeConflictoProgramacionEditarConFinTenant(idEspacio, fechaInicio, fechaFin, idEvento, org);
+        }
         if (idEvento == null) {
             return fechaFin == null
                     ? eventoRepository.existeConflictoProgramacionCrearSinFin(idEspacio, fechaInicio)

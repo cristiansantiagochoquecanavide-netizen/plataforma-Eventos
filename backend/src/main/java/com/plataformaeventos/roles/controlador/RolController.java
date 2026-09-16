@@ -41,7 +41,7 @@ public class RolController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('ROL_VER')")
+    @PreAuthorize("hasAuthority('SAAS_ADMINISTRADOR')")
     @Operation(summary = "Listar roles")
     @ApiResponse(responseCode = "200", description = "Roles consultados")
     public ResponseEntity<List<RolRespuesta>> listarRoles() {
@@ -49,7 +49,7 @@ public class RolController {
     }
 
     @GetMapping("/{idRol}")
-    @PreAuthorize("hasAuthority('ROL_VER')")
+    @PreAuthorize("hasAuthority('SAAS_ADMINISTRADOR')")
     @Operation(summary = "Consultar rol por identificador")
     @ApiResponse(responseCode = "200", description = "Rol consultado")
     @ApiResponse(responseCode = "404", description = "Rol no encontrado", content = @Content)
@@ -58,7 +58,7 @@ public class RolController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('ROL_CREAR')")
+    @PreAuthorize("hasAuthority('SAAS_ADMINISTRADOR')")
     @Operation(summary = "Crear rol")
     @ApiResponse(responseCode = "201", description = "Rol creado")
     @ApiResponse(responseCode = "400", description = "Datos invalidos o nombre duplicado", content = @Content)
@@ -67,7 +67,7 @@ public class RolController {
     }
 
     @PutMapping("/{idRol}")
-    @PreAuthorize("hasAuthority('ROL_EDITAR')")
+    @PreAuthorize("hasAuthority('SAAS_ADMINISTRADOR')")
     @Operation(summary = "Actualizar rol")
     @ApiResponse(responseCode = "200", description = "Rol actualizado")
     @ApiResponse(responseCode = "400", description = "Datos invalidos o cambio no permitido", content = @Content)
@@ -80,7 +80,7 @@ public class RolController {
     }
 
     @GetMapping("/{idRol}/permisos")
-    @PreAuthorize("hasAuthority('PERMISO_VER')")
+    @PreAuthorize("hasAuthority('SAAS_ADMINISTRADOR')")
     @Operation(summary = "Consultar permisos de un rol")
     @ApiResponse(responseCode = "200", description = "Permisos del rol consultados")
     @ApiResponse(responseCode = "404", description = "Rol no encontrado", content = @Content)
@@ -89,7 +89,7 @@ public class RolController {
     }
 
     @PutMapping("/{idRol}/permisos")
-    @PreAuthorize("hasAuthority('PERMISO_ASIGNAR')")
+    @PreAuthorize("hasAuthority('SAAS_ADMINISTRADOR')")
     @Operation(summary = "Asignar permisos a un rol", description = "Reemplaza la asignacion actual de permisos del rol.")
     @ApiResponse(responseCode = "200", description = "Permisos asignados")
     @ApiResponse(responseCode = "400", description = "Permisos invalidos", content = @Content)

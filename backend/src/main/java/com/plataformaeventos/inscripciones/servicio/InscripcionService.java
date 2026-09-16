@@ -11,6 +11,7 @@ import com.plataformaeventos.inscripciones.modelo.Inscripcion;
 import com.plataformaeventos.inscripciones.repositorio.InscripcionRepository;
 import com.plataformaeventos.usuarios.modelo.Usuario;
 import com.plataformaeventos.usuarios.repositorio.UsuarioRepository;
+import com.plataformaeventos.organizaciones.modelo.Organizacion;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,9 +39,16 @@ public class InscripcionService {
 
     @Transactional
     public InscripcionRespuesta inscribir(Long idEvento, String correoUsuario) {
+        return inscribir(idEvento, correoUsuario, null);
+    }
+
+    @Transactional
+    @com.plataformaeventos.audit.servicio.OperacionAuditable(modulo = "INSCRIPCIONES", entidad = "INSCRIPCION", accion = "CREAR")
+    public InscripcionRespuesta inscribir(Long idEvento, String correoUsuario, Organizacion organizacion) {
         Usuario participante = buscarUsuario(correoUsuario);
-        Evento evento = eventoRepository.findById(idEvento)
+        Evento evento = (organizacion == null ? eventoRepository.findById(idEvento) : inscripcionRepository.bloquearEvento(idEvento, organizacion.getId()))
                 .orElseThrow(() -> new ExcepcionNoEncontrado("Evento no encontrado con identificador " + idEvento));
+        if (organizacion != null && (evento.getOrganizacion() == null || !organizacion.getId().equals(evento.getOrganizacion().getId()))) throw new ExcepcionNoEncontrado("Evento no encontrado con identificador " + idEvento);
 
         if (evento.getEstado() != EstadoEvento.PUBLICADO) {
             throw new IllegalStateException("Solo es posible inscribirse a eventos en estado PUBLICADO");
@@ -50,28 +58,34 @@ public class InscripcionService {
             throw new IllegalStateException("No es posible inscribirse a un evento que ya ha finalizado");
         }
 
-        var inscripcionExistente = inscripcionRepository.findByEventoIdAndParticipanteId(idEvento, participante.getId());
+        var inscripcionExistente = organizacion == null ? inscripcionRepository.findByEventoIdAndParticipanteId(idEvento, participante.getId()) : inscripcionRepository.findByEventoIdAndParticipanteIdAndOrganizacionId(idEvento, participante.getId(), organizacion.getId());
         if (inscripcionExistente.isPresent()) {
             Inscripcion existente = inscripcionExistente.get();
             if (existente.estaConfirmada()) {
                 throw new IllegalStateException("Ya cuentas con una inscripción confirmada para este evento");
             }
-            validarCuposDisponibles(evento);
+            validarCuposDisponibles(evento, organizacion);
             String nuevoCodigo = generarCodigoQr(idEvento, participante.getId());
             existente.reactivar(nuevoCodigo);
+            if (organizacion != null) existente.asignarOrganizacion(organizacion);
             return InscripcionRespuesta.desdeEntidad(inscripcionRepository.save(existente));
         }
 
-        validarCuposDisponibles(evento);
+        validarCuposDisponibles(evento, organizacion);
         String codigoQr = generarCodigoQr(idEvento, participante.getId());
         Inscripcion nuevaInscripcion = new Inscripcion(evento, participante, codigoQr);
+        if (organizacion != null) nuevaInscripcion.asignarOrganizacion(organizacion);
         return InscripcionRespuesta.desdeEntidad(inscripcionRepository.save(nuevaInscripcion));
     }
 
     @Transactional(readOnly = true)
     public List<InscripcionRespuesta> listarMisInscripciones(String correoUsuario) {
+        return listarMisInscripciones(correoUsuario, null);
+    }
+    @Transactional(readOnly = true)
+    public List<InscripcionRespuesta> listarMisInscripciones(String correoUsuario, Organizacion organizacion) {
         Usuario participante = buscarUsuario(correoUsuario);
-        return inscripcionRepository.findByParticipanteIdConEvento(participante.getId())
+        return (organizacion == null ? inscripcionRepository.findByParticipanteIdConEvento(participante.getId()) : inscripcionRepository.findByParticipanteIdAndOrganizacionIdConEvento(participante.getId(), organizacion.getId()))
                 .stream()
                 .map(InscripcionRespuesta::desdeEntidad)
                 .toList();
@@ -79,8 +93,14 @@ public class InscripcionService {
 
     @Transactional
     public InscripcionRespuesta cancelarInscripcion(Long idInscripcion, String correoUsuario) {
+        return cancelarInscripcion(idInscripcion, correoUsuario, null);
+    }
+
+    @Transactional
+    @com.plataformaeventos.audit.servicio.OperacionAuditable(modulo = "INSCRIPCIONES", entidad = "INSCRIPCION", accion = "CANCELAR")
+    public InscripcionRespuesta cancelarInscripcion(Long idInscripcion, String correoUsuario, Organizacion organizacion) {
         Usuario participante = buscarUsuario(correoUsuario);
-        Inscripcion inscripcion = inscripcionRepository.findByIdAndParticipanteId(idInscripcion, participante.getId())
+        Inscripcion inscripcion = (organizacion == null ? inscripcionRepository.findByIdAndParticipanteId(idInscripcion, participante.getId()) : inscripcionRepository.findByIdAndParticipanteIdAndOrganizacionId(idInscripcion, participante.getId(), organizacion.getId()))
                 .orElseThrow(() -> new ExcepcionNoEncontrado("Inscripción no encontrada o no pertenece al usuario autenticado"));
 
         if (!inscripcion.estaConfirmada()) {
@@ -99,10 +119,16 @@ public class InscripcionService {
 
     @Transactional(readOnly = true)
     public DisponibilidadEventoRespuesta consultarDisponibilidad(Long idEvento, String correoUsuario) {
-        Evento evento = eventoRepository.findById(idEvento)
-                .orElseThrow(() -> new ExcepcionNoEncontrado("Evento no encontrado con identificador " + idEvento));
+        return consultarDisponibilidad(idEvento, correoUsuario, null);
+    }
 
-        long cuposOcupados = inscripcionRepository.countByEventoIdAndEstado(idEvento, EstadoInscripcion.CONFIRMADA);
+    @Transactional(readOnly = true)
+    public DisponibilidadEventoRespuesta consultarDisponibilidad(Long idEvento, String correoUsuario, Organizacion organizacion) {
+        Evento evento = (organizacion == null ? eventoRepository.findById(idEvento) : eventoRepository.findByIdAndOrganizacionId(idEvento, organizacion.getId()))
+                .orElseThrow(() -> new ExcepcionNoEncontrado("Evento no encontrado con identificador " + idEvento));
+        if (organizacion != null && (evento.getOrganizacion() == null || !organizacion.getId().equals(evento.getOrganizacion().getId()))) throw new ExcepcionNoEncontrado("Evento no encontrado con identificador " + idEvento);
+
+        long cuposOcupados = organizacion == null ? inscripcionRepository.countByEventoIdAndEstado(idEvento, EstadoInscripcion.CONFIRMADA) : inscripcionRepository.countByEventoIdAndOrganizacionIdAndEstado(idEvento, organizacion.getId(), EstadoInscripcion.CONFIRMADA);
         Integer aforo = evento.getAforoMaximo();
         Integer cuposDisponibles = aforo != null ? Math.max(0, aforo - (int) cuposOcupados) : null;
         boolean tieneCupo = aforo == null || cuposDisponibles > 0;
@@ -113,7 +139,7 @@ public class InscripcionService {
         if (correoUsuario != null && !correoUsuario.isBlank()) {
             var usuarioOpt = usuarioRepository.findByCorreo(correoUsuario.trim().toLowerCase(Locale.ROOT));
             if (usuarioOpt.isPresent()) {
-                var insOpt = inscripcionRepository.findByEventoIdAndParticipanteId(idEvento, usuarioOpt.get().getId());
+                var insOpt = organizacion == null ? inscripcionRepository.findByEventoIdAndParticipanteId(idEvento, usuarioOpt.get().getId()) : inscripcionRepository.findByEventoIdAndParticipanteIdAndOrganizacionId(idEvento, usuarioOpt.get().getId(), organizacion.getId());
                 if (insOpt.isPresent() && insOpt.get().estaConfirmada()) {
                     estaInscrito = true;
                     idInscripcionActiva = insOpt.get().getId();
@@ -132,9 +158,11 @@ public class InscripcionService {
         );
     }
 
-    private void validarCuposDisponibles(Evento evento) {
+    private void validarCuposDisponibles(Evento evento, Organizacion organizacion) {
         if (evento.getAforoMaximo() != null) {
-            long cuposOcupados = inscripcionRepository.countByEventoIdAndEstado(evento.getId(), EstadoInscripcion.CONFIRMADA);
+            long cuposOcupados = organizacion == null
+                    ? inscripcionRepository.countByEventoIdAndEstado(evento.getId(), EstadoInscripcion.CONFIRMADA)
+                    : inscripcionRepository.countByEventoIdAndOrganizacionIdAndEstado(evento.getId(), organizacion.getId(), EstadoInscripcion.CONFIRMADA);
             if (cuposOcupados >= evento.getAforoMaximo()) {
                 throw new IllegalStateException("No hay cupos disponibles para este evento. Aforo completo.");
             }

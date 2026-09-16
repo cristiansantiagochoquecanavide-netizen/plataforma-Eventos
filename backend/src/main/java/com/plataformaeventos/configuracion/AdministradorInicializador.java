@@ -5,6 +5,10 @@ import com.plataformaeventos.roles.repositorio.RolRepository;
 import com.plataformaeventos.usuarios.modelo.EstadoUsuario;
 import com.plataformaeventos.usuarios.modelo.Usuario;
 import com.plataformaeventos.usuarios.repositorio.UsuarioRepository;
+import com.plataformaeventos.organizaciones.modelo.MembresiaOrganizacion;
+import com.plataformaeventos.organizaciones.modelo.Organizacion;
+import com.plataformaeventos.organizaciones.repositorio.MembresiaOrganizacionRepository;
+import com.plataformaeventos.organizaciones.repositorio.OrganizacionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,6 +30,8 @@ public class AdministradorInicializador {
     ApplicationRunner inicializarAdministrador(
             UsuarioRepository usuarioRepository,
             RolRepository rolRepository,
+            OrganizacionRepository organizacionRepository,
+            MembresiaOrganizacionRepository membresiaRepository,
             PasswordEncoder codificadorClave,
             @Value("${ADMIN_CORREO:AdminEventos@gmail.com}") String correoAdministrador,
             @Value("${ADMIN_CLAVE:Admin123}") String claveAdministrador
@@ -33,6 +39,8 @@ public class AdministradorInicializador {
         return argumentos -> crearAdministrador(
                 usuarioRepository,
                 rolRepository,
+                organizacionRepository,
+                membresiaRepository,
                 codificadorClave,
                 correoAdministrador,
                 claveAdministrador
@@ -43,13 +51,15 @@ public class AdministradorInicializador {
     void crearAdministrador(
             UsuarioRepository usuarioRepository,
             RolRepository rolRepository,
+            OrganizacionRepository organizacionRepository,
+            MembresiaOrganizacionRepository membresiaRepository,
             PasswordEncoder codificadorClave,
             String correoAdministrador,
             String claveAdministrador
     ) {
         if (correoAdministrador.isBlank() || claveAdministrador.isBlank()) {
             LOGGER.warn("ADMIN_CORREO y ADMIN_CLAVE no estan definidos; no se creo el administrador inicial");
-            crearUsuariosDePrueba(usuarioRepository, rolRepository, codificadorClave);
+            crearUsuariosDePrueba(usuarioRepository, rolRepository, organizacionRepository, membresiaRepository, codificadorClave);
             return;
         }
 
@@ -62,16 +72,19 @@ public class AdministradorInicializador {
                     administradorExistente.actualizarEstado(EstadoUsuario.ACTIVO);
                     administradorExistente.getRoles().add(rolAdministrador);
                     usuarioRepository.save(administradorExistente);
+                    asegurarMembresiaPrincipal(administradorExistente, rolAdministrador, organizacionRepository, membresiaRepository);
                     LOGGER.info("Administrador inicial sincronizado");
                 },
-                () -> crearNuevoAdministrador(usuarioRepository, codificadorClave, correo, claveAdministrador, rolAdministrador)
+                () -> crearNuevoAdministrador(usuarioRepository, organizacionRepository, membresiaRepository, codificadorClave, correo, claveAdministrador, rolAdministrador)
         );
 
-        crearUsuariosDePrueba(usuarioRepository, rolRepository, codificadorClave);
+        crearUsuariosDePrueba(usuarioRepository, rolRepository, organizacionRepository, membresiaRepository, codificadorClave);
     }
 
     private void crearNuevoAdministrador(
             UsuarioRepository usuarioRepository,
+            OrganizacionRepository organizacionRepository,
+            MembresiaOrganizacionRepository membresiaRepository,
             PasswordEncoder codificadorClave,
             String correo,
             String claveAdministrador,
@@ -86,22 +99,27 @@ public class AdministradorInicializador {
         );
         administrador.asignarRoles(Set.of(rolAdministrador));
         usuarioRepository.save(administrador);
+        asegurarMembresiaPrincipal(administrador, rolAdministrador, organizacionRepository, membresiaRepository);
         LOGGER.info("Administrador inicial creado");
     }
 
     private void crearUsuariosDePrueba(
             UsuarioRepository usuarioRepository,
             RolRepository rolRepository,
+            OrganizacionRepository organizacionRepository,
+            MembresiaOrganizacionRepository membresiaRepository,
             PasswordEncoder codificadorClave
     ) {
-        crearUsuarioSiNoExiste(usuarioRepository, rolRepository, codificadorClave, "Organizador", "Logistica", "OrganizadorEventos@gmail.com", "Organizador123", "ORGANIZADOR");
-        crearUsuarioSiNoExiste(usuarioRepository, rolRepository, codificadorClave, "Staff", "Apoyo", "StaffEventos@gmail.com", "Staff123", "STAFF");
-        crearUsuarioSiNoExiste(usuarioRepository, rolRepository, codificadorClave, "Participante", "Publico", "ParticipanteEvento@gmail.com", "Participante123", "PARTICIPANTE");
+        crearUsuarioSiNoExiste(usuarioRepository, rolRepository, organizacionRepository, membresiaRepository, codificadorClave, "Organizador", "Logistica", "OrganizadorEventos@gmail.com", "Organizador123", "ORGANIZADOR");
+        crearUsuarioSiNoExiste(usuarioRepository, rolRepository, organizacionRepository, membresiaRepository, codificadorClave, "Staff", "Apoyo", "StaffEventos@gmail.com", "Staff123", "STAFF");
+        crearUsuarioSiNoExiste(usuarioRepository, rolRepository, organizacionRepository, membresiaRepository, codificadorClave, "Participante", "Publico", "ParticipanteEvento@gmail.com", "Participante123", "PARTICIPANTE");
     }
 
     private void crearUsuarioSiNoExiste(
             UsuarioRepository usuarioRepository,
             RolRepository rolRepository,
+            OrganizacionRepository organizacionRepository,
+            MembresiaOrganizacionRepository membresiaRepository,
             PasswordEncoder codificadorClave,
             String nombres,
             String apellidos,
@@ -111,6 +129,12 @@ public class AdministradorInicializador {
     ) {
         String correo = correoRaw.trim().toLowerCase(Locale.ROOT);
         if (usuarioRepository.existsByCorreo(correo)) {
+            usuarioRepository.findByCorreo(correo).ifPresent(usuario -> asegurarMembresiaPrincipal(
+                    usuario,
+                    rolRepository.findByNombre(nombreRol).orElseThrow(() -> new IllegalStateException("No existe el rol " + nombreRol)),
+                    organizacionRepository,
+                    membresiaRepository
+            ));
             return;
         }
         Rol rol = rolRepository.findByNombre(nombreRol)
@@ -124,6 +148,18 @@ public class AdministradorInicializador {
         );
         usuario.asignarRoles(Set.of(rol));
         usuarioRepository.save(usuario);
+        asegurarMembresiaPrincipal(usuario, rol, organizacionRepository, membresiaRepository);
         LOGGER.info("Usuario de prueba inicial creado con rol: {}", nombreRol);
+    }
+
+    private void asegurarMembresiaPrincipal(Usuario usuario, Rol rol, OrganizacionRepository organizaciones, MembresiaOrganizacionRepository membresias) {
+        Organizacion principal = organizaciones.findBySlug("principal").orElseThrow(() -> new IllegalStateException("No existe la organizacion principal"));
+        MembresiaOrganizacion.Clave clave = new MembresiaOrganizacion.Clave();
+        clave.usuario = usuario.getId();
+        clave.organizacion = principal.getId();
+        MembresiaOrganizacion membresia = membresias.findById(clave).orElseGet(() -> new MembresiaOrganizacion(usuario, principal));
+        membresia.activar();
+        membresia.getRoles().add(rol);
+        membresias.save(membresia);
     }
 }

@@ -8,9 +8,9 @@
       ]
     },
     "enterprise-architect": {
-      "command": "C:\\Program Files (x86)\\Sparx Systems\\EA Trial\\MCP_Server\\MCP3.exe",
+      "command": "C:\\Proyecto-GestionEventos\\plataforma-gestion-eventos\\herramientas\\mcp-enterprise-architect\\.venv\\Scripts\\python.exe",
       "args": [
-        "-enableEdit"
+        "C:\\Proyecto-GestionEventos\\plataforma-gestion-eventos\\herramientas\\mcp-enterprise-architect\\server.py"
       ]
     }
   }

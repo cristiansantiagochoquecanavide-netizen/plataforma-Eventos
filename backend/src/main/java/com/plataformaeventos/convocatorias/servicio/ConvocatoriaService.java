@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import com.plataformaeventos.organizaciones.modelo.Organizacion;
 
 @Service
 public class ConvocatoriaService {
@@ -48,13 +49,29 @@ public class ConvocatoriaService {
     }
 
     @Transactional(readOnly = true)
+    public List<ConvocatoriaRespuesta> listar(Long idEvento, TipoPersonal tipoPersonal, EstadoConvocatoria estado, String termino, Organizacion organizacion) {
+        return convocatoriaRepository.buscarConFiltrosTenant(idEvento, tipoPersonal, estado, termino == null ? null : termino.trim(), organizacion.getId(), Sort.by(Sort.Direction.DESC, "fechaCreacion")).stream().map(this::convertirARespuesta).toList();
+    }
+
+    @Transactional(readOnly = true)
     public ConvocatoriaRespuesta obtenerPorId(Long id) {
         return convertirARespuesta(buscarPorId(id));
     }
 
+    @Transactional(readOnly = true)
+    public ConvocatoriaRespuesta obtenerPorId(Long id, Organizacion organizacion) {
+        return convertirARespuesta(convocatoriaRepository.findByIdAndOrganizacionId(id, organizacion.getId()).orElseThrow(() -> new ExcepcionNoEncontrado("Convocatoria no encontrada con id " + id)));
+    }
+
     @Transactional
     public ConvocatoriaRespuesta crear(CrearConvocatoriaSolicitud solicitud) {
-        Evento evento = eventoRepository.findById(solicitud.idEvento())
+        return crear(solicitud, null);
+    }
+
+    @Transactional
+    @com.plataformaeventos.audit.servicio.OperacionAuditable(modulo = "CONVOCATORIAS", entidad = "CONVOCATORIA", accion = "CREAR")
+    public ConvocatoriaRespuesta crear(CrearConvocatoriaSolicitud solicitud, Organizacion organizacion) {
+        Evento evento = (organizacion == null ? eventoRepository.findById(solicitud.idEvento()) : eventoRepository.findByIdAndOrganizacionId(solicitud.idEvento(), organizacion.getId()))
                 .orElseThrow(() -> new ExcepcionNoEncontrado(
                         "Evento no encontrado con id " + solicitud.idEvento()
                 ));
@@ -68,6 +85,7 @@ public class ConvocatoriaService {
                 solicitud.cantidadRequerida(),
                 solicitud.fechaLimite()
         );
+        if (organizacion != null) convocatoria.asignarOrganizacion(organizacion);
         return convertirARespuesta(convocatoriaRepository.save(convocatoria));
     }
 
@@ -77,6 +95,7 @@ public class ConvocatoriaService {
         convocatoria.cerrar();
         return convertirARespuesta(convocatoriaRepository.save(convocatoria));
     }
+    @Transactional @com.plataformaeventos.audit.servicio.OperacionAuditable(modulo = "CONVOCATORIAS", entidad = "CONVOCATORIA", accion = "CERRAR") public ConvocatoriaRespuesta cerrar(Long id, Organizacion organizacion) { Convocatoria c=convocatoriaRepository.findByIdAndOrganizacionId(id,organizacion.getId()).orElseThrow(()->new ExcepcionNoEncontrado("Convocatoria no encontrada con id "+id)); c.cerrar(); return convertirARespuesta(convocatoriaRepository.save(c)); }
 
     @Transactional
     public ConvocatoriaRespuesta cancelar(Long id) {
@@ -84,6 +103,7 @@ public class ConvocatoriaService {
         convocatoria.cancelar();
         return convertirARespuesta(convocatoriaRepository.save(convocatoria));
     }
+    @Transactional @com.plataformaeventos.audit.servicio.OperacionAuditable(modulo = "CONVOCATORIAS", entidad = "CONVOCATORIA", accion = "CANCELAR") public ConvocatoriaRespuesta cancelar(Long id, Organizacion organizacion) { Convocatoria c=convocatoriaRepository.findByIdAndOrganizacionId(id,organizacion.getId()).orElseThrow(()->new ExcepcionNoEncontrado("Convocatoria no encontrada con id "+id)); c.cancelar(); return convertirARespuesta(convocatoriaRepository.save(c)); }
 
     private Convocatoria buscarPorId(Long id) {
         return convocatoriaRepository.findById(id)

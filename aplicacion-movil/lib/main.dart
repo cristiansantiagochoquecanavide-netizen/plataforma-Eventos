@@ -769,19 +769,27 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.session.organizationsLoaded &&
+        widget.session.organizations.isEmpty) {
+      return OrganizationRequiredPage(session: widget.session);
+    }
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
+      body: Column(
         children: [
-          EventsPage(
-            session: widget.session,
-            onGoToInscriptions: () => setState(() => _currentIndex = 1),
-          ),
-          MyInscriptionsPage(
-            session: widget.session,
-          ),
-          ProfilePage(
-            session: widget.session,
+          OrganizationSwitcher(session: widget.session),
+          Expanded(
+            child: IndexedStack(
+              index: _currentIndex,
+              children: [
+                EventsPage(
+                  session: widget.session,
+                  onGoToInscriptions: () => setState(() => _currentIndex = 1),
+                ),
+                MyInscriptionsPage(session: widget.session),
+                StaffPage(session: widget.session),
+                ProfilePage(session: widget.session),
+              ],
+            ),
           ),
         ],
       ),
@@ -800,6 +808,11 @@ class _HomeShellState extends State<HomeShell> {
             label: 'Inscripciones',
           ),
           NavigationDestination(
+            icon: Icon(Icons.assignment_ind_outlined),
+            selectedIcon: Icon(Icons.assignment_ind_rounded),
+            label: 'Staff',
+          ),
+          NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),
             selectedIcon: Icon(Icons.person_rounded),
             label: 'Mi Perfil',
@@ -810,13 +823,375 @@ class _HomeShellState extends State<HomeShell> {
   }
 }
 
+class StaffPage extends StatefulWidget {
+  const StaffPage({required this.session, super.key});
+
+  final SessionController session;
+
+  @override
+  State<StaffPage> createState() => _StaffPageState();
+}
+
+class _StaffPageState extends State<StaffPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _convocatoriaId = TextEditingController();
+  final _motivacion = TextEditingController();
+  List<PostulacionStaffModel> _postulaciones = [];
+  List<AsignacionStaffModel> _asignaciones = [];
+  bool _loading = true;
+  bool _sending = false;
+  String? _error;
+  int _organizationVersion = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _organizationVersion = widget.session.organizationVersion;
+    widget.session.addListener(_onOrganizationChanged);
+    _loadStaff();
+  }
+
+  @override
+  void dispose() {
+    widget.session.removeListener(_onOrganizationChanged);
+    _convocatoriaId.dispose();
+    _motivacion.dispose();
+    super.dispose();
+  }
+
+  void _onOrganizationChanged() {
+    if (!mounted ||
+        _organizationVersion == widget.session.organizationVersion) {
+      return;
+    }
+    _organizationVersion = widget.session.organizationVersion;
+    setState(() {
+      _postulaciones = [];
+      _asignaciones = [];
+    });
+    if (widget.session.activeOrganization != null) _loadStaff();
+  }
+
+  Future<void> _loadStaff() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final result = await Future.wait([
+        widget.session.listarMisPostulaciones(),
+        widget.session.listarMisAsignaciones(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _postulaciones = result[0] as List<PostulacionStaffModel>;
+        _asignaciones = result[1] as List<AsignacionStaffModel>;
+        _loading = false;
+      });
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() {
+          _error = error.message;
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _sendApplication() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+    try {
+      await widget.session.crearPostulacionStaff(
+        int.parse(_convocatoriaId.text.trim()),
+        _motivacion.text.trim(),
+      );
+      if (!mounted) return;
+      _motivacion.clear();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Postulacion enviada.')));
+      await _loadStaff();
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'Sin turno definido';
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Staff'),
+        actions: [
+          IconButton(
+            onPressed: _loading ? null : _loadStaff,
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Actualizar staff',
+          ),
+        ],
+      ),
+      body: RefreshIndicator(onRefresh: _loadStaff, child: _buildBody()),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null && _postulaciones.isEmpty && _asignaciones.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            size: 48,
+            color: AppColors.danger,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _error!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppColors.danger),
+          ),
+          const SizedBox(height: 16),
+          FilledButton(onPressed: _loadStaff, child: const Text('Reintentar')),
+        ],
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      children: [
+        _buildApplicationForm(),
+        const SizedBox(height: 24),
+        _buildApplicationsSection(),
+        const SizedBox(height: 24),
+        _buildAssignmentsSection(),
+        if (_error != null) ...[
+          const SizedBox(height: 16),
+          Text(_error!, style: const TextStyle(color: AppColors.danger)),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildApplicationForm() => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Aplicar a convocatoria',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Ingresa el ID de la convocatoria para enviar tu postulación.',
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _convocatoriaId,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'ID de convocatoria',
+              ),
+              validator: (value) {
+                final error = _required(value);
+                if (error != null) return error;
+                return int.tryParse(value!.trim()) != null &&
+                        int.parse(value.trim()) > 0
+                    ? null
+                    : 'Ingresa un ID valido';
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _motivacion,
+              maxLength: 1000,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Motivacion (opcional)',
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _sending ? null : _sendApplication,
+                icon: _sending
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.send_rounded),
+                label: Text(_sending ? 'Enviando...' : 'Enviar postulación'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  Widget _buildApplicationsSection() => _section(
+    'Mis postulaciones',
+    _postulaciones.isEmpty
+        ? const Text('Aun no tienes postulaciones.')
+        : Column(
+            children: _postulaciones
+                .map(
+                  (item) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.assignment_outlined),
+                    title: Text('Convocatoria #${item.idConvocatoria}'),
+                    subtitle: Text(
+                      item.motivacion?.isNotEmpty == true
+                          ? item.motivacion!
+                          : 'Sin motivacion',
+                    ),
+                    trailing: _status(item.estado),
+                  ),
+                )
+                .toList(),
+          ),
+  );
+
+  Widget _buildAssignmentsSection() => _section(
+    'Mis asignaciones',
+    _asignaciones.isEmpty
+        ? const Text('Aun no tienes asignaciones.')
+        : Column(
+            children: _asignaciones
+                .map(
+                  (item) => Card(
+                    margin: const EdgeInsets.only(top: 10),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.all(8),
+                      leading: const Icon(Icons.work_outline_rounded),
+                      title: Text(item.tarea),
+                      subtitle: Text(
+                        'Turno: ${_formatDate(item.turnoInicio)} - ${item.turnoFin == null ? 'sin fin' : _formatDate(item.turnoFin)}',
+                      ),
+                      trailing: _status(item.estado),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+  );
+
+  Widget _section(String title, Widget child) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          child,
+        ],
+      ),
+    ),
+  );
+
+  Widget _status(String value) => Chip(label: Text(value));
+}
+
+class OrganizationSwitcher extends StatelessWidget {
+  const OrganizationSwitcher({required this.session, super.key});
+
+  final SessionController session;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: session,
+    builder: (context, _) {
+      if (!session.organizationsLoaded) {
+        return const LinearProgressIndicator(minHeight: 2);
+      }
+      final active = session.activeOrganization;
+      return Material(
+        color: AppColors.canvas,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+          child: Row(
+            children: [
+              const Icon(Icons.business_outlined, size: 20),
+              const SizedBox(width: 8),
+              const Text('Organizacion activa:'),
+              const SizedBox(width: 8),
+              Expanded(
+                child: DropdownButton<int>(
+                  isExpanded: true,
+                  value: active?.id,
+                  underline: const SizedBox.shrink(),
+                  items: session.organizations
+                      .map(
+                        (organization) => DropdownMenuItem<int>(
+                          value: organization.id,
+                          child: Text(organization.name),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (id) {
+                    if (id != null) session.selectOrganization(id);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class OrganizationRequiredPage extends StatelessWidget {
+  const OrganizationRequiredPage({required this.session, super.key});
+
+  final SessionController session;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('Organizacion requerida'),
+      actions: [
+        IconButton(
+          onPressed: session.logout,
+          icon: const Icon(Icons.logout_rounded),
+          tooltip: 'Cerrar sesion',
+        ),
+      ],
+    ),
+    body: const Center(
+      child: Padding(
+        padding: EdgeInsets.all(24),
+        child: Text(
+          'Tu usuario no pertenece a ninguna organizacion activa. Solicita una membresia para continuar.',
+          textAlign: TextAlign.center,
+        ),
+      ),
+    ),
+  );
+}
+
 // Pantalla del CU7: consulta eventos, busca por nombre, filtra por categoria y abre el detalle (CU11).
 class EventsPage extends StatefulWidget {
-  const EventsPage({
-    required this.session,
-    this.onGoToInscriptions,
-    super.key,
-  });
+  const EventsPage({required this.session, this.onGoToInscriptions, super.key});
 
   final SessionController session;
   final VoidCallback? onGoToInscriptions;
@@ -833,17 +1208,35 @@ class _EventsPageState extends State<EventsPage> {
   bool _loading = true;
   bool _searched = false;
   String? _error;
+  int _organizationVersion = 0;
 
   @override
   void initState() {
     super.initState();
     _loading = false;
+    _organizationVersion = widget.session.organizationVersion;
+    widget.session.addListener(_onOrganizationChanged);
   }
 
   @override
   void dispose() {
+    widget.session.removeListener(_onOrganizationChanged);
     _search.dispose();
     super.dispose();
+  }
+
+  void _onOrganizationChanged() {
+    if (!mounted ||
+        _organizationVersion == widget.session.organizationVersion) {
+      return;
+    }
+    _organizationVersion = widget.session.organizationVersion;
+    setState(() {
+      _events = [];
+      _categories = [];
+      _searched = false;
+    });
+    if (widget.session.activeOrganization != null) _loadEvents();
   }
 
   Future<void> _loadEvents() async {
@@ -857,11 +1250,18 @@ class _EventsPageState extends State<EventsPage> {
       if (!mounted) return;
       setState(() {
         _events = events;
-        _categories = events.map((event) => event.category).toSet().toList()..sort();
+        _categories = events.map((event) => event.category).toSet().toList()
+          ..sort();
         _loading = false;
       });
     } on ApiException catch (error) {
-      if (mounted) setState(() { _error = error.message; _events = []; _loading = false; });
+      if (mounted) {
+        setState(() {
+          _error = error.message;
+          _events = [];
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -890,7 +1290,8 @@ class _EventsPageState extends State<EventsPage> {
     );
   }
 
-  String _formatDate(DateTime date) => '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  String _formatDate(DateTime date) =>
+      '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
 
   @override
   Widget build(BuildContext context) {
@@ -904,15 +1305,29 @@ class _EventsPageState extends State<EventsPage> {
                 widget.onGoToInscriptions!();
               } else {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => MyInscriptionsPage(session: widget.session)),
+                  MaterialPageRoute(
+                    builder: (_) => MyInscriptionsPage(session: widget.session),
+                  ),
                 );
               }
             },
             icon: const Icon(Icons.confirmation_number_outlined),
             tooltip: 'Mis inscripciones',
           ),
-          IconButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProfilePage(session: widget.session))), icon: const Icon(Icons.person_outline_rounded), tooltip: 'Mi perfil'),
-          IconButton(onPressed: () => widget.session.logout(), icon: const Icon(Icons.logout_rounded), tooltip: 'Cerrar sesion'),
+          IconButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ProfilePage(session: widget.session),
+              ),
+            ),
+            icon: const Icon(Icons.person_outline_rounded),
+            tooltip: 'Mi perfil',
+          ),
+          IconButton(
+            onPressed: () => widget.session.logout(),
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Cerrar sesion',
+          ),
         ],
       ),
       body: RefreshIndicator(
@@ -920,64 +1335,119 @@ class _EventsPageState extends State<EventsPage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
           children: [
-            const Text('Consulta y busqueda de eventos', style: TextStyle(color: AppColors.muted)),
+            const Text(
+              'Consulta y busqueda de eventos',
+              style: TextStyle(color: AppColors.muted),
+            ),
             const SizedBox(height: 16),
-            TextField(controller: _search, onSubmitted: (_) => _loadEvents(), decoration: InputDecoration(labelText: 'Buscar por titulo o nombre', prefixIcon: const Icon(Icons.search_rounded), suffixIcon: IconButton(onPressed: _loadEvents, icon: const Icon(Icons.arrow_forward_rounded)))),
+            TextField(
+              controller: _search,
+              onSubmitted: (_) => _loadEvents(),
+              decoration: InputDecoration(
+                labelText: 'Buscar por titulo o nombre',
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: IconButton(
+                  onPressed: _loadEvents,
+                  icon: const Icon(Icons.arrow_forward_rounded),
+                ),
+              ),
+            ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(value: _category.isEmpty ? null : _category, decoration: const InputDecoration(labelText: 'Filtrar por categoria', prefixIcon: Icon(Icons.category_outlined)), items: [const DropdownMenuItem(value: '', child: Text('Todas las categorias')), ..._categories.map((category) => DropdownMenuItem(value: category, child: Text(category)))], onChanged: (value) { setState(() => _category = value ?? ''); _loadEvents(); }),
-            Align(alignment: Alignment.centerRight, child: TextButton(onPressed: _clearFilters, child: const Text('Limpiar filtros'))),
-            if (_error != null) Text(_error!, style: const TextStyle(color: AppColors.danger)),
-            if (_loading) const Padding(padding: EdgeInsets.all(30), child: Center(child: CircularProgressIndicator())),
-            if (!_loading && _searched && _events.isEmpty) const Padding(padding: EdgeInsets.all(30), child: Center(child: Text('No se encontraron eventos con los criterios seleccionados.', textAlign: TextAlign.center))),
-..._events.map(
-  (event) => Card(
-    margin: const EdgeInsets.only(bottom: 12),
-    child: InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: () => _showDetail(event),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
+            DropdownButtonFormField<String>(
+              initialValue: _category.isEmpty ? null : _category,
+              decoration: const InputDecoration(
+                labelText: 'Filtrar por categoria',
+                prefixIcon: Icon(Icons.category_outlined),
+              ),
+              items: [
+                const DropdownMenuItem(
+                  value: '',
+                  child: Text('Todas las categorias'),
+                ),
+                ..._categories.map(
+                  (category) =>
+                      DropdownMenuItem(value: category, child: Text(category)),
+                ),
+              ],
+              onChanged: (value) {
+                setState(() => _category = value ?? '');
+                _loadEvents();
+              },
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _clearFilters,
+                child: const Text('Limpiar filtros'),
+              ),
+            ),
+            if (_error != null)
+              Text(_error!, style: const TextStyle(color: AppColors.danger)),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.all(30),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            if (!_loading && _searched && _events.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(30),
+                child: Center(
                   child: Text(
-                    event.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 17,
+                    'No se encontraron eventos con los criterios seleccionados.',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ..._events.map(
+              (event) => Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(18),
+                  onTap: () => _showDetail(event),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                event.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 17,
+                                ),
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right_rounded),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          children: [
+                            Chip(label: Text(event.category)),
+                            Text(
+                              _formatDate(event.start),
+                              style: const TextStyle(color: AppColors.muted),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          event.place.isEmpty
+                              ? 'Sin lugar asignado'
+                              : event.place,
+                          style: const TextStyle(color: AppColors.muted),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: [
-                Chip(label: Text(event.category)),
-                Text(
-                  _formatDate(event.start),
-                  style: const TextStyle(color: AppColors.muted),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              event.place.isEmpty
-                  ? 'Sin lugar asignado'
-                  : event.place,
-              style: const TextStyle(color: AppColors.muted),
+              ),
             ),
           ],
-        ),
-      ),
-    ),
-  ),
-),          ],
         ),
       ),
     );
@@ -1016,7 +1486,12 @@ class _EventDetailModalState extends State<EventDetailModal> {
   Future<void> _loadDisponibilidad() async {
     try {
       final disp = await widget.session.obtenerDisponibilidad(widget.event.id);
-      if (mounted) setState(() { _disponibilidad = disp; _loading = false; });
+      if (mounted) {
+        setState(() {
+          _disponibilidad = disp;
+          _loading = false;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -1042,10 +1517,7 @@ class _EventDetailModalState extends State<EventDetailModal> {
       if (mounted) {
         setState(() => _error = e.message);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.message),
-            backgroundColor: AppColors.danger,
-          ),
+          SnackBar(content: Text(e.message), backgroundColor: AppColors.danger),
         );
       }
     } finally {
@@ -1077,10 +1549,9 @@ class _EventDetailModalState extends State<EventDetailModal> {
                 Expanded(
                   child: Text(
                     event.name,
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.w800),
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1088,7 +1559,9 @@ class _EventDetailModalState extends State<EventDetailModal> {
               ],
             ),
             const SizedBox(height: 8),
-            Text(event.description.isEmpty ? 'Sin descripción' : event.description),
+            Text(
+              event.description.isEmpty ? 'Sin descripción' : event.description,
+            ),
             const SizedBox(height: 12),
             const Divider(),
             ListTile(
@@ -1110,7 +1583,9 @@ class _EventDetailModalState extends State<EventDetailModal> {
               dense: true,
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.place_outlined),
-              title: Text(event.place.isEmpty ? 'Sin lugar asignado' : event.place),
+              title: Text(
+                event.place.isEmpty ? 'Sin lugar asignado' : event.place,
+              ),
               subtitle: const Text('Lugar'),
             ),
             const Divider(),
@@ -1119,7 +1594,13 @@ class _EventDetailModalState extends State<EventDetailModal> {
             if (_loading)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
-                child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
               )
             else if (_disponibilidad != null) ...[
               Container(
@@ -1133,7 +1614,10 @@ class _EventDetailModalState extends State<EventDetailModal> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.people_alt_outlined, color: AppColors.forest),
+                        const Icon(
+                          Icons.people_alt_outlined,
+                          color: AppColors.forest,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           _disponibilidad!.aforoMaximo != null
@@ -1145,9 +1629,14 @@ class _EventDetailModalState extends State<EventDetailModal> {
                     ),
                     if (_disponibilidad!.cuposDisponibles != null)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                          color: _disponibilidad!.tieneCupo ? Colors.green.shade100 : Colors.red.shade100,
+                          color: _disponibilidad!.tieneCupo
+                              ? Colors.green.shade100
+                              : Colors.red.shade100,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -1155,7 +1644,9 @@ class _EventDetailModalState extends State<EventDetailModal> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: _disponibilidad!.tieneCupo ? Colors.green.shade900 : Colors.red.shade900,
+                            color: _disponibilidad!.tieneCupo
+                                ? Colors.green.shade900
+                                : Colors.red.shade900,
                           ),
                         ),
                       ),
@@ -1165,13 +1656,22 @@ class _EventDetailModalState extends State<EventDetailModal> {
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Text(_error!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(
+                      color: AppColors.danger,
+                      fontSize: 13,
+                    ),
+                  ),
                 ),
               const SizedBox(height: 12),
               if (_disponibilidad!.estaInscrito)
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 16,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.green.shade50,
                     border: Border.all(color: Colors.green.shade400),
@@ -1184,7 +1684,10 @@ class _EventDetailModalState extends State<EventDetailModal> {
                       SizedBox(width: 8),
                       Text(
                         'Ya estás inscrito a este evento',
-                        style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -1193,13 +1696,26 @@ class _EventDetailModalState extends State<EventDetailModal> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed: (!_disponibilidad!.tieneCupo || _inscribiendo) ? null : _inscribir,
+                    onPressed: (!_disponibilidad!.tieneCupo || _inscribiendo)
+                        ? null
+                        : _inscribir,
                     icon: _inscribiendo
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
                         : const Icon(Icons.how_to_reg_rounded),
-                    label: Text(_inscribiendo
-                        ? 'Inscribiendo...'
-                        : (_disponibilidad!.tieneCupo ? 'Inscribirme al evento' : 'Cupos agotados')),
+                    label: Text(
+                      _inscribiendo
+                          ? 'Inscribiendo...'
+                          : (_disponibilidad!.tieneCupo
+                                ? 'Inscribirme al evento'
+                                : 'Cupos agotados'),
+                    ),
                   ),
                 ),
             ],
@@ -1225,11 +1741,30 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
   String _selectedFilter = 'CONFIRMADA';
   bool _loading = true;
   String? _error;
+  int _organizationVersion = 0;
 
   @override
   void initState() {
     super.initState();
+    _organizationVersion = widget.session.organizationVersion;
+    widget.session.addListener(_onOrganizationChanged);
     _loadInscriptions();
+  }
+
+  @override
+  void dispose() {
+    widget.session.removeListener(_onOrganizationChanged);
+    super.dispose();
+  }
+
+  void _onOrganizationChanged() {
+    if (!mounted ||
+        _organizationVersion == widget.session.organizationVersion) {
+      return;
+    }
+    _organizationVersion = widget.session.organizationVersion;
+    setState(() => _inscriptions = []);
+    if (widget.session.activeOrganization != null) _loadInscriptions();
   }
 
   Future<void> _loadInscriptions() async {
@@ -1291,10 +1826,7 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message),
-          backgroundColor: AppColors.danger,
-        ),
+        SnackBar(content: Text(e.message), backgroundColor: AppColors.danger),
       );
     }
   }
@@ -1315,10 +1847,7 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadInscriptions,
-        child: _buildBody(),
-      ),
+      body: RefreshIndicator(onRefresh: _loadInscriptions, child: _buildBody()),
     );
   }
 
@@ -1334,11 +1863,22 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
           Center(
             child: Column(
               children: [
-                const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.danger),
+                const Icon(
+                  Icons.error_outline_rounded,
+                  size: 48,
+                  color: AppColors.danger,
+                ),
                 const SizedBox(height: 12),
-                Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.danger)),
+                Text(
+                  _error!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.danger),
+                ),
                 const SizedBox(height: 16),
-                FilledButton(onPressed: _loadInscriptions, child: const Text('Reintentar')),
+                FilledButton(
+                  onPressed: _loadInscriptions,
+                  child: const Text('Reintentar'),
+                ),
               ],
             ),
           ),
@@ -1354,7 +1894,11 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
             child: Column(
               children: [
                 const SizedBox(height: 40),
-                Icon(Icons.confirmation_number_outlined, size: 64, color: AppColors.muted.withOpacity(0.5)),
+                Icon(
+                  Icons.confirmation_number_outlined,
+                  size: 64,
+                  color: AppColors.muted.withValues(alpha: 0.5),
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   'Aún no tienes inscripciones',
@@ -1373,8 +1917,12 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
       );
     }
 
-    final activasCount = _inscriptions.where((i) => i.estado == 'CONFIRMADA').length;
-    final canceladasCount = _inscriptions.where((i) => i.estado == 'CANCELADA').length;
+    final activasCount = _inscriptions
+        .where((i) => i.estado == 'CONFIRMADA')
+        .length;
+    final canceladasCount = _inscriptions
+        .where((i) => i.estado == 'CANCELADA')
+        .length;
 
     final filtered = _inscriptions.where((ins) {
       if (_selectedFilter == 'CONFIRMADA') return ins.estado == 'CONFIRMADA';
@@ -1407,7 +1955,8 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
                 ),
               ],
               selected: {_selectedFilter},
-              onSelectionChanged: (set) => setState(() => _selectedFilter = set.first),
+              onSelectionChanged: (set) =>
+                  setState(() => _selectedFilter = set.first),
             ),
           ),
         ),
@@ -1425,14 +1974,17 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
                                 ? Icons.event_available_outlined
                                 : Icons.history_rounded,
                             size: 48,
-                            color: AppColors.muted.withOpacity(0.5),
+                            color: AppColors.muted.withValues(alpha: 0.5),
                           ),
                           const SizedBox(height: 12),
                           Text(
                             _selectedFilter == 'CONFIRMADA'
                                 ? 'No tienes entradas activas'
                                 : 'No hay inscripciones canceladas',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           const SizedBox(height: 6),
                           Text(
@@ -1440,7 +1992,10 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
                                 ? 'Inscríbete a un evento en la pestaña "Eventos" para ver tu entrada y QR aquí.'
                                 : 'Cuando canceles una inscripción, quedará registrada en esta sección.',
                             textAlign: TextAlign.center,
-                            style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 13,
+                            ),
                           ),
                         ],
                       ),
@@ -1471,16 +2026,25 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
                                     style: TextStyle(
                                       fontSize: 17,
                                       fontWeight: FontWeight.w800,
-                                      color: isConfirmada ? null : Colors.grey.shade700,
+                                      color: isConfirmada
+                                          ? null
+                                          : Colors.grey.shade700,
                                     ),
                                   ),
                                 ),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: isConfirmada ? Colors.green.shade50 : Colors.grey.shade200,
+                                    color: isConfirmada
+                                        ? Colors.green.shade50
+                                        : Colors.grey.shade200,
                                     border: Border.all(
-                                      color: isConfirmada ? Colors.green.shade400 : Colors.grey.shade400,
+                                      color: isConfirmada
+                                          ? Colors.green.shade400
+                                          : Colors.grey.shade400,
                                     ),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
@@ -1488,9 +2052,13 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Icon(
-                                        isConfirmada ? Icons.check_circle_outline : Icons.cancel_outlined,
+                                        isConfirmada
+                                            ? Icons.check_circle_outline
+                                            : Icons.cancel_outlined,
                                         size: 14,
-                                        color: isConfirmada ? Colors.green.shade800 : Colors.grey.shade700,
+                                        color: isConfirmada
+                                            ? Colors.green.shade800
+                                            : Colors.grey.shade700,
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
@@ -1498,7 +2066,9 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
-                                          color: isConfirmada ? Colors.green.shade800 : Colors.grey.shade700,
+                                          color: isConfirmada
+                                              ? Colors.green.shade800
+                                              : Colors.grey.shade700,
                                         ),
                                       ),
                                     ],
@@ -1515,9 +2085,19 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(Icons.calendar_today_rounded, size: 14, color: AppColors.muted),
+                                    const Icon(
+                                      Icons.calendar_today_rounded,
+                                      size: 14,
+                                      color: AppColors.muted,
+                                    ),
                                     const SizedBox(width: 4),
-                                    Text(_formatDate(ins.fechaInicioEvento), style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                                    Text(
+                                      _formatDate(ins.fechaInicioEvento),
+                                      style: const TextStyle(
+                                        color: AppColors.muted,
+                                        fontSize: 13,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ],
@@ -1525,12 +2105,19 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
                             const SizedBox(height: 6),
                             Row(
                               children: [
-                                const Icon(Icons.place_outlined, size: 16, color: AppColors.muted),
+                                const Icon(
+                                  Icons.place_outlined,
+                                  size: 16,
+                                  color: AppColors.muted,
+                                ),
                                 const SizedBox(width: 4),
                                 Expanded(
                                   child: Text(
                                     ins.lugarEvento,
-                                    style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                                    style: const TextStyle(
+                                      color: AppColors.muted,
+                                      fontSize: 13,
+                                    ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -1540,17 +2127,26 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
                             // Código QR / Hash (CU12)
                             Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
                               decoration: BoxDecoration(
-                                color: isConfirmada ? AppColors.canvas : Colors.grey.shade200,
+                                color: isConfirmada
+                                    ? AppColors.canvas
+                                    : Colors.grey.shade200,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(
                                 children: [
                                   Icon(
-                                    isConfirmada ? Icons.qr_code_2_rounded : Icons.qr_code_scanner_rounded,
+                                    isConfirmada
+                                        ? Icons.qr_code_2_rounded
+                                        : Icons.qr_code_scanner_rounded,
                                     size: 20,
-                                    color: isConfirmada ? AppColors.forest : Colors.grey.shade600,
+                                    color: isConfirmada
+                                        ? AppColors.forest
+                                        : Colors.grey.shade600,
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
@@ -1560,8 +2156,12 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
                                         fontFamily: 'monospace',
                                         fontWeight: FontWeight.w600,
                                         fontSize: 13,
-                                        color: isConfirmada ? null : Colors.grey.shade600,
-                                        decoration: isConfirmada ? null : TextDecoration.lineThrough,
+                                        color: isConfirmada
+                                            ? null
+                                            : Colors.grey.shade600,
+                                        decoration: isConfirmada
+                                            ? null
+                                            : TextDecoration.lineThrough,
                                       ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -1581,7 +2181,10 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
                             const SizedBox(height: 6),
                             Text(
                               'Inscrito el: ${_formatDate(ins.fechaInscripcion)}',
-                              style: const TextStyle(color: AppColors.muted, fontSize: 11),
+                              style: const TextStyle(
+                                color: AppColors.muted,
+                                fontSize: 11,
+                              ),
                             ),
                             if (isConfirmada) ...[
                               const SizedBox(height: 12),
@@ -1590,10 +2193,15 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
                                 child: OutlinedButton.icon(
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: AppColors.danger,
-                                    side: const BorderSide(color: AppColors.danger),
+                                    side: const BorderSide(
+                                      color: AppColors.danger,
+                                    ),
                                   ),
                                   onPressed: () => _cancelarInscripcion(ins),
-                                  icon: const Icon(Icons.cancel_outlined, size: 16),
+                                  icon: const Icon(
+                                    Icons.cancel_outlined,
+                                    size: 16,
+                                  ),
                                   label: const Text('Cancelar inscripción'),
                                 ),
                               ),
@@ -1955,6 +2563,28 @@ class UserProfile {
   );
 }
 
+class OrganizationModel {
+  const OrganizationModel({
+    required this.id,
+    required this.name,
+    required this.slug,
+    required this.status,
+  });
+
+  final int id;
+  final String name;
+  final String slug;
+  final String status;
+
+  factory OrganizationModel.fromJson(Map<String, dynamic> json) =>
+      OrganizationModel(
+        id: (json['id'] as num).toInt(),
+        name: json['nombre'] as String? ?? 'Organizacion',
+        slug: json['slug'] as String? ?? '',
+        status: json['estado'] as String? ?? 'ACTIVA',
+      );
+}
+
 class SessionTokens {
   const SessionTokens({required this.accessToken, required this.refreshToken});
   final String accessToken;
@@ -1970,19 +2600,29 @@ class SessionTokens {
 }
 
 class SessionController extends ChangeNotifier {
-  SessionController(this._api);
+  SessionController(this._api, {FlutterSecureStorage? storage})
+    : _storage = storage ?? const FlutterSecureStorage();
 
   final ApiClient _api;
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  final FlutterSecureStorage _storage;
   UserProfile? user;
   SessionTokens? _tokens;
+  List<OrganizationModel> organizations = const [];
+  OrganizationModel? activeOrganization;
+  bool organizationsLoaded = false;
+  int organizationVersion = 0;
 
   Future<void> restore() async {
     final raw = await _storage.read(key: 'sesion');
     if (raw == null) return;
     try {
       _tokens = SessionTokens.fromJson(jsonDecode(raw) as Map<String, dynamic>);
-      user = await _api.currentUser(_tokens!);
+      await _restoreOrganizations();
+      user = await _api.currentUser(
+        _tokens!,
+        organizationId: activeOrganization?.id,
+      );
+      notifyListeners();
     } catch (_) {
       await _clear();
     }
@@ -1991,7 +2631,59 @@ class SessionController extends ChangeNotifier {
   Future<void> login(String email, String password) async {
     _tokens = await _api.login(email, password);
     await _persist();
-    user = await _api.currentUser(_tokens!);
+    await _restoreOrganizations();
+    user = await _api.currentUser(
+      _tokens!,
+      organizationId: activeOrganization?.id,
+    );
+    notifyListeners();
+  }
+
+  Future<void> _restoreOrganizations() async {
+    organizations = await _authorizedOrganizations();
+    organizationsLoaded = true;
+    final saved = int.tryParse(
+      await _storage.read(key: 'organizacion-activa') ?? '',
+    );
+    final matches = organizations.where(
+      (organization) => organization.id == saved,
+    );
+    activeOrganization = matches.isEmpty
+        ? (organizations.isEmpty ? null : organizations.first)
+        : matches.first;
+    if (activeOrganization == null) {
+      await _storage.delete(key: 'organizacion-activa');
+    } else {
+      await _storage.write(
+        key: 'organizacion-activa',
+        value: '${activeOrganization!.id}',
+      );
+    }
+    organizationVersion++;
+  }
+
+  Future<List<OrganizationModel>> _authorizedOrganizations() async {
+    if (_tokens == null) {
+      throw const ApiException('La sesion ya no esta disponible');
+    }
+    try {
+      return await _api.listOrganizations(_tokens!);
+    } on ApiException catch (error) {
+      if (error.status != 401) rethrow;
+      _tokens = await _api.refresh(_tokens!.refreshToken);
+      await _persist();
+      return _api.listOrganizations(_tokens!);
+    }
+  }
+
+  Future<void> selectOrganization(int id) async {
+    final matches = organizations.where(
+      (organization) => organization.id == id,
+    );
+    if (matches.isEmpty || activeOrganization?.id == id) return;
+    activeOrganization = matches.first;
+    await _storage.write(key: 'organizacion-activa', value: '$id');
+    organizationVersion++;
     notifyListeners();
   }
 
@@ -2014,41 +2706,103 @@ class SessionController extends ChangeNotifier {
     String email,
   ) async {
     user = await _authorized(
-      (tokens) => _api.updateProfile(tokens, names, lastNames, email),
+      (tokens, organizationId) => _api.updateProfile(
+        tokens,
+        names,
+        lastNames,
+        email,
+        organizationId: organizationId,
+      ),
     );
     notifyListeners();
   }
 
-  Future<void> changePassword(String current, String next) =>
-      _authorized((tokens) => _api.changePassword(tokens, current, next));
+  Future<void> changePassword(String current, String next) => _authorized(
+    (tokens, organizationId) => _api.changePassword(
+      tokens,
+      current,
+      next,
+      organizationId: organizationId,
+    ),
+  );
 
   Future<List<EventModel>> listEvents(String term, String category) =>
-      _authorized((tokens) => _api.listEvents(tokens, term, category));
+      _authorized(
+        (tokens, organizationId) => _api.listEvents(
+          tokens,
+          term,
+          category,
+          organizationId: organizationId,
+        ),
+      );
 
-  Future<InscripcionModel> inscribirAEvento(int idEvento) =>
-      _authorized((tokens) => _api.inscribirAEvento(tokens, idEvento));
+  Future<InscripcionModel> inscribirAEvento(int idEvento) => _authorized(
+    (tokens, organizationId) =>
+        _api.inscribirAEvento(tokens, idEvento, organizationId: organizationId),
+  );
 
-  Future<List<InscripcionModel>> listarMisInscripciones() =>
-      _authorized((tokens) => _api.listarMisInscripciones(tokens));
+  Future<List<InscripcionModel>> listarMisInscripciones() => _authorized(
+    (tokens, organizationId) =>
+        _api.listarMisInscripciones(tokens, organizationId: organizationId),
+  );
 
   Future<InscripcionModel> cancelarInscripcion(int idInscripcion) =>
-      _authorized((tokens) => _api.cancelarInscripcion(tokens, idInscripcion));
+      _authorized(
+        (tokens, organizationId) => _api.cancelarInscripcion(
+          tokens,
+          idInscripcion,
+          organizationId: organizationId,
+        ),
+      );
 
   Future<DisponibilidadModel> obtenerDisponibilidad(int idEvento) =>
-      _authorized((tokens) => _api.obtenerDisponibilidad(tokens, idEvento));
+      _authorized(
+        (tokens, organizationId) => _api.obtenerDisponibilidad(
+          tokens,
+          idEvento,
+          organizationId: organizationId,
+        ),
+      );
 
-  Future<T> _authorized<T>(Future<T> Function(SessionTokens) action) async {
+  Future<List<PostulacionStaffModel>> listarMisPostulaciones() => _authorized(
+    (tokens, organizationId) =>
+        _api.listarMisPostulaciones(tokens, organizationId: organizationId),
+  );
+
+  Future<PostulacionStaffModel> crearPostulacionStaff(
+    int idConvocatoria,
+    String motivacion,
+  ) => _authorized(
+    (tokens, organizationId) => _api.crearPostulacionStaff(
+      tokens,
+      idConvocatoria,
+      motivacion,
+      organizationId: organizationId,
+    ),
+  );
+
+  Future<List<AsignacionStaffModel>> listarMisAsignaciones() => _authorized(
+    (tokens, organizationId) =>
+        _api.listarMisAsignaciones(tokens, organizationId: organizationId),
+  );
+
+  Future<T> _authorized<T>(
+    Future<T> Function(SessionTokens, int) action,
+  ) async {
     if (_tokens == null) {
       throw const ApiException('La sesion ya no esta disponible');
     }
+    if (activeOrganization == null) {
+      throw const ApiException('Selecciona una organizacion para continuar');
+    }
     try {
-      return await action(_tokens!);
+      return await action(_tokens!, activeOrganization!.id);
     } on ApiException catch (error) {
       if (error.status != 401) rethrow;
       try {
         _tokens = await _api.refresh(_tokens!.refreshToken);
         await _persist();
-        return await action(_tokens!);
+        return await action(_tokens!, activeOrganization!.id);
       } catch (_) {
         await _clear();
         rethrow;
@@ -2066,7 +2820,12 @@ class SessionController extends ChangeNotifier {
   Future<void> _clear() async {
     _tokens = null;
     user = null;
+    organizations = const [];
+    activeOrganization = null;
+    organizationsLoaded = false;
+    organizationVersion++;
     await _storage.delete(key: 'sesion');
+    await _storage.delete(key: 'organizacion-activa');
   }
 }
 
@@ -2125,87 +2884,216 @@ class ApiClient {
     );
   }
 
-  Future<UserProfile> currentUser(SessionTokens tokens) async =>
-      UserProfile.fromJson(
-        _data(await _get('/autenticacion/usuario-actual', tokens)),
-      );
+  Future<UserProfile> currentUser(
+    SessionTokens tokens, {
+    int? organizationId,
+  }) async => UserProfile.fromJson(
+    _data(
+      await _get(
+        '/autenticacion/usuario-actual',
+        tokens,
+        organizationId: organizationId,
+      ),
+    ),
+  );
+
+  Future<List<OrganizationModel>> listOrganizations(
+    SessionTokens tokens,
+  ) async {
+    final data = _data(await _get('/organizaciones/mias', tokens));
+    return (data as List<dynamic>)
+        .map((item) => OrganizationModel.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<UserProfile> updateProfile(
     SessionTokens tokens,
     String names,
     String lastNames,
-    String email,
-  ) async => UserProfile.fromJson(
+    String email, {
+    int? organizationId,
+  }) async => UserProfile.fromJson(
     _data(
-      await _send('PUT', '/perfil', tokens, {
-        'nombres': names,
-        'apellidos': lastNames,
-        'correo': email,
-      }),
+      await _send(
+        'PUT',
+        '/perfil',
+        tokens,
+        body: {'nombres': names, 'apellidos': lastNames, 'correo': email},
+        organizationId: organizationId,
+      ),
     ),
   );
   Future<void> changePassword(
     SessionTokens tokens,
     String current,
-    String next,
-  ) async {
+    String next, {
+    int? organizationId,
+  }) async {
     _data(
-      await _send('PATCH', '/perfil/clave', tokens, {
-        'claveActual': current,
-        'nuevaClave': next,
-      }),
+      await _send(
+        'PATCH',
+        '/perfil/clave',
+        tokens,
+        body: {'claveActual': current, 'nuevaClave': next},
+        organizationId: organizationId,
+      ),
     );
   }
 
   Future<List<EventModel>> listEvents(
     SessionTokens tokens,
     String term,
-    String category,
-  ) async {
+    String category, {
+    int? organizationId,
+  }) async {
     final query = <String, String>{};
     if (term.trim().isNotEmpty) query['termino'] = term.trim();
     if (category.isNotEmpty) query['categoria'] = category;
     final uri = Uri.parse('$baseUrl/eventos').replace(queryParameters: query);
-    final response = await http.get(uri, headers: _headers(tokens));
+    final response = await http.get(
+      uri,
+      headers: _headers(tokens, organizationId: organizationId),
+    );
     final data = _data(response);
     return (data as List<dynamic>)
         .map((item) => EventModel.fromJson(item as Map<String, dynamic>))
         .toList();
   }
 
-  Future<InscripcionModel> inscribirAEvento(SessionTokens tokens, int idEvento) async {
-    final response = await _send('POST', '/inscripciones/eventos/$idEvento', tokens);
+  Future<InscripcionModel> inscribirAEvento(
+    SessionTokens tokens,
+    int idEvento, {
+    int? organizationId,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/inscripciones/eventos/$idEvento',
+      tokens,
+      organizationId: organizationId,
+    );
     return InscripcionModel.fromJson(_data(response) as Map<String, dynamic>);
   }
 
-  Future<List<InscripcionModel>> listarMisInscripciones(SessionTokens tokens) async {
-    final response = await _get('/inscripciones/mis-inscripciones', tokens);
+  Future<List<InscripcionModel>> listarMisInscripciones(
+    SessionTokens tokens, {
+    int? organizationId,
+  }) async {
+    final response = await _get(
+      '/inscripciones/mis-inscripciones',
+      tokens,
+      organizationId: organizationId,
+    );
     final data = _data(response);
     return (data as List<dynamic>)
         .map((item) => InscripcionModel.fromJson(item as Map<String, dynamic>))
         .toList();
   }
 
-  Future<InscripcionModel> cancelarInscripcion(SessionTokens tokens, int idInscripcion) async {
-    final response = await _send('PATCH', '/inscripciones/$idInscripcion/cancelar', tokens);
+  Future<InscripcionModel> cancelarInscripcion(
+    SessionTokens tokens,
+    int idInscripcion, {
+    int? organizationId,
+  }) async {
+    final response = await _send(
+      'PATCH',
+      '/inscripciones/$idInscripcion/cancelar',
+      tokens,
+      organizationId: organizationId,
+    );
     return InscripcionModel.fromJson(_data(response) as Map<String, dynamic>);
   }
 
-  Future<DisponibilidadModel> obtenerDisponibilidad(SessionTokens tokens, int idEvento) async {
-    final response = await _get('/inscripciones/eventos/$idEvento/disponibilidad', tokens);
-    return DisponibilidadModel.fromJson(_data(response) as Map<String, dynamic>);
+  Future<DisponibilidadModel> obtenerDisponibilidad(
+    SessionTokens tokens,
+    int idEvento, {
+    int? organizationId,
+  }) async {
+    final response = await _get(
+      '/inscripciones/eventos/$idEvento/disponibilidad',
+      tokens,
+      organizationId: organizationId,
+    );
+    return DisponibilidadModel.fromJson(
+      _data(response) as Map<String, dynamic>,
+    );
   }
 
-  Future<http.Response> _get(String path, SessionTokens tokens) =>
-      http.get(Uri.parse('$baseUrl$path'), headers: _headers(tokens));
+  Future<List<PostulacionStaffModel>> listarMisPostulaciones(
+    SessionTokens tokens, {
+    int? organizationId,
+  }) async {
+    final data = _data(
+      await _get(
+        '/postulaciones-staff/mias',
+        tokens,
+        organizationId: organizationId,
+      ),
+    );
+    return (data as List<dynamic>)
+        .map(
+          (item) =>
+              PostulacionStaffModel.fromJson(item as Map<String, dynamic>),
+        )
+        .toList();
+  }
+
+  Future<PostulacionStaffModel> crearPostulacionStaff(
+    SessionTokens tokens,
+    int idConvocatoria,
+    String motivacion, {
+    int? organizationId,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/postulaciones-staff/convocatorias/$idConvocatoria',
+      tokens,
+      body: {'motivacion': motivacion},
+      organizationId: organizationId,
+    );
+    return PostulacionStaffModel.fromJson(
+      _data(response) as Map<String, dynamic>,
+    );
+  }
+
+  Future<List<AsignacionStaffModel>> listarMisAsignaciones(
+    SessionTokens tokens, {
+    int? organizationId,
+  }) async {
+    final data = _data(
+      await _get(
+        '/asignaciones-staff/mias',
+        tokens,
+        organizationId: organizationId,
+      ),
+    );
+    return (data as List<dynamic>)
+        .map(
+          (item) => AsignacionStaffModel.fromJson(item as Map<String, dynamic>),
+        )
+        .toList();
+  }
+
+  Future<http.Response> _get(
+    String path,
+    SessionTokens tokens, {
+    int? organizationId,
+  }) => http.get(
+    Uri.parse('$baseUrl$path'),
+    headers: _headers(tokens, organizationId: organizationId),
+  );
   Future<http.Response> _send(
     String method,
     String path,
-    SessionTokens tokens, [
+    SessionTokens tokens, {
     Map<String, dynamic> body = const {},
-  ]) {
+    int? organizationId,
+  }) {
     final request = http.Request(method, Uri.parse('$baseUrl$path'))
-      ..headers.addAll(_headers(tokens));
-    if (body.isNotEmpty || method == 'POST' || method == 'PUT' || method == 'PATCH') {
+      ..headers.addAll(_headers(tokens, organizationId: organizationId));
+    if (body.isNotEmpty ||
+        method == 'POST' ||
+        method == 'PUT' ||
+        method == 'PATCH') {
       request.body = jsonEncode(body);
     }
     return http.Client().send(request).then(http.Response.fromStream);
@@ -2222,12 +3110,15 @@ class ApiClient {
     return http.Client().send(request).then(http.Response.fromStream);
   }
 
-  Map<String, String> _headers(SessionTokens tokens) => {
+  Map<String, String> _headers(SessionTokens tokens, {int? organizationId}) => {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer ${tokens.accessToken}',
+    if (organizationId != null) 'X-Organization-Id': '$organizationId',
   };
   dynamic _data(http.Response response) {
-    final data = response.body.isEmpty ? <String, dynamic>{} : jsonDecode(response.body);
+    final data = response.body.isEmpty
+        ? <String, dynamic>{}
+        : jsonDecode(response.body);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ApiException(
         data['message'] as String? ?? 'La solicitud no pudo completarse',
@@ -2239,7 +3130,16 @@ class ApiClient {
 }
 
 class EventModel {
-  const EventModel({required this.id, required this.name, required this.description, required this.category, required this.start, required this.end, required this.place, required this.status});
+  const EventModel({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.category,
+    required this.start,
+    required this.end,
+    required this.place,
+    required this.status,
+  });
 
   final int id;
   final String name;
@@ -2256,7 +3156,9 @@ class EventModel {
     description: json['descripcion'] as String? ?? '',
     category: _readCategoryName(json),
     start: DateTime.parse(json['fechaInicio'] as String),
-    end: json['fechaFin'] == null ? null : DateTime.parse(json['fechaFin'] as String),
+    end: json['fechaFin'] == null
+        ? null
+        : DateTime.parse(json['fechaFin'] as String),
     place: json['lugarPrincipal'] as String? ?? '',
     status: json['estado'] as String,
   );
@@ -2269,7 +3171,9 @@ class EventModel {
       if (name is String && name.isNotEmpty) return name;
     }
     final categoryName = json['categoriaNombre'];
-    return categoryName is String && categoryName.isNotEmpty ? categoryName : 'GENERAL';
+    return categoryName is String && categoryName.isNotEmpty
+        ? categoryName
+        : 'GENERAL';
   }
 }
 
@@ -2300,19 +3204,22 @@ class InscripcionModel {
   final String codigoQr;
   final DateTime fechaInscripcion;
 
-  factory InscripcionModel.fromJson(Map<String, dynamic> json) => InscripcionModel(
-    idInscripcion: json['idInscripcion'] as int,
-    idEvento: json['idEvento'] as int,
-    nombreEvento: json['nombreEvento'] as String? ?? 'Evento',
-    descripcionEvento: json['descripcionEvento'] as String? ?? '',
-    categoriaEvento: json['categoriaEvento'] as String? ?? 'GENERAL',
-    fechaInicioEvento: DateTime.parse(json['fechaInicioEvento'] as String),
-    fechaFinEvento: json['fechaFinEvento'] != null ? DateTime.parse(json['fechaFinEvento'] as String) : null,
-    lugarEvento: json['lugarEvento'] as String? ?? '',
-    estado: json['estado'] as String? ?? 'CONFIRMADA',
-    codigoQr: json['codigoQr'] as String? ?? '',
-    fechaInscripcion: DateTime.parse(json['fechaInscripcion'] as String),
-  );
+  factory InscripcionModel.fromJson(Map<String, dynamic> json) =>
+      InscripcionModel(
+        idInscripcion: json['idInscripcion'] as int,
+        idEvento: json['idEvento'] as int,
+        nombreEvento: json['nombreEvento'] as String? ?? 'Evento',
+        descripcionEvento: json['descripcionEvento'] as String? ?? '',
+        categoriaEvento: json['categoriaEvento'] as String? ?? 'GENERAL',
+        fechaInicioEvento: DateTime.parse(json['fechaInicioEvento'] as String),
+        fechaFinEvento: json['fechaFinEvento'] != null
+            ? DateTime.parse(json['fechaFinEvento'] as String)
+            : null,
+        lugarEvento: json['lugarEvento'] as String? ?? '',
+        estado: json['estado'] as String? ?? 'CONFIRMADA',
+        codigoQr: json['codigoQr'] as String? ?? '',
+        fechaInscripcion: DateTime.parse(json['fechaInscripcion'] as String),
+      );
 }
 
 class DisponibilidadModel {
@@ -2334,15 +3241,81 @@ class DisponibilidadModel {
   final bool estaInscrito;
   final int? idInscripcionActiva;
 
-  factory DisponibilidadModel.fromJson(Map<String, dynamic> json) => DisponibilidadModel(
-    idEvento: json['idEvento'] as int,
-    aforoMaximo: json['aforoMaximo'] as int?,
-    cuposOcupados: (json['cuposOcupados'] as num).toInt(),
-    cuposDisponibles: json['cuposDisponibles'] as int?,
-    tieneCupo: json['tieneCupo'] as bool? ?? true,
-    estaInscrito: json['estaInscrito'] as bool? ?? false,
-    idInscripcionActiva: json['idInscripcionActiva'] as int?,
-  );
+  factory DisponibilidadModel.fromJson(Map<String, dynamic> json) =>
+      DisponibilidadModel(
+        idEvento: json['idEvento'] as int,
+        aforoMaximo: json['aforoMaximo'] as int?,
+        cuposOcupados: (json['cuposOcupados'] as num).toInt(),
+        cuposDisponibles: json['cuposDisponibles'] as int?,
+        tieneCupo: json['tieneCupo'] as bool? ?? true,
+        estaInscrito: json['estaInscrito'] as bool? ?? false,
+        idInscripcionActiva: json['idInscripcionActiva'] as int?,
+      );
+}
+
+class PostulacionStaffModel {
+  const PostulacionStaffModel({
+    required this.id,
+    required this.idConvocatoria,
+    required this.idUsuario,
+    required this.estado,
+    required this.motivacion,
+    required this.fechaPostulacion,
+  });
+
+  final int id;
+  final int idConvocatoria;
+  final int idUsuario;
+  final String estado;
+  final String? motivacion;
+  final DateTime? fechaPostulacion;
+
+  factory PostulacionStaffModel.fromJson(Map<String, dynamic> json) =>
+      PostulacionStaffModel(
+        id: (json['id'] as num).toInt(),
+        idConvocatoria: (json['idConvocatoria'] as num).toInt(),
+        idUsuario: (json['idUsuario'] as num).toInt(),
+        estado: json['estado'] as String? ?? 'PENDIENTE',
+        motivacion: json['motivacion'] as String?,
+        fechaPostulacion: json['fechaPostulacion'] == null
+            ? null
+            : DateTime.parse(json['fechaPostulacion'] as String),
+      );
+}
+
+class AsignacionStaffModel {
+  const AsignacionStaffModel({
+    required this.id,
+    required this.idPostulacion,
+    required this.idUsuario,
+    required this.tarea,
+    required this.turnoInicio,
+    required this.turnoFin,
+    required this.estado,
+  });
+
+  final int id;
+  final int idPostulacion;
+  final int idUsuario;
+  final String tarea;
+  final DateTime? turnoInicio;
+  final DateTime? turnoFin;
+  final String estado;
+
+  factory AsignacionStaffModel.fromJson(Map<String, dynamic> json) =>
+      AsignacionStaffModel(
+        id: (json['id'] as num).toInt(),
+        idPostulacion: (json['idPostulacion'] as num).toInt(),
+        idUsuario: (json['idUsuario'] as num).toInt(),
+        tarea: json['tarea'] as String? ?? 'Tarea sin nombre',
+        turnoInicio: json['turnoInicio'] == null
+            ? null
+            : DateTime.parse(json['turnoInicio'] as String),
+        turnoFin: json['turnoFin'] == null
+            ? null
+            : DateTime.parse(json['turnoFin'] as String),
+        estado: json['estado'] as String? ?? 'ASIGNADA',
+      );
 }
 
 class ApiException implements Exception {
@@ -2350,4 +3323,3 @@ class ApiException implements Exception {
   final String message;
   final int? status;
 }
-

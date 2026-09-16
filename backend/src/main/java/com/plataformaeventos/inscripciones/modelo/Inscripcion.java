@@ -2,6 +2,7 @@ package com.plataformaeventos.inscripciones.modelo;
 
 import com.plataformaeventos.eventos.modelo.Evento;
 import com.plataformaeventos.usuarios.modelo.Usuario;
+import com.plataformaeventos.organizaciones.modelo.Organizacion;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -20,6 +21,10 @@ import java.time.OffsetDateTime;
 @Entity
 @Table(name = "inscripcion")
 public class Inscripcion {
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_organizacion")
+    private Organizacion organizacion;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -68,6 +73,8 @@ public class Inscripcion {
     public Long getId() {
         return id;
     }
+    public Organizacion getOrganizacion() { return organizacion; }
+    public void asignarOrganizacion(Organizacion organizacion) { this.organizacion = organizacion; }
 
     public Evento getEvento() {
         return evento;

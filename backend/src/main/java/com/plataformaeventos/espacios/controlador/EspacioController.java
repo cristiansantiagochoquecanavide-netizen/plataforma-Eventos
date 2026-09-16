@@ -4,6 +4,9 @@ import com.plataformaeventos.espacios.dto.EspacioRespuesta;
 import com.plataformaeventos.espacios.dto.GuardarEspacioSolicitud;
 import com.plataformaeventos.espacios.servicio.EspacioService;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.security.core.Authentication;
+import com.plataformaeventos.organizaciones.servicio.ContextoOrganizacion;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,29 +25,31 @@ import java.util.List;
 public class EspacioController {
 
     private final EspacioService espacioService;
+    private final ContextoOrganizacion contexto;
 
-    public EspacioController(EspacioService espacioService) {
+    public EspacioController(EspacioService espacioService, ContextoOrganizacion contexto) {
         this.espacioService = espacioService;
+        this.contexto = contexto;
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('ESPACIO_VER')")
-    public ResponseEntity<List<EspacioRespuesta>> listar() {
-        return ResponseEntity.ok(espacioService.listar());
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'ESPACIO_VER')")
+    public ResponseEntity<List<EspacioRespuesta>> listar(Authentication auth, HttpServletRequest request) {
+        return ResponseEntity.ok(espacioService.listar(contexto.resolver(auth, request)));
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('ESPACIO_CREAR')")
-    public ResponseEntity<EspacioRespuesta> crear(@Valid @RequestBody GuardarEspacioSolicitud solicitud) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(espacioService.crear(solicitud));
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'ESPACIO_CREAR')")
+    public ResponseEntity<EspacioRespuesta> crear(@Valid @RequestBody GuardarEspacioSolicitud solicitud, Authentication auth, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(espacioService.crear(solicitud, contexto.resolver(auth, request)));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('ESPACIO_EDITAR')")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'ESPACIO_EDITAR')")
     public ResponseEntity<EspacioRespuesta> actualizar(
             @PathVariable Long id,
-            @Valid @RequestBody GuardarEspacioSolicitud solicitud
+            @Valid @RequestBody GuardarEspacioSolicitud solicitud, Authentication auth, HttpServletRequest request
     ) {
-        return ResponseEntity.ok(espacioService.actualizar(id, solicitud));
+        return ResponseEntity.ok(espacioService.actualizar(id, solicitud, contexto.resolver(auth, request)));
     }
 }

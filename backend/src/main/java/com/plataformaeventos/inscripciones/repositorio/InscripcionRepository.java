@@ -13,12 +13,25 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
 
     @Query("SELECT i FROM Inscripcion i JOIN FETCH i.evento e LEFT JOIN FETCH e.categoria LEFT JOIN FETCH e.espacio WHERE i.participante.id = :idParticipante ORDER BY i.fechaInscripcion DESC")
     List<Inscripcion> findByParticipanteIdConEvento(@Param("idParticipante") Long idParticipante);
+    @Query("SELECT i FROM Inscripcion i JOIN FETCH i.evento e LEFT JOIN FETCH e.categoria LEFT JOIN FETCH e.espacio WHERE i.participante.id = :usuario AND i.organizacion.id = :org ORDER BY i.fechaInscripcion DESC")
+    List<Inscripcion> findByParticipanteIdAndOrganizacionIdConEvento(@Param("usuario") Long usuario, @Param("org") Long org);
 
     Optional<Inscripcion> findByEventoIdAndParticipanteId(Long idEvento, Long idParticipante);
 
     boolean existsByEventoIdAndParticipanteIdAndEstado(Long idEvento, Long idParticipante, EstadoInscripcion estado);
 
     long countByEventoIdAndEstado(Long idEvento, EstadoInscripcion estado);
+    long countByEventoIdAndOrganizacionIdAndEstado(Long idEvento, Long organizacionId, EstadoInscripcion estado);
 
     Optional<Inscripcion> findByIdAndParticipanteId(Long idInscripcion, Long idParticipante);
+
+    @Query("select i from Inscripcion i where i.id = :id and i.participante.id = :usuario and i.organizacion.id = :org")
+    Optional<Inscripcion> findByIdAndParticipanteIdAndOrganizacionId(@Param("id") Long id, @Param("usuario") Long usuario, @Param("org") Long org);
+
+    @Query("select i from Inscripcion i where i.evento.id = :evento and i.participante.id = :usuario and i.organizacion.id = :org")
+    Optional<Inscripcion> findByEventoIdAndParticipanteIdAndOrganizacionId(@Param("evento") Long evento, @Param("usuario") Long usuario, @Param("org") Long org);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select e from com.plataformaeventos.eventos.modelo.Evento e where e.id = :id and e.organizacion.id = :org")
+    java.util.Optional<com.plataformaeventos.eventos.modelo.Evento> bloquearEvento(@Param("id") Long id, @Param("org") Long org);
 }

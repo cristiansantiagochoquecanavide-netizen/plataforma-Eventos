@@ -23,6 +23,10 @@ servicio-ia/.venv/
 servicio-ia/__pycache__/
 servicio-ia/**/*.pyc
 
+# MCP Enterprise Architect
+herramientas/mcp-enterprise-architect/.venv/
+herramientas/mcp-enterprise-architect/__pycache__/
+
 # Herramientas e IDE
 .idea/
 .vscode/

@@ -12,6 +12,7 @@ import com.plataformaeventos.recursos.repositorio.RecursoRepository;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.plataformaeventos.organizaciones.modelo.Organizacion;
 
 import java.util.List;
 import java.util.Locale;
@@ -27,9 +28,13 @@ public class RecursoService {
 
     @Transactional(readOnly = true)
     public List<RecursoRespuesta> listarRecursos(String termino, TipoRecurso tipo, EstadoRecurso estado) {
+        return listarRecursos(termino, tipo, estado, null);
+    }
+    @Transactional(readOnly = true)
+    public List<RecursoRespuesta> listarRecursos(String termino, TipoRecurso tipo, EstadoRecurso estado, Organizacion organizacion) {
         String terminoNormalizado = termino != null ? termino.trim() : null;
         Sort orden = Sort.by(Sort.Direction.ASC, "nombre");
-        return recursoRepository.buscarConFiltros(terminoNormalizado, tipo, estado, orden)
+        return (organizacion == null ? recursoRepository.buscarConFiltros(terminoNormalizado, tipo, estado, orden) : recursoRepository.buscarConFiltrosTenant(terminoNormalizado, tipo, estado, organizacion.getId(), orden))
                 .stream()
                 .map(this::convertirARespuesta)
                 .toList();
@@ -37,15 +42,24 @@ public class RecursoService {
 
     @Transactional(readOnly = true)
     public RecursoRespuesta obtenerRecursoPorId(Long id) {
-        Recurso recurso = recursoRepository.findById(id)
+        return obtenerRecursoPorId(id, null);
+    }
+    @Transactional(readOnly = true)
+    public RecursoRespuesta obtenerRecursoPorId(Long id, Organizacion organizacion) {
+        Recurso recurso = (organizacion == null ? recursoRepository.findById(id) : recursoRepository.findByIdAndOrganizacionId(id, organizacion.getId()))
                 .orElseThrow(() -> new ExcepcionNoEncontrado("Recurso no encontrado con id " + id));
         return convertirARespuesta(recurso);
     }
 
     @Transactional
     public RecursoRespuesta crearRecurso(CrearRecursoSolicitud solicitud) {
+        return crearRecurso(solicitud, null);
+    }
+    @Transactional
+    @com.plataformaeventos.audit.servicio.OperacionAuditable(modulo = "RECURSOS", entidad = "RECURSO", accion = "CREAR")
+    public RecursoRespuesta crearRecurso(CrearRecursoSolicitud solicitud, Organizacion organizacion) {
         String codigoNormalizado = normalizarCodigo(solicitud.codigo());
-        if (recursoRepository.existsByCodigo(codigoNormalizado)) {
+        if ((organizacion == null ? recursoRepository.existsByCodigo(codigoNormalizado) : recursoRepository.existsByOrganizacionIdAndCodigo(organizacion.getId(), codigoNormalizado))) {
             throw new IllegalArgumentException("Ya existe un recurso con el codigo " + codigoNormalizado);
         }
 
@@ -59,17 +73,23 @@ public class RecursoService {
                 limpiarTexto(solicitud.ubicacion()),
                 limpiarTexto(solicitud.descripcion())
         );
+        recurso.asignarOrganizacion(organizacion);
 
         return convertirARespuesta(recursoRepository.save(recurso));
     }
 
     @Transactional
     public RecursoRespuesta actualizarRecurso(Long id, ActualizarRecursoSolicitud solicitud) {
-        Recurso recurso = recursoRepository.findById(id)
+        return actualizarRecurso(id, solicitud, null);
+    }
+    @Transactional
+    @com.plataformaeventos.audit.servicio.OperacionAuditable(modulo = "RECURSOS", entidad = "RECURSO", accion = "ACTUALIZAR")
+    public RecursoRespuesta actualizarRecurso(Long id, ActualizarRecursoSolicitud solicitud, Organizacion organizacion) {
+        Recurso recurso = (organizacion == null ? recursoRepository.findById(id) : recursoRepository.findByIdAndOrganizacionId(id, organizacion.getId()))
                 .orElseThrow(() -> new ExcepcionNoEncontrado("Recurso no encontrado con id " + id));
 
         String codigoNormalizado = normalizarCodigo(solicitud.codigo());
-        if (recursoRepository.existsByCodigoAndIdNot(codigoNormalizado, id)) {
+        if ((organizacion == null ? recursoRepository.existsByCodigoAndIdNot(codigoNormalizado, id) : recursoRepository.existsByOrganizacionIdAndCodigoAndIdNot(organizacion.getId(), codigoNormalizado, id))) {
             throw new IllegalArgumentException("Ya existe otro recurso con el codigo " + codigoNormalizado);
         }
 
@@ -91,7 +111,12 @@ public class RecursoService {
 
     @Transactional
     public RecursoRespuesta cambiarEstado(Long id, CambiarEstadoRecursoSolicitud solicitud) {
-        Recurso recurso = recursoRepository.findById(id)
+        return cambiarEstado(id, solicitud, null);
+    }
+    @Transactional
+    @com.plataformaeventos.audit.servicio.OperacionAuditable(modulo = "RECURSOS", entidad = "RECURSO", accion = "CAMBIAR_ESTADO")
+    public RecursoRespuesta cambiarEstado(Long id, CambiarEstadoRecursoSolicitud solicitud, Organizacion organizacion) {
+        Recurso recurso = (organizacion == null ? recursoRepository.findById(id) : recursoRepository.findByIdAndOrganizacionId(id, organizacion.getId()))
                 .orElseThrow(() -> new ExcepcionNoEncontrado("Recurso no encontrado con id " + id));
 
         recurso.setEstado(solicitud.estado());

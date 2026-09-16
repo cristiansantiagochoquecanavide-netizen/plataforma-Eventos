@@ -1,13 +1,21 @@
 {
   "info": {
     "_postman_id": "be0c4b56-4e95-45dc-9cf4-dc5e8a72d3aa",
-    "name": "Plataforma Gestion Eventos - Sprint 0",
-    "description": "Pruebas de autenticacion, perfil, usuarios, roles y permisos. Seleccionar el entorno local y configurar adminClave antes de ejecutar.",
+    "name": "Plataforma Gestion Eventos - Sprint 2",
+    "description": "Conserva las pruebas de Sprint 0 y agrega contratos multi-tenant de organizaciones, categorias, eventos, convocatorias, inscripciones, Staff y bitacora. Seleccionar el entorno local y configurar adminClave antes de ejecutar.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     { "key": "participanteCorreo", "value": "participante.prueba@eventos.local" },
-    { "key": "participanteClave", "value": "Clave1234" }
+    { "key": "participanteClave", "value": "Clave1234" },
+    { "key": "organizationId", "value": "" },
+    { "key": "usuarioId", "value": "" },
+    { "key": "convocatoriaId", "value": "" },
+    { "key": "postulacionId", "value": "" },
+    { "key": "asignacionId", "value": "" },
+    { "key": "categoriaId", "value": "" },
+    { "key": "eventoId", "value": "" },
+    { "key": "espacioId", "value": "1" }
   ],
   "item": [
     {
@@ -76,15 +84,15 @@
     {
       "name": "Usuarios",
       "item": [
-        { "name": "Listar usuarios", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/usuarios?pagina=0&tamano=20" } },
+         { "name": "Listar usuarios", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/usuarios?pagina=0&tamano=20" } },
         {
           "name": "Crear usuario",
-          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"nombres\": \"Laura\",\n  \"apellidos\": \"Lopez\",\n  \"correo\": \"laura.admin@eventos.local\",\n  \"clave\": \"Clave1234\",\n  \"roles\": [\"ORGANIZADOR\"]\n}" }, "url": "{{baseUrl}}/usuarios" },
+           "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"nombres\": \"Laura\",\n  \"apellidos\": \"Lopez\",\n  \"correo\": \"laura.admin@eventos.local\",\n  \"clave\": \"Clave1234\",\n  \"roles\": [\"ORGANIZADOR\"]\n}" }, "url": "{{baseUrl}}/usuarios" },
           "event": [{ "listen": "test", "script": { "exec": ["if (pm.response.code === 201) pm.environment.set('usuarioId', pm.response.json().id);"] } }]
         },
-        { "name": "Consultar usuario", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/usuarios/{{usuarioId}}" } },
-        { "name": "Actualizar usuario", "request": { "method": "PUT", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"nombres\": \"Laura\",\n  \"apellidos\": \"Lopez Actualizada\",\n  \"correo\": \"laura.admin@eventos.local\",\n  \"roles\": [\"ORGANIZADOR\"]\n}" }, "url": "{{baseUrl}}/usuarios/{{usuarioId}}" } },
-        { "name": "Inactivar usuario", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"estado\": \"INACTIVO\"\n}" }, "url": "{{baseUrl}}/usuarios/{{usuarioId}}/estado" } }
+         { "name": "Consultar usuario", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/usuarios/{{usuarioId}}" } },
+         { "name": "Actualizar usuario", "request": { "method": "PUT", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"nombres\": \"Laura\",\n  \"apellidos\": \"Lopez Actualizada\",\n  \"correo\": \"laura.admin@eventos.local\",\n  \"roles\": [\"ORGANIZADOR\"]\n}" }, "url": "{{baseUrl}}/usuarios/{{usuarioId}}" } },
+         { "name": "Inactivar usuario", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"estado\": \"INACTIVO\"\n}" }, "url": "{{baseUrl}}/usuarios/{{usuarioId}}/estado" } }
       ]
     },
     {
@@ -101,6 +109,114 @@
         { "name": "Catalogo de permisos", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/permisos" } },
         { "name": "Permisos del rol", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/roles/{{rolId}}/permisos" } },
         { "name": "Asignar permisos al rol", "request": { "method": "PUT", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"permisos\": [\"PERFIL_VER\", \"PERFIL_EDITAR\"]\n}" }, "url": "{{baseUrl}}/roles/{{rolId}}/permisos" } }
+      ]
+    },
+    {
+      "name": "Organizaciones y membresias",
+      "item": [
+        {
+          "name": "Listar mis organizaciones",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/organizaciones/mias" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Estado 200', () => pm.response.to.have.status(200));", "const organizaciones = pm.response.json();", "if (organizaciones.length && !pm.environment.get('organizationId')) pm.environment.set('organizationId', organizaciones[0].id);"] } }]
+        },
+        {
+          "name": "Crear organizacion SaaS",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Organizacion Postman\",\n  \"slug\": \"organizacion-postman\"\n}" }, "url": "{{baseUrl}}/organizaciones" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Creada o ya existente', () => pm.expect([201, 400].includes(pm.response.code)).to.be.true);", "if (pm.response.code === 201) pm.environment.set('organizationId', pm.response.json().id);"] } }]
+        },
+        {
+          "name": "Agregar membresia",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"idUsuario\": {{usuarioId}},\n  \"roles\": [\"PARTICIPANTE\"]\n}" }, "url": "{{baseUrl}}/organizaciones/{{organizationId}}/membresias" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Membresia creada', () => pm.expect([201, 400].includes(pm.response.code)).to.be.true);"] } }]
+        },
+        {
+          "name": "Listar miembros de organizacion activa",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/organizaciones/activa/miembros" }
+        },
+        {
+          "name": "Cambiar estado de membresia",
+          "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/organizaciones/{{organizationId}}/membresias/{{usuarioId}}/estado?activo=true" }
+        }
+      ]
+    },
+    {
+      "name": "Categorias tenant",
+      "item": [
+        { "name": "Listar categorias", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/categorias" } },
+        {
+          "name": "Crear categoria",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Conferencia\",\n  \"descripcion\": \"Categoria de prueba\"\n}" }, "url": "{{baseUrl}}/categorias" },
+          "event": [{ "listen": "test", "script": { "exec": ["if (pm.response.code === 201) pm.environment.set('categoriaId', pm.response.json().id);"] } }]
+        },
+        { "name": "Consultar categoria", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/categorias/{{categoriaId}}" } },
+        { "name": "Eliminar categoria", "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/categorias/{{categoriaId}}" } }
+      ]
+    },
+    {
+      "name": "Eventos y convocatorias",
+      "item": [
+        { "name": "Filtrar eventos", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/eventos?termino=&categoria=" } },
+        {
+          "name": "Crear evento",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Evento Postman\",\n  \"descripcion\": \"Evento de prueba Sprint 2\",\n  \"fechaInicio\": \"2030-06-01T10:00:00Z\",\n  \"fechaFin\": \"2030-06-01T18:00:00Z\",\n  \"lugarPrincipal\": \"Auditorio\",\n  \"idCategoria\": {{categoriaId}},\n  \"idEspacio\": {{espacioId}},\n  \"aforoMaximo\": 50,\n  \"estado\": \"PUBLICADO\",\n  \"responsables\": []\n}" }, "url": "{{baseUrl}}/eventos" },
+          "event": [{ "listen": "test", "script": { "exec": ["if (pm.response.code === 201) pm.environment.set('eventoId', pm.response.json().id);"] } }]
+        },
+        { "name": "Consultar evento", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/eventos/{{eventoId}}" } },
+        { "name": "Listar responsables disponibles", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/eventos/responsables-disponibles" } },
+        {
+          "name": "Crear convocatoria",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"idEvento\": {{eventoId}},\n  \"tipoPersonal\": \"STAFF\",\n  \"descripcion\": \"Apoyo de produccion\",\n  \"cantidadRequerida\": 2,\n  \"fechaLimite\": \"2030-05-15\"\n}" }, "url": "{{baseUrl}}/convocatorias" },
+          "event": [{ "listen": "test", "script": { "exec": ["if (pm.response.code === 201) pm.environment.set('convocatoriaId', pm.response.json().id);"] } }]
+        },
+        { "name": "Filtrar convocatorias", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/convocatorias?idEvento={{eventoId}}&tipoPersonal=STAFF&estado=ABIERTA&termino=" } },
+        { "name": "Cerrar convocatoria", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/convocatorias/{{convocatoriaId}}/cerrar" } }
+      ]
+    },
+    {
+      "name": "Inscripciones",
+      "item": [
+        { "name": "Consultar disponibilidad", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/inscripciones/eventos/{{eventoId}}/disponibilidad" } },
+        {
+          "name": "Inscribirse al evento",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/inscripciones/eventos/{{eventoId}}" },
+          "event": [{ "listen": "test", "script": { "exec": ["if (pm.response.code === 201) pm.environment.set('inscripcionId', pm.response.json().idInscripcion);"] } }]
+        },
+        { "name": "Mis inscripciones", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/inscripciones/mis-inscripciones" } },
+        { "name": "Cancelar inscripcion", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/inscripciones/{{inscripcionId}}/cancelar" } }
+      ]
+    },
+    {
+      "name": "Postulaciones Staff",
+      "item": [
+        {
+          "name": "Crear postulacion",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"motivacion\": \"Experiencia en produccion de eventos\"\n}" }, "url": "{{baseUrl}}/postulaciones-staff/convocatorias/{{convocatoriaId}}" },
+          "event": [{ "listen": "test", "script": { "exec": ["if (pm.response.code === 201) pm.environment.set('postulacionId', pm.response.json().id);"] } }]
+        },
+        { "name": "Mis postulaciones", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/postulaciones-staff/mias" } },
+        { "name": "Postulaciones de convocatoria", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/postulaciones-staff/convocatorias/{{convocatoriaId}}" } },
+        { "name": "Aceptar postulacion", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/postulaciones-staff/{{postulacionId}}/aceptar" } },
+        { "name": "Rechazar postulacion", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/postulaciones-staff/{{postulacionId}}/rechazar" } }
+      ]
+    },
+    {
+      "name": "Asignaciones Staff",
+      "item": [
+        {
+          "name": "Crear asignacion",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"idPostulacion\": {{postulacionId}},\n  \"tarea\": \"Registro de asistentes\",\n  \"turnoInicio\": \"2030-06-01T09:00:00Z\",\n  \"turnoFin\": \"2030-06-01T13:00:00Z\",\n  \"observaciones\": \"Presentarse 30 minutos antes\"\n}" }, "url": "{{baseUrl}}/asignaciones-staff" },
+          "event": [{ "listen": "test", "script": { "exec": ["if (pm.response.code === 201) pm.environment.set('asignacionId', pm.response.json().id);"] } }]
+        },
+        { "name": "Listar asignaciones de organizacion", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/asignaciones-staff" } },
+        { "name": "Mis asignaciones", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/asignaciones-staff/mias" } },
+        { "name": "Cancelar asignacion", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/asignaciones-staff/{{asignacionId}}/cancelar" } }
+      ]
+    },
+    {
+      "name": "Bitacora y filtros",
+      "item": [
+        { "name": "Consultar bitacora", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/admin/bitacora?page=0&size=25&sort=fecha,desc" } },
+        { "name": "Filtrar bitacora", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "X-Organization-Id", "value": "{{organizationId}}" }], "url": "{{baseUrl}}/admin/bitacora?modulo=INSCRIPCIONES&accion=CREAR&exito=true&actor={{usuarioId}}&desde=2030-01-01T00:00:00Z&hasta=2030-12-31T23:59:59Z&page=0&size=25" } }
       ]
     }
   ]

@@ -36,7 +36,11 @@ public class AsignacionRecursoService {
 
     @Transactional(readOnly = true)
     public List<AsignacionRecursoRespuesta> listarAsignaciones(Long idEvento, Long idRecurso, EstadoAsignacion estado) {
-        return asignacionRepository.buscarConFiltros(idEvento, idRecurso, estado)
+        return listarAsignaciones(idEvento, idRecurso, estado, null);
+    }
+    @Transactional(readOnly = true)
+    public List<AsignacionRecursoRespuesta> listarAsignaciones(Long idEvento, Long idRecurso, EstadoAsignacion estado, Long organizacionId) {
+        return (organizacionId == null ? asignacionRepository.buscarConFiltros(idEvento, idRecurso, estado) : asignacionRepository.buscarConFiltrosTenant(idEvento, idRecurso, estado, organizacionId))
                 .stream()
                 .map(this::convertirARespuesta)
                 .toList();
@@ -44,17 +48,26 @@ public class AsignacionRecursoService {
 
     @Transactional(readOnly = true)
     public AsignacionRecursoRespuesta obtenerPorId(Long id) {
-        AsignacionRecurso asignacion = asignacionRepository.findById(id)
+        return obtenerPorId(id, null);
+    }
+    @Transactional(readOnly = true)
+    public AsignacionRecursoRespuesta obtenerPorId(Long id, Long organizacionId) {
+        AsignacionRecurso asignacion = (organizacionId == null ? asignacionRepository.findById(id) : asignacionRepository.findByIdTenant(id, organizacionId))
                 .orElseThrow(() -> new ExcepcionNoEncontrado("Asignacion de recurso no encontrada con id " + id));
         return convertirARespuesta(asignacion);
     }
 
     @Transactional
     public AsignacionRecursoRespuesta crearAsignacion(CrearAsignacionSolicitud solicitud) {
-        Evento evento = eventoRepository.findById(solicitud.idEvento())
+        return crearAsignacion(solicitud, null);
+    }
+    @Transactional
+    @com.plataformaeventos.audit.servicio.OperacionAuditable(modulo = "RECURSOS", entidad = "ASIGNACION_RECURSO", accion = "ASIGNAR")
+    public AsignacionRecursoRespuesta crearAsignacion(CrearAsignacionSolicitud solicitud, Long organizacionId) {
+        Evento evento = (organizacionId == null ? eventoRepository.findById(solicitud.idEvento()) : eventoRepository.findByIdAndOrganizacionId(solicitud.idEvento(), organizacionId))
                 .orElseThrow(() -> new ExcepcionNoEncontrado("Evento no encontrado con id " + solicitud.idEvento()));
 
-        Recurso recurso = recursoRepository.findById(solicitud.idRecurso())
+        Recurso recurso = (organizacionId == null ? recursoRepository.findById(solicitud.idRecurso()) : recursoRepository.findByIdAndOrganizacionId(solicitud.idRecurso(), organizacionId))
                 .orElseThrow(() -> new ExcepcionNoEncontrado("Recurso no encontrado con id " + solicitud.idRecurso()));
 
         if (recurso.getEstado() == EstadoRecurso.DE_BAJA) {
@@ -98,7 +111,12 @@ public class AsignacionRecursoService {
 
     @Transactional
     public AsignacionRecursoRespuesta liberarAsignacion(Long id) {
-        AsignacionRecurso asignacion = asignacionRepository.findById(id)
+        return liberarAsignacion(id, null);
+    }
+    @Transactional
+    @com.plataformaeventos.audit.servicio.OperacionAuditable(modulo = "RECURSOS", entidad = "ASIGNACION_RECURSO", accion = "LIBERAR")
+    public AsignacionRecursoRespuesta liberarAsignacion(Long id, Long organizacionId) {
+        AsignacionRecurso asignacion = (organizacionId == null ? asignacionRepository.findById(id) : asignacionRepository.findByIdTenant(id, organizacionId))
                 .orElseThrow(() -> new ExcepcionNoEncontrado("Asignacion no encontrada con id " + id));
 
         if (asignacion.getEstado() != EstadoAsignacion.ACTIVA) {

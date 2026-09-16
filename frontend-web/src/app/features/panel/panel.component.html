@@ -28,6 +28,19 @@
         <p class="nav-label">Gestion de Staff y Organizacion</p>
         <a routerLink="/convocatorias" routerLinkActive="active">Convocatorias</a>
       }
+      @if (sesion.puedeCrearPostulacionesStaff() || sesion.puedeGestionarPostulacionesStaff()) {
+        <p class="nav-label">Postulación y asignación</p>
+        <a routerLink="/postulaciones" routerLinkActive="active">Postulaciones de staff</a>
+      }
+      @if (sesion.puedeGestionarAsignacionesStaff() || sesion.usuario()) {
+        <a routerLink="/asignaciones" routerLinkActive="active">Asignaciones de staff</a>
+      }
+      @if (sesion.puedeGestionarMiembros()) {
+        <a routerLink="/miembros-organizacion" routerLinkActive="active">Miembros de organización</a>
+      }
+      @if (sesion.puedeVerBitacora()) {
+        <a routerLink="/bitacora" routerLinkActive="active">Bitácora</a>
+      }
     </nav>
     <button class="logout" type="button" (click)="sesion.cerrar()">Cerrar sesion</button>
   </aside>
@@ -37,6 +50,20 @@
         <p class="eyebrow">Sesion activa</p>
         <strong>{{ sesion.usuario()?.nombres }} {{ sesion.usuario()?.apellidos }}</strong>
       </div>
+      @if (organizaciones.length > 0) {
+        <label class="tenant-selector">
+          <span>Organización</span>
+          <select
+            [ngModel]="sesion.organizacionActivaId()"
+            (ngModelChange)="seleccionarOrganizacion($event)"
+            aria-label="Organización activa"
+          >
+            @for (organizacion of organizaciones; track organizacion.id) {
+              <option [ngValue]="organizacion.id">{{ organizacion.nombre }}</option>
+            }
+          </select>
+        </label>
+      }
       <span class="role-chip">{{ sesion.usuario()?.roles?.join(' · ') }}</span>
     </header>
     <router-outlet />

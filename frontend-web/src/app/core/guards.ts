@@ -89,3 +89,16 @@ export const convocatoriasGuard: CanActivateFn = () => {
     catchError(() => of(router.createUrlTree(['/iniciar-sesion']))),
   );
 };
+
+function permisoGuard(autorizado: (sesion: SesionService) => boolean): CanActivateFn {
+  return () => {
+    const sesion = inject(SesionService);
+    const router = inject(Router);
+    return sesion.restaurar().pipe(map((autenticado) => autenticado && autorizado(sesion) ? true : router.createUrlTree(['/perfil'])), catchError(() => of(router.createUrlTree(['/iniciar-sesion']))));
+  };
+}
+
+export const postulacionesGuard = permisoGuard((s) => s.puedeCrearPostulacionesStaff() || s.puedeGestionarPostulacionesStaff());
+export const asignacionesGuard = permisoGuard((s) => s.puedeGestionarAsignacionesStaff() || !!s.usuario());
+export const bitacoraGuard = permisoGuard((s) => s.puedeVerBitacora());
+export const miembrosGuard = permisoGuard((s) => s.puedeGestionarMiembros());

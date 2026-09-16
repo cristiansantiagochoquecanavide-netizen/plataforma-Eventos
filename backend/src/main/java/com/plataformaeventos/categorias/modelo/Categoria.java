@@ -8,6 +8,10 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import com.plataformaeventos.organizaciones.modelo.Organizacion;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 
 import java.time.OffsetDateTime;
 
@@ -20,8 +24,12 @@ public class Categoria {
     @Column(name = "id_categoria")
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 100)
+    @Column(nullable = false, length = 100)
     private String nombre;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "id_organizacion", nullable = false)
+    private Organizacion organizacion;
 
     @Column(length = 255)
     private String descripcion;
@@ -38,6 +46,10 @@ public class Categoria {
     public Categoria(String nombre, String descripcion) {
         this.nombre = nombre;
         this.descripcion = descripcion;
+    }
+    public Categoria(String nombre, String descripcion, Organizacion organizacion) {
+        this(nombre, descripcion);
+        this.organizacion = organizacion;
     }
 
     @PrePersist
@@ -57,6 +69,7 @@ public class Categoria {
     public Long getId() {
         return id;
     }
+    public Organizacion getOrganizacion() { return organizacion; }
 
     public String getNombre() {
         return nombre;

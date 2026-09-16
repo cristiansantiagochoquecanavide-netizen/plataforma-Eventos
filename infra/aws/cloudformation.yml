@@ -162,12 +162,12 @@ Resources:
       DBInstanceClass: db.t3.micro
       DBName: eventos
       DBSubnetGroupName: !Ref DatabaseSubnetGroup
-      DeletionProtection: false
+      DeletionProtection: true
       Engine: postgres
       MasterUsername: eventos_app
       MasterUserPassword: !Ref DatabasePassword
       MultiAZ: false
-      PubliclyAccessible: true
+      PubliclyAccessible: false
       StorageEncrypted: true
       VPCSecurityGroups:
         - !GetAtt DatabaseSecurityGroup.GroupId
@@ -273,9 +273,9 @@ Resources:
       Conditions:
         - Field: path-pattern
           Values:
-            - /ia/*
+            - /api/salud
       ListenerArn: !Ref HttpListener
-      Priority: 20
+      Priority: 5
 
   BackendTaskDefinition:
     Type: AWS::ECS::TaskDefinition

@@ -21,6 +21,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.Authentication;
+import jakarta.servlet.http.HttpServletRequest;
+import com.plataformaeventos.organizaciones.servicio.ContextoOrganizacion;
 
 import java.util.List;
 
@@ -40,63 +43,65 @@ import java.util.List;
 public class ConvocatoriaController {
 
     private final ConvocatoriaService convocatoriaService;
+    private final ContextoOrganizacion contexto;
 
-    public ConvocatoriaController(ConvocatoriaService convocatoriaService) {
+    public ConvocatoriaController(ConvocatoriaService convocatoriaService, ContextoOrganizacion contexto) {
         this.convocatoriaService = convocatoriaService;
+        this.contexto = contexto;
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('CONVOCATORIA_VER', 'ROLE_ADMINISTRADOR', 'ROLE_ORGANIZADOR')")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'CONVOCATORIA_VER')")
     @Operation(summary = "Consultar convocatorias", description = "Lista convocatorias con filtros opcionales.")
     @ApiResponse(responseCode = "200", description = "Convocatorias obtenidas")
     public ResponseEntity<List<ConvocatoriaRespuesta>> listar(
             @RequestParam(required = false) Long idEvento,
             @RequestParam(required = false) TipoPersonal tipoPersonal,
             @RequestParam(required = false) EstadoConvocatoria estado,
-            @RequestParam(required = false) String termino
+            @RequestParam(required = false) String termino, Authentication auth, HttpServletRequest request
     ) {
         return ResponseEntity.ok(
-                convocatoriaService.listar(idEvento, tipoPersonal, estado, termino)
+                convocatoriaService.listar(idEvento, tipoPersonal, estado, termino, contexto.resolver(auth, request))
         );
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('CONVOCATORIA_VER', 'ROLE_ADMINISTRADOR', 'ROLE_ORGANIZADOR')")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'CONVOCATORIA_VER')")
     @Operation(summary = "Consultar una convocatoria")
     @ApiResponse(responseCode = "200", description = "Convocatoria obtenida")
     @ApiResponse(responseCode = "404", description = "Convocatoria no encontrada")
-    public ResponseEntity<ConvocatoriaRespuesta> obtener(@PathVariable Long id) {
-        return ResponseEntity.ok(convocatoriaService.obtenerPorId(id));
+    public ResponseEntity<ConvocatoriaRespuesta> obtener(@PathVariable Long id, Authentication auth, HttpServletRequest request) {
+        return ResponseEntity.ok(convocatoriaService.obtenerPorId(id, contexto.resolver(auth, request)));
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('CONVOCATORIA_CREAR', 'ROLE_ADMINISTRADOR')")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'CONVOCATORIA_CREAR')")
     @Operation(summary = "Registrar convocatoria")
     @ApiResponse(responseCode = "201", description = "Convocatoria registrada")
     @ApiResponse(responseCode = "400", description = "Datos invalidos")
     @ApiResponse(responseCode = "404", description = "Evento no encontrado")
     public ResponseEntity<ConvocatoriaRespuesta> crear(
-            @Valid @RequestBody CrearConvocatoriaSolicitud solicitud
+            @Valid @RequestBody CrearConvocatoriaSolicitud solicitud, Authentication auth, HttpServletRequest request
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(convocatoriaService.crear(solicitud));
+                .body(convocatoriaService.crear(solicitud, contexto.resolver(auth, request)));
     }
 
     @PatchMapping("/{id}/cerrar")
-    @PreAuthorize("hasAnyAuthority('CONVOCATORIA_CERRAR', 'ROLE_ADMINISTRADOR')")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'CONVOCATORIA_CERRAR')")
     @Operation(summary = "Cerrar convocatoria")
     @ApiResponse(responseCode = "200", description = "Convocatoria cerrada")
     @ApiResponse(responseCode = "400", description = "Transicion de estado invalida")
-    public ResponseEntity<ConvocatoriaRespuesta> cerrar(@PathVariable Long id) {
-        return ResponseEntity.ok(convocatoriaService.cerrar(id));
+    public ResponseEntity<ConvocatoriaRespuesta> cerrar(@PathVariable Long id, Authentication auth, HttpServletRequest request) {
+        return ResponseEntity.ok(convocatoriaService.cerrar(id, contexto.resolver(auth, request)));
     }
 
     @PatchMapping("/{id}/cancelar")
-    @PreAuthorize("hasAnyAuthority('CONVOCATORIA_CANCELAR', 'ROLE_ADMINISTRADOR')")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'CONVOCATORIA_CANCELAR')")
     @Operation(summary = "Cancelar convocatoria")
     @ApiResponse(responseCode = "200", description = "Convocatoria cancelada")
     @ApiResponse(responseCode = "400", description = "Transicion de estado invalida")
-    public ResponseEntity<ConvocatoriaRespuesta> cancelar(@PathVariable Long id) {
-        return ResponseEntity.ok(convocatoriaService.cancelar(id));
+    public ResponseEntity<ConvocatoriaRespuesta> cancelar(@PathVariable Long id, Authentication auth, HttpServletRequest request) {
+        return ResponseEntity.ok(convocatoriaService.cancelar(id, contexto.resolver(auth, request)));
     }
 }
