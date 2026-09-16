@@ -12,7 +12,6 @@ import { InicioSesionComponent } from './features/auth/inicio-sesion.component';
 import { RecuperarClaveComponent } from './features/auth/recuperar-clave.component';
 import { RestablecerClaveComponent } from './features/auth/restablecer-clave.component';
 import { CategoriasComponent } from './features/categorias/categorias.component';
-import { ConvocatoriasComponent } from './features/convocatorias/convocatorias.component';
 import { EventosComponent } from './features/eventos/eventos.component';
 import { ConsultaEventosComponent } from './features/eventos/consulta-eventos.component';
 import { PanelComponent } from './features/panel/panel.component';
@@ -41,7 +40,10 @@ export const routes: Routes = [
       { path: 'espacios', component: EspaciosComponent, canActivate: [espaciosGuard] },
       {
         path: 'convocatorias',
-        component: ConvocatoriasComponent,
+        loadComponent: () =>
+          import('./features/convocatorias/convocatorias.component').then(
+            (modulo) => modulo.ConvocatoriasComponent,
+          ),
         canActivate: [convocatoriasGuard],
       },
       { path: '', pathMatch: 'full', redirectTo: 'perfil' },

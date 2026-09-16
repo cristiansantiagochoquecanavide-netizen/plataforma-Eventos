@@ -90,7 +90,7 @@
             <th>Cantidad</th>
             <th>Fecha limite</th>
             <th>Estado</th>
-            @if (puedeGestionar()) {
+            @if (puedeGestionar() || puedeGestionarPostulaciones()) {
               <th>Acciones</th>
             }
           </tr>
@@ -111,24 +111,31 @@
                   {{ convocatoria.estado }}
                 </span>
               </td>
-              @if (puedeGestionar()) {
+              @if (puedeGestionar() || puedeGestionarPostulaciones()) {
                 <td>
                   <div class="actions">
-                    <button
-                      type="button"
-                      [disabled]="convocatoria.estado !== 'ABIERTA' || idProcesando() === convocatoria.id"
-                      (click)="cerrar(convocatoria)"
-                    >
-                      Cerrar
-                    </button>
-                    <button
-                      class="btn-danger"
-                      type="button"
-                      [disabled]="convocatoria.estado !== 'ABIERTA' || idProcesando() === convocatoria.id"
-                      (click)="cancelar(convocatoria)"
-                    >
-                      Cancelar
-                    </button>
+                    @if (puedeGestionarPostulaciones()) {
+                      <button type="button" (click)="verPostulantes(convocatoria)">
+                        Ver postulantes
+                      </button>
+                    }
+                    @if (puedeGestionar()) {
+                      <button
+                        type="button"
+                        [disabled]="convocatoria.estado !== 'ABIERTA' || idProcesando() === convocatoria.id"
+                        (click)="cerrar(convocatoria)"
+                      >
+                        Cerrar
+                      </button>
+                      <button
+                        class="btn-danger"
+                        type="button"
+                        [disabled]="convocatoria.estado !== 'ABIERTA' || idProcesando() === convocatoria.id"
+                        (click)="cancelar(convocatoria)"
+                      >
+                        Cancelar
+                      </button>
+                    }
                   </div>
                 </td>
               }
@@ -139,6 +146,135 @@
     </div>
   }
 </section>
+
+@if (convocatoriaPostulantes(); as convocatoria) {
+  <section class="card postulantes-panel" aria-labelledby="titulo-postulantes">
+    <div class="card-title postulantes-heading">
+      <div>
+        <p class="eyebrow">CU17 · Seleccion de equipo</p>
+        <h2 id="titulo-postulantes">Postulantes de {{ convocatoria.nombreEvento }}</h2>
+        <div class="postulantes-contexto">
+          <span class="tipo-chip">{{ etiquetaTipo(convocatoria.tipoPersonal) }}</span>
+          <span>Convocatoria #{{ convocatoria.id }}</span>
+          <span>Estado: {{ convocatoria.estado }}</span>
+          <span>{{ convocatoria.cantidadRequerida }} plazas</span>
+        </div>
+      </div>
+      <button type="button" (click)="cerrarPostulantes()">Cerrar lista</button>
+    </div>
+
+    @if (cargandoPostulantes()) {
+      <div class="empty-state" role="status">Cargando postulantes...</div>
+    } @else if (errorPostulantes()) {
+      <div class="empty-state" role="alert">
+        <div>
+          <strong>No se pudo cargar la lista</strong>
+          <p>{{ errorPostulantes() }}</p>
+          <button type="button" (click)="verPostulantes(convocatoria)">Reintentar</button>
+        </div>
+      </div>
+    } @else if (postulantes().length === 0) {
+      <div class="empty-state">
+        <div>
+          <strong>Aun no hay postulaciones</strong>
+          <p>Cuando alguien se postule a esta convocatoria, aparecera en esta lista.</p>
+        </div>
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Postulante</th>
+              <th>Convocatoria</th>
+              <th>Rol solicitado</th>
+              <th>Postulacion</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (postulante of postulantes(); track postulante.id) {
+              <tr>
+                <td>
+                  <strong>{{ postulante.nombres }} {{ postulante.apellidos }}</strong>
+                  <small>{{ postulante.correo }}</small>
+                </td>
+                <td>
+                  <strong>{{ postulante.nombreEvento }}</strong>
+                  <small>#{{ postulante.idConvocatoria }}</small>
+                </td>
+                <td><span class="tipo-chip">{{ etiquetaTipo(postulante.tipoPersonal) }}</span></td>
+                <td>{{ postulante.fechaPostulacion | date: 'dd/MM/yyyy HH:mm' }}</td>
+                <td>
+                  <span
+                    class="estado-postulacion"
+                    [class]="'estado-postulacion ' + claseEstadoPostulacion(postulante.estado)"
+                  >
+                    {{ postulante.estado }}
+                  </span>
+                </td>
+                <td>
+                  <div class="actions postulante-actions">
+                    <button type="button" (click)="verDetalle(postulante)">Ver detalle</button>
+                    @if (postulante.estado === 'PENDIENTE') {
+                      @if (convocatoria.estado === 'ABIERTA') {
+                        <button
+                          class="primary"
+                          type="button"
+                          [disabled]="idPostulacionProcesando() === postulante.id"
+                          (click)="seleccionarPostulante(postulante)"
+                        >
+                          {{ postulante.tipoPersonal === 'STAFF' ? 'Seleccionar como Staff' : 'Seleccionar como voluntario' }}
+                        </button>
+                      }
+                      <button
+                        class="btn-danger"
+                        type="button"
+                        [disabled]="idPostulacionProcesando() === postulante.id"
+                        (click)="rechazarPostulante(postulante)"
+                      >
+                        Rechazar
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+}
+
+@if (postulanteDetalle(); as postulante) {
+  <div class="modal-overlay" role="presentation" (click)="postulanteDetalle.set(null)">
+    <section
+      class="modal-dialog postulante-detalle"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="titulo-detalle-postulante"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Ficha de postulacion</p>
+          <h2 id="titulo-detalle-postulante">{{ postulante.nombres }} {{ postulante.apellidos }}</h2>
+        </div>
+        <button class="btn-close" type="button" aria-label="Cerrar detalle" (click)="postulanteDetalle.set(null)">×</button>
+      </div>
+      <dl class="postulante-ficha">
+        <div><dt>Correo</dt><dd>{{ postulante.correo }}</dd></div>
+        <div><dt>Evento</dt><dd>{{ postulante.nombreEvento }}</dd></div>
+        <div><dt>Convocatoria</dt><dd>#{{ postulante.idConvocatoria }}</dd></div>
+        <div><dt>Rol solicitado</dt><dd>{{ etiquetaTipo(postulante.tipoPersonal) }}</dd></div>
+        <div><dt>Estado</dt><dd>{{ postulante.estado }}</dd></div>
+        <div><dt>Fecha de postulacion</dt><dd>{{ postulante.fechaPostulacion | date: 'dd/MM/yyyy HH:mm' }}</dd></div>
+      </dl>
+    </section>
+  </div>
+}
 
 @if (modalAbierto()) {
   <div class="modal-overlay" role="presentation" (click)="cerrarModal()">

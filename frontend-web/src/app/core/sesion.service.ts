@@ -130,6 +130,10 @@ export class SesionService {
     ]);
   }
 
+  puedeGestionarPostulaciones() {
+    return this.tienePermiso('CONVOCATORIA_GESTIONAR_POSTULACIONES');
+  }
+
   cerrar() {
     const token = this.sesion?.refreshToken;
     this.limpiarSesion();

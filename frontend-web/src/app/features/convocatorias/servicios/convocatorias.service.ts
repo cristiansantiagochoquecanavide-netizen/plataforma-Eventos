@@ -7,6 +7,7 @@ import {
   EstadoConvocatoria,
   TipoPersonalConvocatoria,
 } from '../modelos/convocatoria.modelo';
+import { PostulanteConvocatoria } from '../modelos/postulante-convocatoria.modelo';
 
 @Injectable({ providedIn: 'root' })
 export class ConvocatoriasService {
@@ -37,5 +38,25 @@ export class ConvocatoriasService {
 
   cancelarConvocatoria(id: number) {
     return this.http.patch<Convocatoria>(`${this.url}/convocatorias/${id}/cancelar`, {});
+  }
+
+  listarPostulantes(idConvocatoria: number) {
+    return this.http.get<PostulanteConvocatoria[]>(
+      `${this.url}/convocatorias/${idConvocatoria}/postulaciones`,
+    );
+  }
+
+  seleccionarPostulante(idPostulacion: number) {
+    return this.http.patch<PostulanteConvocatoria>(
+      `${this.url}/postulaciones/${idPostulacion}/seleccionar`,
+      {},
+    );
+  }
+
+  rechazarPostulante(idPostulacion: number) {
+    return this.http.patch<PostulanteConvocatoria>(
+      `${this.url}/postulaciones/${idPostulacion}/rechazar`,
+      {},
+    );
   }
 }
