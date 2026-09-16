@@ -5,7 +5,11 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+
 import 'core/theme/app_theme.dart';
+import 'convocatorias/pages/convocatorias_page.dart';
+import 'convocatorias/models/convocatoria_model.dart';
+import 'convocatorias/models/postulacion_staff_model.dart';
 
 const _apiUrl = String.fromEnvironment(
   'API_URL',
@@ -766,6 +770,7 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _currentIndex = 0;
+  bool _convocatoriasVisited = false;
 
   @override
   Widget build(BuildContext context) {
@@ -783,11 +788,18 @@ class _HomeShellState extends State<HomeShell> {
           ProfilePage(
             session: widget.session,
           ),
+          if (_convocatoriasVisited)
+            ConvocatoriasPage(session: widget.session)
+          else
+            const SizedBox.shrink(),
         ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
-        onDestinationSelected: (index) => setState(() => _currentIndex = index),
+        onDestinationSelected: (index) => setState(() {
+          _currentIndex = index;
+          if (index == 3) _convocatoriasVisited = true;
+        }),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.event_outlined),
@@ -803,6 +815,11 @@ class _HomeShellState extends State<HomeShell> {
             icon: Icon(Icons.person_outline_rounded),
             selectedIcon: Icon(Icons.person_rounded),
             label: 'Mi Perfil',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.groups_outlined),
+            selectedIcon: Icon(Icons.groups_rounded),
+            label: 'Convocatorias',
           ),
         ],
       ),
@@ -1976,6 +1993,97 @@ class SessionController extends ChangeNotifier {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   UserProfile? user;
   SessionTokens? _tokens;
+  Future<SessionTokens>? _refreshing;
+
+  Future<List<ConvocatoriaModel>> listarConvocatorias() =>
+      _authorized(_api.listarConvocatorias);
+
+  Future<ConvocatoriaModel> obtenerConvocatoria(int id) =>
+      _authorized((tokens) => _api.obtenerConvocatoria(tokens, id));
+
+  Future<PostulacionStaffModel> postularse(int id) =>
+      _authorized((tokens) => _api.postularse(tokens, id));
+
+  Future<PostulacionStaffModel?> consultarPostulacion(int id) =>
+      _authorized((tokens) => _api.consultarPostulacion(tokens, id));
+
+  Future<List<PostulacionStaffModel>> listarMisPostulaciones() =>
+      _authorized(_api.listarMisPostulaciones);
+
+  Future<PostulacionStaffModel> retirarPostulacion(int id) =>
+      _authorized((tokens) => _api.retirarPostulacion(tokens, id));
+
+  Future<T> _authorized<T>(Future<T> Function(SessionTokens) action) async {
+    const expired = ApiException(
+      'Tu sesion vencio. Inicia sesion nuevamente.',
+      401,
+    );
+    final original = _tokens;
+    final originalUser = user;
+    if (original == null) throw expired;
+    try {
+      return await action(original);
+    } on ApiException catch (error) {
+      if (error.status != 401) rethrow;
+      if (!identical(user, originalUser)) throw expired;
+      // Todas las peticiones comparten una renovacion: el backend rota el token.
+      if (identical(_tokens, original)) {
+        final pending = _refreshing ??= _renewSession(original);
+        try {
+          await pending;
+        } finally {
+          if (identical(_refreshing, pending)) _refreshing = null;
+        }
+      }
+      final renewed = _tokens;
+      if (renewed == null) throw expired;
+      // Un rechazo de negocio tras renovar el JWT no invalida la sesion.
+      try {
+        return await action(renewed);
+      } on ApiException catch (retryError) {
+        if (retryError.status == 401 && identical(_tokens, renewed)) {
+          await _clear();
+          notifyListeners();
+          throw expired;
+        }
+        rethrow;
+      }
+    }
+  }
+
+  Future<SessionTokens> _renewSession(SessionTokens original) async {
+    try {
+      final renewed = await _api
+          .refresh(original.refreshToken)
+          .timeout(const Duration(seconds: 20));
+      // No restaurar una sesion que el usuario cerro durante la peticion.
+      if (!identical(_tokens, original)) {
+        throw const ApiException('La sesion ya no esta disponible', 401);
+      }
+      _tokens = renewed;
+      await _persist();
+      return renewed;
+    } on ApiException catch (error) {
+      if ([400, 401, 403].contains(error.status) &&
+          identical(_tokens, original)) {
+        await _clear();
+        notifyListeners();
+        throw const ApiException(
+          'Tu sesion vencio. Inicia sesion nuevamente.',
+          401,
+        );
+      }
+      rethrow;
+    } on TimeoutException {
+      throw const ApiException(
+        'El servidor tarda en responder. Intenta nuevamente.',
+      );
+    } on http.ClientException {
+      throw const ApiException(
+        'No se pudo renovar la sesion. Revisa tu conexion.',
+      );
+    }
+  }
 
   Future<void> restore() async {
     final raw = await _storage.read(key: 'sesion');
@@ -2037,25 +2145,6 @@ class SessionController extends ChangeNotifier {
   Future<DisponibilidadModel> obtenerDisponibilidad(int idEvento) =>
       _authorized((tokens) => _api.obtenerDisponibilidad(tokens, idEvento));
 
-  Future<T> _authorized<T>(Future<T> Function(SessionTokens) action) async {
-    if (_tokens == null) {
-      throw const ApiException('La sesion ya no esta disponible');
-    }
-    try {
-      return await action(_tokens!);
-    } on ApiException catch (error) {
-      if (error.status != 401) rethrow;
-      try {
-        _tokens = await _api.refresh(_tokens!.refreshToken);
-        await _persist();
-        return await action(_tokens!);
-      } catch (_) {
-        await _clear();
-        rethrow;
-      }
-    }
-  }
-
   Future<void> logout() async {
     await _clear();
     notifyListeners();
@@ -2073,6 +2162,103 @@ class SessionController extends ChangeNotifier {
 class ApiClient {
   ApiClient(this.baseUrl);
   final String baseUrl;
+
+  Future<List<ConvocatoriaModel>> listarConvocatorias(
+    SessionTokens tokens,
+  ) async {
+    final data = await _convocatoriasData(
+      _get('/convocatorias?estado=ABIERTA', tokens),
+    );
+    return (data as List)
+        .map((item) => ConvocatoriaModel.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<ConvocatoriaModel> obtenerConvocatoria(
+    SessionTokens tokens,
+    int id,
+  ) async => ConvocatoriaModel.fromJson(
+    await _convocatoriasData(_get('/convocatorias/$id', tokens))
+        as Map<String, dynamic>,
+  );
+
+  Future<PostulacionStaffModel> postularse(
+    SessionTokens tokens,
+    int id,
+  ) async => PostulacionStaffModel.fromJson(
+    await _convocatoriasData(
+          _send('POST', '/convocatorias/$id/postulaciones', tokens, {}),
+        )
+        as Map<String, dynamic>,
+  );
+
+  Future<PostulacionStaffModel?> consultarPostulacion(
+    SessionTokens tokens,
+    int id,
+  ) async {
+    final data = await _convocatoriasData(
+      _get('/convocatorias/$id/postulacion', tokens),
+    );
+    return data == null
+        ? null
+        : PostulacionStaffModel.fromJson(data as Map<String, dynamic>);
+  }
+
+  Future<List<PostulacionStaffModel>> listarMisPostulaciones(
+    SessionTokens tokens,
+  ) async {
+    final data = await _convocatoriasData(_get('/postulaciones/mias', tokens));
+    return (data as List)
+        .map(
+          (item) =>
+              PostulacionStaffModel.fromJson(item as Map<String, dynamic>),
+        )
+        .toList();
+  }
+
+  Future<PostulacionStaffModel> retirarPostulacion(
+    SessionTokens tokens,
+    int id,
+  ) async => PostulacionStaffModel.fromJson(
+    await _convocatoriasData(
+          _send('PATCH', '/postulaciones/$id/retirar', tokens, {}),
+        )
+        as Map<String, dynamic>,
+  );
+
+  // Estas rutas devuelven objetos, listas o 204; _data conserva su contrato actual.
+  Future<dynamic> _convocatoriasData(Future<http.Response> request) async {
+    try {
+      final response = await request.timeout(const Duration(seconds: 20));
+      dynamic data;
+      try {
+        data = response.body.isEmpty
+            ? null
+            : jsonDecode(utf8.decode(response.bodyBytes));
+      } on FormatException {
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          throw const ApiException('La respuesta del servidor no es valida.');
+        }
+      }
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw ApiException(
+          data is Map && data['message'] is String
+              ? data['message'] as String
+              : 'La solicitud no pudo completarse',
+          response.statusCode,
+        );
+      }
+      return data;
+    } on TimeoutException {
+      throw const ApiException(
+        'El servidor tarda en responder. Intenta nuevamente.',
+      );
+    } on http.ClientException {
+      throw const ApiException(
+        'No se pudo conectar. Revisa tu conexion e intenta nuevamente.',
+      );
+    }
+  }
 
   Future<SessionTokens> login(String email, String password) async {
     final response = await http.post(
@@ -2208,7 +2394,7 @@ class ApiClient {
     if (body.isNotEmpty || method == 'POST' || method == 'PUT' || method == 'PATCH') {
       request.body = jsonEncode(body);
     }
-    return http.Client().send(request).then(http.Response.fromStream);
+    return _sendRequest(request);
   }
 
   Future<http.Response> _publicSend(
@@ -2219,7 +2405,19 @@ class ApiClient {
     final request = http.Request(method, Uri.parse('$baseUrl$path'))
       ..headers['Content-Type'] = 'application/json'
       ..body = jsonEncode(body);
-    return http.Client().send(request).then(http.Response.fromStream);
+    return _sendRequest(request);
+  }
+
+  Future<http.Response> _sendRequest(http.Request request) async {
+    final client = http.Client();
+    try {
+      return await client
+          .send(request)
+          .then(http.Response.fromStream)
+          .timeout(const Duration(seconds: 20));
+    } finally {
+      client.close();
+    }
   }
 
   Map<String, String> _headers(SessionTokens tokens) => {
