@@ -2,12 +2,20 @@ package com.plataformaeventos.convocatorias;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ConvocatoriaRepository extends JpaRepository<Convocatoria, Long> {
+
+    // Impide que un cierre concurrente se confirme entre la validacion y el alta.
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("SELECT c FROM Convocatoria c WHERE c.id = :id")
+    Optional<Convocatoria> buscarParaPostulacion(@Param("id") Long id);
 
     @Query("""
             SELECT c FROM Convocatoria c
