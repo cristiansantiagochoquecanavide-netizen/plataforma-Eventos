@@ -9,6 +9,8 @@ public interface MembresiaOrganizacionRepository extends JpaRepository<Membresia
     boolean existsByUsuarioIdAndOrganizacionIdAndActivoTrue(Long usuario, Long organizacion);
     List<MembresiaOrganizacion> findByUsuarioCorreoAndActivoTrueOrderByOrganizacionNombre(String correo);
     Optional<MembresiaOrganizacion> findByUsuarioCorreoAndOrganizacionId(String correo, Long idOrganizacion);
+    @org.springframework.data.jpa.repository.Query("select m from MembresiaOrganizacion m left join fetch m.roles where m.usuario.id = :usuario and m.organizacion.id = :organizacion")
+    Optional<MembresiaOrganizacion> findByUsuarioIdAndOrganizacionIdConRoles(@org.springframework.data.repository.query.Param("usuario") Long usuario, @org.springframework.data.repository.query.Param("organizacion") Long organizacion);
     @org.springframework.data.jpa.repository.Query("select m from MembresiaOrganizacion m join fetch m.usuario u where m.organizacion.id = :organizacion order by u.apellidos, u.nombres")
     List<MembresiaOrganizacion> findByOrganizacionIdOrderByUsuarioApellidosAscUsuarioNombresAsc(@org.springframework.data.repository.query.Param("organizacion") Long idOrganizacion);
     @org.springframework.data.jpa.repository.Query("select count(m) > 0 from MembresiaOrganizacion m join m.roles r join r.permisos p where m.usuario.correo = :correo and m.organizacion.id = :organizacion and m.activo = true and r.estado = com.plataformaeventos.roles.modelo.EstadoRol.ACTIVO and p.nombre = :permiso")

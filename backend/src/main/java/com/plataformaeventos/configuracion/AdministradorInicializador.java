@@ -17,6 +17,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.Locale;
 import java.util.Set;
@@ -33,10 +34,11 @@ public class AdministradorInicializador {
             OrganizacionRepository organizacionRepository,
             MembresiaOrganizacionRepository membresiaRepository,
             PasswordEncoder codificadorClave,
+            TransactionTemplate transactionTemplate,
             @Value("${ADMIN_CORREO:AdminEventos@gmail.com}") String correoAdministrador,
             @Value("${ADMIN_CLAVE:Admin123}") String claveAdministrador
     ) {
-        return argumentos -> crearAdministrador(
+        return argumentos -> transactionTemplate.executeWithoutResult(status -> crearAdministrador(
                 usuarioRepository,
                 rolRepository,
                 organizacionRepository,
@@ -44,7 +46,7 @@ public class AdministradorInicializador {
                 codificadorClave,
                 correoAdministrador,
                 claveAdministrador
-        );
+        ));
     }
 
     @Transactional
@@ -154,10 +156,8 @@ public class AdministradorInicializador {
 
     private void asegurarMembresiaPrincipal(Usuario usuario, Rol rol, OrganizacionRepository organizaciones, MembresiaOrganizacionRepository membresias) {
         Organizacion principal = organizaciones.findBySlug("principal").orElseThrow(() -> new IllegalStateException("No existe la organizacion principal"));
-        MembresiaOrganizacion.Clave clave = new MembresiaOrganizacion.Clave();
-        clave.usuario = usuario.getId();
-        clave.organizacion = principal.getId();
-        MembresiaOrganizacion membresia = membresias.findById(clave).orElseGet(() -> new MembresiaOrganizacion(usuario, principal));
+        MembresiaOrganizacion membresia = membresias.findByUsuarioIdAndOrganizacionIdConRoles(usuario.getId(), principal.getId())
+                .orElseGet(() -> new MembresiaOrganizacion(usuario, principal));
         membresia.activar();
         membresia.getRoles().add(rol);
         membresias.save(membresia);
