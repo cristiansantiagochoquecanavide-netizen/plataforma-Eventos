@@ -33,5 +33,24 @@ public class MembresiaOrganizacion {
     public void inactivar() { this.activo = false; }
     public Set<Rol> getRoles() { return roles; }
     public void asignarRoles(Set<Rol> roles) { this.roles = new HashSet<>(roles); }
-    public static class Clave implements Serializable { public Long usuario; public Long organizacion; public Clave() {} }
+    public static class Clave implements Serializable {
+        public Long usuario;
+        public Long organizacion;
+        public Clave() {}
+        public Clave(Long usuario, Long organizacion) {
+            this.usuario = usuario;
+            this.organizacion = organizacion;
+        }
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Clave clave = (Clave) o;
+            return java.util.Objects.equals(usuario, clave.usuario) && java.util.Objects.equals(organizacion, clave.organizacion);
+        }
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(usuario, organizacion);
+        }
+    }
 }
