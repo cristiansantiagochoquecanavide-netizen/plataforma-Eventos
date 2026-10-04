@@ -18,6 +18,10 @@ import com.plataformaeventos.seguridad.TokenRefrescoService;
 import com.plataformaeventos.usuarios.modelo.EstadoUsuario;
 import com.plataformaeventos.usuarios.modelo.Usuario;
 import com.plataformaeventos.usuarios.repositorio.UsuarioRepository;
+import com.plataformaeventos.organizaciones.modelo.Organizacion;
+import com.plataformaeventos.organizaciones.modelo.MembresiaOrganizacion;
+import com.plataformaeventos.organizaciones.repositorio.OrganizacionRepository;
+import com.plataformaeventos.organizaciones.repositorio.MembresiaOrganizacionRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +35,8 @@ public class AutenticacionService {
 
     private final UsuarioRepository usuarioRepository;
     private final RolRepository rolRepository;
+    private final OrganizacionRepository organizacionRepository;
+    private final MembresiaOrganizacionRepository membresiaRepository;
     private final PasswordEncoder codificadorClave;
     private final JwtService jwtService;
     private final TokenRefrescoService tokenRefrescoService;
@@ -39,6 +45,8 @@ public class AutenticacionService {
     public AutenticacionService(
             UsuarioRepository usuarioRepository,
             RolRepository rolRepository,
+            OrganizacionRepository organizacionRepository,
+            MembresiaOrganizacionRepository membresiaRepository,
             PasswordEncoder codificadorClave,
             JwtService jwtService,
             TokenRefrescoService tokenRefrescoService,
@@ -46,6 +54,8 @@ public class AutenticacionService {
     ) {
         this.usuarioRepository = usuarioRepository;
         this.rolRepository = rolRepository;
+        this.organizacionRepository = organizacionRepository;
+        this.membresiaRepository = membresiaRepository;
         this.codificadorClave = codificadorClave;
         this.jwtService = jwtService;
         this.tokenRefrescoService = tokenRefrescoService;
@@ -69,7 +79,16 @@ public class AutenticacionService {
                 EstadoUsuario.ACTIVO
         );
         usuario.asignarRoles(Set.of(rolParticipante));
-        return convertirUsuario(usuarioRepository.save(usuario));
+        Usuario guardado = usuarioRepository.save(usuario);
+
+        organizacionRepository.findBySlug("principal").ifPresent(org -> {
+            MembresiaOrganizacion membresia = new MembresiaOrganizacion(guardado, org);
+            membresia.activar();
+            membresia.getRoles().add(rolParticipante);
+            membresiaRepository.save(membresia);
+        });
+
+        return convertirUsuario(guardado);
     }
 
     @Transactional
