@@ -11,6 +11,7 @@ import {
   asignacionesGuard,
   bitacoraGuard,
   miembrosGuard,
+  participantesGuard,
 } from './core/guards';
 import { InicioSesionComponent } from './features/auth/inicio-sesion.component';
 import { RecuperarClaveComponent } from './features/auth/recuperar-clave.component';
@@ -36,6 +37,11 @@ export const routes: Routes = [
       { path: 'roles', loadComponent: () => import('./features/roles/roles.component').then((m) => m.RolesComponent), canActivate: [rolesGuard] },
       { path: 'recursos', loadComponent: () => import('./features/recursos/recursos.component').then((m) => m.RecursosComponent), canActivate: [recursosGuard] },
       { path: 'espacios', loadComponent: () => import('./features/espacios/espacios.component').then((m) => m.EspaciosComponent), canActivate: [espaciosGuard] },
+      {
+        path: 'participantes',
+        loadComponent: () => import('./features/participantes/participantes.component').then((m) => m.ParticipantesComponent),
+        canActivate: [participantesGuard],
+      },
       {
         path: 'convocatorias',
         loadComponent: () => import('./features/convocatorias/convocatorias.component').then((m) => m.ConvocatoriasComponent),

@@ -102,3 +102,5 @@ export const postulacionesGuard = permisoGuard((s) => s.puedeCrearPostulacionesS
 export const asignacionesGuard = permisoGuard((s) => s.puedeGestionarAsignacionesStaff() || !!s.usuario());
 export const bitacoraGuard = permisoGuard((s) => s.puedeVerBitacora());
 export const miembrosGuard = permisoGuard((s) => s.puedeGestionarMiembros());
+export const participantesGuard = permisoGuard((s) => s.tieneAccesoParticipantes());
+

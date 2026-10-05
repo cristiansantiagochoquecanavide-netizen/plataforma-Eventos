@@ -134,6 +134,9 @@ export class SesionService {
   puedeGestionarAsignacionesStaff() { return this.tienePermiso('ASIGNACION_STAFF_GESTIONAR'); }
   puedeVerBitacora() { return this.esAdministrador() || this.tienePermiso('BITACORA_VER'); }
   puedeGestionarMiembros() { return this.esAdministrador(); }
+  tieneAccesoParticipantes() {
+    return this.esAdministrador() || this.tieneAlgunPermiso(['PARTICIPANTE_VER', 'INSCRIPCION_VER', 'INSCRIPCION_VER_TODAS', 'EVENTO_VER']);
+  }
 
   puedeGestionarConvocatorias() {
     return this.tieneAlgunPermiso([

@@ -1,0 +1,104 @@
+<section class="page-heading">
+  <p class="eyebrow">Participantes y Asistencia</p>
+  <h1>Gestión de Participantes</h1>
+  <p>Supervisión, búsqueda y control de inscripciones de participantes en los eventos de la organización.</p>
+</section>
+
+@if (error()) {
+  <p class="notice error">{{ error() }}</p>
+}
+
+<section class="card form-grid" style="margin-bottom: 24px;">
+  <label>
+    Filtrar por Evento
+    <select [ngModel]="idEventoSeleccionado()" (ngModelChange)="alCambiarEvento($event)">
+      <option [ngValue]="0">Todos los eventos</option>
+      @for (evento of eventos(); track evento.id) {
+        <option [ngValue]="evento.id">{{ evento.nombre }}</option>
+      }
+    </select>
+  </label>
+
+  <label>
+    Estado de Inscripción
+    <select [ngModel]="filtroEstado()" (ngModelChange)="filtroEstado.set($event)">
+      <option value="TODAS">Todos los estados</option>
+      <option value="CONFIRMADA">Confirmadas</option>
+      <option value="CANCELADA">Canceladas</option>
+      <option value="EN_ESPERA">En espera</option>
+    </select>
+  </label>
+
+  <label>
+    Buscar Participante
+    <input
+      type="text"
+      [ngModel]="terminoBusqueda()"
+      (ngModelChange)="terminoBusqueda.set($event)"
+      placeholder="Nombre, correo o código QR..."
+    />
+  </label>
+
+  <div class="button-row full">
+    <button type="button" (click)="cargarParticipantes()" [disabled]="cargando()">
+      {{ cargando() ? 'Cargando...' : 'Actualizar listado' }}
+    </button>
+  </div>
+</section>
+
+<section class="card table-card">
+  <div class="card-title compact" style="display: flex; justify-content: space-between; align-items: center;">
+    <h2>Inscripciones registradas</h2>
+    <span class="role-chip">{{ participantesFiltrados().length }} participantes</span>
+  </div>
+
+  @if (cargando()) {
+    <p style="padding: 24px; text-align: center; color: var(--muted);">Cargando participantes...</p>
+  } @else if (participantesFiltrados().length === 0) {
+    <div style="padding: 32px 24px; text-align: center;">
+      <p style="color: var(--muted); margin-bottom: 8px;">No se encontraron participantes inscritos con los filtros seleccionados.</p>
+      <small style="color: var(--muted);">Verifica que existan inscripciones en el evento seleccionado o limpia la búsqueda.</small>
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Participante</th>
+            <th>Correo Electrónico</th>
+            <th>Evento</th>
+            <th>Fecha Inscripción</th>
+            <th>Código QR</th>
+            <th style="text-align: right;">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of participantesFiltrados(); track p.idInscripcion) {
+            <tr>
+              <td>
+                <strong>{{ p.nombres }} {{ p.apellidos }}</strong>
+              </td>
+              <td>{{ p.correo }}</td>
+              <td>
+                <span class="inline-chip">{{ p.tituloEvento }}</span>
+              </td>
+              <td>{{ p.fechaInscripcion | date: 'dd/MM/yyyy HH:mm' }}</td>
+              <td>
+                <code style="background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; font-size: 0.82rem;">{{ p.codigoQr }}</code>
+              </td>
+              <td style="text-align: right;">
+                @if (p.estado === 'CONFIRMADA') {
+                  <span class="inline-chip" style="background: #e6f6ee; color: #16794c; font-weight: 700;">CONFIRMADA</span>
+                } @else if (p.estado === 'CANCELADA') {
+                  <span class="inline-chip" style="background: #fde8e8; color: #c81e1e; font-weight: 700;">CANCELADA</span>
+                } @else {
+                  <span class="inline-chip">{{ p.estado }}</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
