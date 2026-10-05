@@ -16,6 +16,36 @@ services:
       retries: 10
     restart: unless-stopped
 
+  backup-postgres:
+    image: postgres:17-alpine
+    profiles: ["maintenance"]
+    environment:
+      PGHOST: base-datos
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB:-eventos}
+      PGUSER: ${POSTGRES_USER:-eventos_app}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-eventos_clave}
+    volumes:
+      - ./backups:/backups
+      - ./infra/backup:/backup-scripts:ro
+    entrypoint: ["/bin/sh", "/backup-scripts/backup.sh"]
+
+  restore-postgres:
+    image: postgres:17-alpine
+    profiles: ["maintenance"]
+    environment:
+      PGHOST: base-datos
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB:-eventos}
+      PGUSER: ${POSTGRES_USER:-eventos_app}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-eventos_clave}
+      BACKUP_FILE: ${BACKUP_FILE:-}
+      RESTORE_TARGET_DATABASE: ${RESTORE_TARGET_DATABASE:-}
+    volumes:
+      - ./backups:/backups:ro
+      - ./infra/backup:/backup-scripts:ro
+    entrypoint: ["/bin/sh", "/backup-scripts/restore-validation.sh"]
+
   backend:
     build:
       context: ./backend
@@ -36,6 +66,7 @@ services:
       URL_APLICACION_MOVIL: ${URL_APLICACION_MOVIL:-eventos://recuperar-clave}
       AUDIT_KMS_KEY_ID: ${AUDIT_KMS_KEY_ID:-alias/bitacora-payload-local}
       AUDIT_KMS_INDICE_KEY_ID: ${AUDIT_KMS_INDICE_KEY_ID:-alias/bitacora-hmac-local}
+      AUDIT_DEVELOPER_KEY_BASE64: ${AUDIT_DEVELOPER_KEY_BASE64:-}
       AUDIT_KMS_REGION: ${AUDIT_KMS_REGION:-us-east-1}
       AUDIT_KMS_ENDPOINT: ${AUDIT_KMS_ENDPOINT:-http://kms-local:4566}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-local-only}
@@ -87,8 +118,9 @@ services:
     image: amazon/aws-cli:2.27.29
     environment: { AWS_ACCESS_KEY_ID: local-only, AWS_SECRET_ACCESS_KEY: local-only, AWS_DEFAULT_REGION: us-east-1 }
     entrypoint: ["/bin/sh", "-c"]
-    command: >
-      for a in alias/bitacora-payload-local alias/bitacora-hmac-local; do if ! aws --endpoint-url=http://kms-local:4566 kms describe-key --key-id $$a >/dev/null 2>&1; then case $$a in alias/bitacora-payload-local) o="--key-spec SYMMETRIC_DEFAULT --key-usage ENCRYPT_DECRYPT" ;; alias/bitacora-hmac-local) o="--key-spec HMAC_256 --key-usage GENERATE_VERIFY_MAC" ;; esac; k=$$(aws --endpoint-url=http://kms-local:4566 kms create-key $$o --query KeyMetadata.KeyId --output text) && aws --endpoint-url=http://kms-local:4566 kms create-alias --alias-name $$a --target-key-id $$k; fi; done
+    command:
+      - >-
+        for a in alias/bitacora-payload-local alias/bitacora-hmac-local; do if ! aws --endpoint-url=http://kms-local:4566 kms describe-key --key-id $$a >/dev/null 2>&1; then case $$a in alias/bitacora-payload-local) o="--key-spec SYMMETRIC_DEFAULT --key-usage ENCRYPT_DECRYPT" ;; alias/bitacora-hmac-local) o="--key-spec HMAC_256 --key-usage GENERATE_VERIFY_MAC" ;; esac; k=$$(aws --endpoint-url=http://kms-local:4566 kms create-key $$o --query KeyMetadata.KeyId --output text) && aws --endpoint-url=http://kms-local:4566 kms create-alias --alias-name $$a --target-key-id $$k; fi; done
     depends_on:
       kms-local:
         condition: service_healthy

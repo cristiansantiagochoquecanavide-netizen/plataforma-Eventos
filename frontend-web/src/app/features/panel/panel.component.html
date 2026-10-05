@@ -3,6 +3,10 @@
     <a class="brand" routerLink="/perfil">eventos<span>.</span></a>
     <nav>
       <p class="nav-label">Gestion de Usuarios, Seguridad y Auditoria</p>
+      <a routerLink="/ayuda" routerLinkActive="active">Ayuda y guías</a>
+      @if (sesion.esAdministradorSaas()) {
+        <a routerLink="/saas/suscripciones" routerLinkActive="active">Suscripciones SaaS</a>
+      }
       <a routerLink="/perfil" routerLinkActive="active" [appUiPrivilegeVisible]="'profile.menu'">Mi perfil</a>
       @if (sesion.tieneAccesoUsuarios()) {
         <a routerLink="/usuarios" routerLinkActive="active" [appUiPrivilegeVisible]="'users.menu'">Usuarios</a>

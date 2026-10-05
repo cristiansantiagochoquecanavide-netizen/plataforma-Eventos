@@ -10,7 +10,11 @@ La coleccion Postman relacionada es `documentacion/postman/Plataforma-Gestion-Ev
 
 | Metodo | Endpoint | Headers | Permiso / actor | Respuesta |
 |---|---|---|---|---|
+| GET | `/autenticacion/usuario-actual` | Bearer (+ tenant opcional) | Usuario autenticado | 200 usuario con roles globales y `perfilOrganizacionActiva` si la membresia tenant esta activa |
 | GET | `/organizaciones/mias` | Bearer | Usuario autenticado | 200 lista |
+| GET | `/roles` | Bearer | `SAAS_ADMINISTRADOR` global | 200 lista |
+| GET/PUT | `/roles/{idRol}/permisos` | Bearer | `SAAS_ADMINISTRADOR` global | 200 |
+| GET | `/permisos` | Bearer | `SAAS_ADMINISTRADOR` global | 200 lista |
 | POST | `/organizaciones` | Bearer | `ORGANIZACION_GESTIONAR` o `SAAS_ADMINISTRADOR` | 201 |
 | POST | `/organizaciones/{idOrganizacion}/membresias` | Bearer + tenant | Administrador de organizacion | 201 |
 | GET | `/organizaciones/activa/miembros` | Bearer + tenant | Administrador de organizacion | 200 lista |
@@ -36,6 +40,10 @@ La coleccion Postman relacionada es `documentacion/postman/Plataforma-Gestion-Ev
 | POST | `/convocatorias` | Bearer + tenant | `CONVOCATORIA_CREAR` | 201 |
 | PATCH | `/convocatorias/{id}/cerrar` | Bearer + tenant | `CONVOCATORIA_CERRAR` | 200 |
 | PATCH | `/convocatorias/{id}/cancelar` | Bearer + tenant | `CONVOCATORIA_CANCELAR` | 200 |
+| GET | `/participantes?eventoId=&busqueda=&estado=&pagina=0&tamano=20` | Bearer + tenant | `PARTICIPANTE_VER` o `USUARIO_VER` | 200 pagina (CU10) |
+| GET | `/participantes/{idParticipante}` | Bearer + tenant | `PARTICIPANTE_VER` o `USUARIO_VER` | 200 detalle e historial (CU10) |
+| PATCH | `/participantes/{idParticipante}/estado` | Bearer + tenant | `PARTICIPANTE_GESTIONAR` o `USUARIO_CAMBIAR_ESTADO` | 200 (CU10) |
+| GET | `/participantes/exportar?eventoId=&busqueda=&estado=` | Bearer + tenant | `PARTICIPANTE_VER` o `USUARIO_VER` | 200 archivo CSV (CU10) |
 | POST | `/inscripciones/eventos/{idEvento}` | Bearer + tenant | `INSCRIPCION_CREAR` | 201 |
 | GET | `/inscripciones/mis-inscripciones` | Bearer + tenant | `INSCRIPCION_VER_PROPIAS` | 200 lista |
 | PATCH | `/inscripciones/{idInscripcion}/cancelar` | Bearer + tenant | `INSCRIPCION_CANCELAR` | 200 |
@@ -111,3 +119,37 @@ Ejemplo de bitacora:
 | 404 | El recurso no existe dentro de la organizacion activa. |
 
 Las consultas y escrituras de eventos, categorias, convocatorias, inscripciones, postulaciones, asignaciones y bitacora se filtran por organizacion. No existe en Sprint 2 un endpoint de participantes independiente: la gestion de usuarios usa `/usuarios`, y las inscripciones propias usan el usuario autenticado.
+
+
+## Administrador SaaS vs administrador tenant
+
+`SAAS_ADMINISTRADOR` es un rol global guardado en `usuario_rol` y se emite como authority para proteger la administracion de roles y permisos globales (`/roles` y `/permisos`). `ADMINISTRADOR` sigue existiendo como rol de membresia en `usuario_organizacion_rol`: permite administrar miembros y operaciones dentro del tenant activo, pero no habilita administracion global SaaS.
+
+`GET /autenticacion/usuario-actual` mantiene `roles` y `permisos` como perfil global del usuario. Si la solicitud incluye `X-Organization-Id` y el usuario tiene una membresia activa en ese tenant, agrega `perfilOrganizacionActiva` con `idOrganizacion`, roles tenant, permisos tenant y `administrador`. Si no hay membresia activa, el campo queda ausente/nulo; el cliente no debe inventar permisos tenant desde roles globales.
+
+El inicializador asigna `SAAS_ADMINISTRADOR` al `ADMIN_CORREO` configurado y mantiene su membresia `ADMINISTRADOR` en la organizacion `principal` para las operaciones tenant. No se puede asignar `SAAS_ADMINISTRADOR` desde los flujos de membresia de organizacion.
+
+Credenciales demo/locales del administrador SaaS: `ADMIN_CORREO=admin@eventos.local` y `ADMIN_CLAVE` segun el entorno local. Las credenciales de organizadores demo listadas abajo son administradores del tenant, no administradores SaaS.
+
+## Demo multi-tenant local
+
+El seeder demo esta deshabilitado por defecto. Para activarlo solo en un entorno local o de clase, iniciar el backend con `DEMO_SEED_ENABLED=true` o configurar `demo.seed.enabled=true`. Las credenciales siguientes son unicamente locales/demo; no deben usarse en produccion:
+
+| Tenant | Slug deterministico | Usuario | Correo | Clave |
+|---|---|---|---|---|
+| Universidad Norte Demo | `demo-universidad-norte` | Organizador/Admin tenant | `demo.norte.organizador@plataformaeventos.local` | `Demo123!` |
+| Universidad Norte Demo | `demo-universidad-norte` | Staff | `demo.norte.staff@plataformaeventos.local` | `Demo123!` |
+| Universidad Norte Demo | `demo-universidad-norte` | Participante | `demo.norte.participante@plataformaeventos.local` | `Demo123!` |
+| Centro Cultural Sur Demo | `demo-centro-cultural-sur` | Organizador/Admin tenant | `demo.sur.organizador@plataformaeventos.local` | `Demo123!` |
+| Centro Cultural Sur Demo | `demo-centro-cultural-sur` | Staff | `demo.sur.staff@plataformaeventos.local` | `Demo123!` |
+| Centro Cultural Sur Demo | `demo-centro-cultural-sur` | Participante | `demo.sur.participante@plataformaeventos.local` | `Demo123!` |
+
+Cada tenant incluye categoria, espacio, evento futuro publicado, convocatoria abierta, postulacion staff aceptada, asignacion staff e inscripcion de participante. El seeder es idempotente: usa slugs, correos y nombres deterministicos para no duplicar datos al reiniciar.
+
+### Recorrido de aislamiento para el instructor
+
+1. Iniciar el backend con `DEMO_SEED_ENABLED=true`.
+2. Autenticarse con el organizador norte y obtener sus organizaciones en `GET /organizaciones/mias`; guardar el `id` de `demo-universidad-norte`.
+3. Consultar `GET /eventos` con `X-Organization-Id` del tenant norte: debe aparecer `Jornada Docente Demo Norte`.
+4. Repetir la consulta con el `X-Organization-Id` del tenant sur usando el mismo token norte: debe responder 403 porque ese usuario no pertenece al tenant sur.
+5. Autenticarse con el organizador sur y consultar con el tenant sur: debe aparecer `Festival Comunitario Demo Sur` y no el evento norte.

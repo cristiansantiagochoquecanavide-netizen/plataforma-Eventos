@@ -17,6 +17,7 @@ import com.plataformaeventos.roles.repositorio.RolRepository;
 import com.plataformaeventos.excepciones.ExcepcionNoAutorizado;
 import com.plataformaeventos.audit.servicio.BitacoraService;
 import com.plataformaeventos.audit.servicio.AuditoriaContexto;
+import com.plataformaeventos.saas.servicio.SuscripcionOrganizacionService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -35,23 +36,31 @@ public class OrganizacionService {
     private final RolRepository roles;
     private final ContextoOrganizacion contexto;
     private final BitacoraService bitacora;
+    private final SuscripcionOrganizacionService suscripciones;
 
     public OrganizacionService(OrganizacionRepository organizaciones,
                                MembresiaOrganizacionRepository membresias,
                                UsuarioRepository usuarios, RolRepository roles, ContextoOrganizacion contexto) {
-        this(organizaciones, membresias, usuarios, roles, contexto, null);
+        this(organizaciones, membresias, usuarios, roles, contexto, null, null);
+    }
+
+    public OrganizacionService(OrganizacionRepository organizaciones, MembresiaOrganizacionRepository membresias,
+                               UsuarioRepository usuarios, RolRepository roles, ContextoOrganizacion contexto,
+                               BitacoraService bitacora) {
+        this(organizaciones, membresias, usuarios, roles, contexto, bitacora, null);
     }
 
     @Autowired
     public OrganizacionService(OrganizacionRepository organizaciones, MembresiaOrganizacionRepository membresias,
                                UsuarioRepository usuarios, RolRepository roles, ContextoOrganizacion contexto,
-                               BitacoraService bitacora) {
+                               BitacoraService bitacora, SuscripcionOrganizacionService suscripciones) {
         this.organizaciones = organizaciones;
         this.membresias = membresias;
         this.usuarios = usuarios;
         this.roles = roles;
         this.contexto = contexto;
         this.bitacora = bitacora;
+        this.suscripciones = suscripciones;
     }
 
     @Transactional(readOnly = true)
@@ -74,6 +83,7 @@ public class OrganizacionService {
         var administrador = usuarios.findByCorreo(correoAdministrador)
                 .orElseThrow(() -> new ExcepcionNoEncontrado("Administrador no encontrado"));
         Organizacion organizacion = organizaciones.save(new Organizacion(solicitud.nombre().trim(), solicitud.slug()));
+        if (suscripciones != null) suscripciones.crearPlanBaseSiFalta(organizacion);
         MembresiaOrganizacion membresia = new MembresiaOrganizacion(administrador, organizacion);
         membresia.asignarRoles(Set.of(roles.findByNombre("ADMINISTRADOR").orElseThrow()));
         membresias.save(membresia);

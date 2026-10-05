@@ -4,20 +4,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
+import javax.crypto.Cipher;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.DecryptRequest;
 import software.amazon.awssdk.services.kms.model.DecryptResponse;
-import software.amazon.awssdk.services.kms.model.GenerateDataKeyRequest;
-import software.amazon.awssdk.services.kms.model.GenerateDataKeyResponse;
 import software.amazon.awssdk.services.kms.model.KmsException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class BitacoraCifradoServiceTest {
@@ -29,8 +29,8 @@ class BitacoraCifradoServiceTest {
     }
 
     @Test
-    void cifraYDescifraPayloadConContextoDeTenant() {
-        KmsClient kmsClient = kmsMockQueAceptaTenant("42");
+    void cifraYDescifraConLaLlaveRuntimeDelDesarrolladorSinLlamarKmsParaPayload() {
+        KmsClient kmsClient = mock(KmsClient.class);
         BitacoraCifradoService service = servicio(kmsClient);
         BitacoraPayload payload = payload();
 
@@ -38,11 +38,10 @@ class BitacoraCifradoServiceTest {
         BitacoraPayload descifrado = service.descifrar(42L, envelope);
 
         assertThat(descifrado).isEqualTo(payload);
-        assertThat(envelope.cryptoVersion()).isEqualTo(1);
+        assertThat(envelope.cryptoVersion()).isEqualTo(2);
         assertThat(envelope.ciphertext()).doesNotContain(payload.resultado());
-        assertThat(envelope.dataKeyCiphertext()).isEqualTo(Base64.getEncoder().encodeToString(DATA_KEY_CIFRADA));
-        verify(kmsClient).generateDataKey(any(GenerateDataKeyRequest.class));
-        verify(kmsClient).decrypt(any(DecryptRequest.class));
+        assertThat(envelope.dataKeyCiphertext()).isNull();
+        org.mockito.Mockito.verifyNoInteractions(kmsClient);
     }
 
     @Test
@@ -73,26 +72,63 @@ class BitacoraCifradoServiceTest {
                 .hasMessageContaining("No se pudo descifrar");
     }
 
+    @Test
+    void descifraEnvelopesKmsVersionUnoMientrasHayDatosHeredados() throws Exception {
+        KmsClient kmsClient = mock(KmsClient.class);
+        when(kmsClient.decrypt(any(DecryptRequest.class))).thenReturn(DecryptResponse.builder()
+                .plaintext(SdkBytes.fromByteArray(DATA_KEY)).build());
+        BitacoraCifradoService service = servicio(kmsClient);
+        byte[] nonce = new byte[12];
+        byte[] aad = "tenantId=42;purpose=bitacora-payload;version=1".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] texto = new ObjectMapper().writeValueAsBytes(payload());
+        Cipher aes = Cipher.getInstance("AES/GCM/NoPadding");
+        aes.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(DATA_KEY, "AES"), new GCMParameterSpec(128, nonce));
+        aes.updateAAD(aad);
+        byte[] ciphertext = aes.doFinal(texto);
+        BitacoraPayloadCifrado legado = new BitacoraPayloadCifrado(
+                Base64.getEncoder().encodeToString(ciphertext),
+                Base64.getEncoder().encodeToString(DATA_KEY_CIFRADA),
+                Base64.getEncoder().encodeToString(nonce), 1);
+
+        assertThat(service.descifrar(42L, legado)).isEqualTo(payload());
+        org.mockito.Mockito.verify(kmsClient).decrypt(any(DecryptRequest.class));
+    }
+
+    @Test
+    void fallaCerradoCuandoNoHayLlaveRuntimeDelDesarrollador() {
+        BitacoraCifradoProperties sinLlave = new BitacoraCifradoProperties(
+                "legacy-kms", "us-east-1", "bitacora-payload", null, null);
+        BitacoraCifradoService service = new BitacoraCifradoService(
+                mock(KmsClient.class), new ObjectMapper(), sinLlave, new SecureRandom());
+
+        assertThatThrownBy(() -> service.cifrar(42L, payload()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasRootCauseMessage("Falta la llave runtime de cifrado de bitacora del desarrollador");
+    }
+
+    @Test
+    void ocultaLaLlaveDeDesarrolladorEnRepresentacionDeConfiguracion() {
+        BitacoraCifradoProperties properties = new BitacoraCifradoProperties(
+                "legacy-kms", "us-east-1", "bitacora-payload", null,
+                Base64.getEncoder().encodeToString(DATA_KEY));
+
+        assertThat(properties.toString()).doesNotContain(Base64.getEncoder().encodeToString(DATA_KEY));
+        assertThat(properties.toString()).contains("<redactada>");
+    }
+
     private BitacoraCifradoService servicio(KmsClient kmsClient) {
         return new BitacoraCifradoService(
                 kmsClient,
                 new ObjectMapper(),
-                new BitacoraCifradoProperties("arn:aws:kms:us-east-1:111122223333:key/test", "us-east-1", "bitacora-payload"),
+                new BitacoraCifradoProperties("arn:aws:kms:us-east-1:111122223333:key/test",
+                        "us-east-1", "bitacora-payload", null,
+                        Base64.getEncoder().encodeToString(DATA_KEY)),
                 new SecureRandom()
         );
     }
 
     private KmsClient kmsMockQueAceptaTenant(String tenantEsperado) {
         KmsClient kmsClient = mock(KmsClient.class);
-        when(kmsClient.generateDataKey(any(GenerateDataKeyRequest.class))).thenAnswer(invocation -> {
-            GenerateDataKeyRequest request = invocation.getArgument(0);
-            assertThat(request.encryptionContext()).containsEntry("tenantId", tenantEsperado)
-                    .containsEntry("purpose", "bitacora-payload");
-            return GenerateDataKeyResponse.builder()
-                    .plaintext(SdkBytes.fromByteArray(DATA_KEY))
-                    .ciphertextBlob(SdkBytes.fromByteArray(DATA_KEY_CIFRADA))
-                    .build();
-        });
         when(kmsClient.decrypt(any(DecryptRequest.class))).thenAnswer(invocation -> {
             DecryptRequest request = invocation.getArgument(0);
             if (!tenantEsperado.equals(request.encryptionContext().get("tenantId"))) {

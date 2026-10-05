@@ -38,17 +38,20 @@ public class BitacoraBackfillRunner implements CommandLineRunner {
     @Override
     public void run(String... args) {
         int batchSize = properties.backfillBatchSize();
+        boolean reindexIndexes = properties.backfill().reindexIndexes();
         long procesadas = 0;
-        log.info("Starting bitacora ciphertext backfill with batch size {}", batchSize);
+        long ultimoIdProcesado = Long.MIN_VALUE;
+        log.info("Starting bitacora ciphertext backfill with batch size {}; reindex indexes={}", batchSize, reindexIndexes);
 
         while (true) {
-            List<BitacoraLegacyRow> batch = seleccionarLote(batchSize);
+            List<BitacoraLegacyRow> batch = seleccionarLote(batchSize, reindexIndexes, ultimoIdProcesado);
             if (batch.isEmpty()) {
                 break;
             }
             for (BitacoraLegacyRow row : batch) {
                 procesarFila(row);
                 procesadas++;
+                ultimoIdProcesado = row.id();
             }
             log.info("Bitacora ciphertext backfill processed {} rows so far", procesadas);
         }
@@ -60,12 +63,15 @@ public class BitacoraBackfillRunner implements CommandLineRunner {
         log.info("Bitacora ciphertext backfill completed successfully; processed {} rows", procesadas);
     }
 
-    private List<BitacoraLegacyRow> seleccionarLote(int batchSize) {
+    private List<BitacoraLegacyRow> seleccionarLote(int batchSize, boolean reindexIndexes, long ultimoIdProcesado) {
         return jdbcTemplate.query("""
                         SELECT id_bitacora, id_organizacion, id_actor, accion, modulo, entidad,
-                               id_entidad, ip, exito, resultado
+                               id_entidad, ip, exito, resultado, payload_ciphertext,
+                               payload_dek_cifrada, payload_nonce, crypto_version
                         FROM bitacora
-                        WHERE payload_ciphertext IS NULL
+                        WHERE id_bitacora > ?
+                          AND (payload_ciphertext IS NULL OR crypto_version = 1
+                               OR (? = TRUE AND crypto_version = 2))
                         ORDER BY id_bitacora ASC
                         LIMIT ?
                         """,
@@ -79,9 +85,13 @@ public class BitacoraBackfillRunner implements CommandLineRunner {
                         rs.getObject("id_entidad", Long.class),
                         rs.getString("ip"),
                         rs.getObject("exito", Boolean.class),
-                        rs.getString("resultado")
+                        rs.getString("resultado"),
+                        rs.getString("payload_ciphertext"),
+                        rs.getString("payload_dek_cifrada"),
+                        rs.getString("payload_nonce"),
+                        rs.getObject("crypto_version", Integer.class)
                 ),
-                batchSize);
+                ultimoIdProcesado, reindexIndexes, batchSize);
     }
 
     private void procesarFila(BitacoraLegacyRow row) {
@@ -97,16 +107,11 @@ public class BitacoraBackfillRunner implements CommandLineRunner {
     }
 
     private int convertirFila(BitacoraLegacyRow row) {
-        BitacoraPayload payload = new BitacoraPayload(
-                row.actorId(),
-                row.accion(),
-                row.modulo(),
-                row.entidad(),
-                row.entidadId(),
-                row.ip(),
-                Boolean.TRUE.equals(row.exito()),
-                row.resultado()
-        );
+        BitacoraPayload payload = row.payloadCiphertext() == null
+                ? new BitacoraPayload(row.actorId(), row.accion(), row.modulo(), row.entidad(),
+                        row.entidadId(), row.ip(), Boolean.TRUE.equals(row.exito()), row.resultado())
+                : cifradoService.descifrar(row.organizacionId(), new BitacoraPayloadCifrado(
+                        row.payloadCiphertext(), row.payloadDekCifrada(), row.payloadNonce(), row.cryptoVersion()));
         BitacoraPayloadCifrado envelope = cifradoService.cifrar(row.organizacionId(), payload);
 
         return jdbcTemplate.update("""
@@ -131,7 +136,8 @@ public class BitacoraBackfillRunner implements CommandLineRunner {
                             exito = NULL,
                             resultado = NULL
                         WHERE id_bitacora = ?
-                          AND payload_ciphertext IS NULL
+                          AND ((payload_ciphertext IS NULL OR crypto_version = 1)
+                               OR (? = TRUE AND crypto_version = 2))
                         """,
                 envelope.ciphertext(),
                 envelope.dataKeyCiphertext(),
@@ -144,14 +150,15 @@ public class BitacoraBackfillRunner implements CommandLineRunner {
                 indiceService.token(row.organizacionId(), "entidad", payload.entidad()),
                 indiceService.token(row.organizacionId(), "idEntidad", payload.entidadId()),
                 indiceService.token(row.organizacionId(), "exito", payload.exito()),
-                row.id());
+                row.id(),
+                properties.backfill().reindexIndexes());
     }
 
     private Long plaintextRestante() {
         return jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
                 FROM bitacora
-                WHERE payload_ciphertext IS NULL
+                WHERE payload_ciphertext IS NULL OR crypto_version = 1
                 """, Long.class);
     }
 
@@ -165,7 +172,11 @@ public class BitacoraBackfillRunner implements CommandLineRunner {
             Long entidadId,
             String ip,
             Boolean exito,
-            String resultado
+            String resultado,
+            String payloadCiphertext,
+            String payloadDekCifrada,
+            String payloadNonce,
+            Integer cryptoVersion
     ) {
     }
 }

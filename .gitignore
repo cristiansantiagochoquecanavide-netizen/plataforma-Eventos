@@ -34,5 +34,6 @@ herramientas/mcp-enterprise-architect/__pycache__/
 
 # Credenciales y datos del despliegue AWS
 documentacion/despliegue-aws.local.md
+/backups/
 # Local Pi runtime state
 .atl/

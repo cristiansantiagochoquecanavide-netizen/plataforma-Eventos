@@ -188,6 +188,14 @@ Implementar una base SaaS multi-tenant que permita administrar organizaciones cl
 
 Sprint 2 agrega la dimensión de organización a la arquitectura existente. Angular, Flutter y Spring Boot seguirán utilizando una API común. El backend resolverá el tenant a partir de la sesión autenticada y de la membresía activa del usuario. Ningún cliente podrá seleccionar libremente una organización para acceder a sus datos.
 
+### 1.3.1 Separación de administración SaaS y tenant
+
+La administración global de roles y permisos queda reservada al rol global `SAAS_ADMINISTRADOR`. Ese rol se asigna al usuario configurado por `ADMIN_CORREO` y se evalúa como authority global. El rol `ADMINISTRADOR` queda disponible como rol de membresía de una organización para administrar operaciones del tenant activo, sin acceso a `/roles` ni `/permisos`.
+
+El contrato de usuario actual separa ambos planos: `roles`/`permisos` representan el perfil global y `perfilOrganizacionActiva` representa exclusivamente la membresia activa enviada con `X-Organization-Id`. Angular refresca ese endpoint al cambiar de organizacion para recalcular menu y guards con permisos tenant vigentes.
+
+Los flujos de membresía rechazan `SAAS_ADMINISTRADOR`; solo pueden asignar roles tenant como `ADMINISTRADOR`, `ORGANIZADOR`, `STAFF` o `PARTICIPANTE`. Para demos locales, `admin@eventos.local` representa al administrador SaaS y los organizadores demo representan administradores tenant.
+
 El flujo funcional será:
 
 ```text
@@ -208,9 +216,9 @@ Las operaciones relevantes se registran en bitácora
 
 | ID | Tarea | Tipo | Estimación | Responsable | Estado |
 |---|---|---|---:|---|---|
-| SP2-1 | Diseñar interfaz de participantes | Diseño | 3 h | Equipo | Pendiente |
-| SP2-2 | Implementar consulta de participantes | Desarrollo | 6 h | Equipo | Pendiente |
-| SP2-3 | Probar gestión de participantes | Pruebas | 3 h | Equipo | Pendiente |
+| SP2-1 | Diseñar interfaz de participantes | Diseño | 3 h | Equipo | Completado |
+| SP2-2 | Implementar consulta de participantes | Desarrollo | 6 h | Equipo | Completado |
+| SP2-3 | Probar gestión de participantes | Pruebas | 3 h | Equipo | Completado |
 | SP2-4 | Diseñar interfaces web y móvil de inscripción | Diseño | 3 h | Equipo | Completado |
 | SP2-5 | Implementar inscripción | Desarrollo | 7 h | Equipo | Completado |
 | SP2-6 | Implementar consulta de inscripción | Desarrollo | 4 h | Equipo | Completado |
@@ -522,3 +530,12 @@ Las horas son una estimación inicial y deben ajustarse durante Sprint Planning.
 | Tareas pendientes del Sprint Backlog | Tareas actualmente en desarrollo | Tareas aceptadas por el equipo y Product Owner |
 
 Una tarea solo podrá pasar a `Done` cuando cumpla los criterios de aceptación, tenga pruebas asociadas y se encuentre integrada en la rama correspondiente.
+
+
+## 9. Datos demo multi-tenant locales
+
+Para demostraciones de clase existe un inicializador separado, opt-in e idempotente. Esta deshabilitado por defecto y se activa solo con `DEMO_SEED_ENABLED=true` (`demo.seed.enabled=true`). Las credenciales son unicamente locales/demo y no son secretos de produccion.
+
+Credenciales: todos los usuarios demo usan `Demo123!`. Los correos son `demo.norte.organizador@plataformaeventos.local`, `demo.norte.staff@plataformaeventos.local`, `demo.norte.participante@plataformaeventos.local`, `demo.sur.organizador@plataformaeventos.local`, `demo.sur.staff@plataformaeventos.local` y `demo.sur.participante@plataformaeventos.local`.
+
+El recorrido sugerido para probar aislamiento es iniciar con el seeder activo, iniciar sesion como organizador norte, consultar eventos con el tenant norte, intentar usar el mismo token contra el tenant sur y verificar el 403. Luego iniciar sesion como organizador sur y comprobar que solo ve los datos sur.

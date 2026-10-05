@@ -10,18 +10,18 @@ import com.plataformaeventos.audit.repositorio.BitacoraRepository;
 import com.plataformaeventos.audit.servicio.BitacoraService;
 import com.plataformaeventos.organizaciones.modelo.Organizacion;
 import com.plataformaeventos.usuarios.modelo.Usuario;
-import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.nio.charset.StandardCharsets;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.GenerateMacRequest;
 import software.amazon.awssdk.services.kms.model.GenerateMacResponse;
-import java.time.OffsetDateTime;
-import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -63,7 +63,7 @@ class BitacoraServiceTest {
         when(organizacion.getId()).thenReturn(7L);
         when(actor.getId()).thenReturn(3L);
         when(cifrado.cifrar(eq(7L), any(BitacoraPayload.class)))
-                .thenReturn(new BitacoraPayloadCifrado("ciphertext", "dek", "nonce", 1));
+                .thenReturn(new BitacoraPayloadCifrado("ciphertext", null, "nonce", 2));
         when(indices.token(eq(7L), any(), any())).thenReturn("idx");
 
         new BitacoraService(repository, cifrado, indices)
@@ -137,10 +137,7 @@ class BitacoraServiceTest {
 
         assertThat(token).isEqualTo("0a0b0c");
         String mensaje = new String(captor.getValue().message().asByteArray(), StandardCharsets.UTF_8);
-        assertThat(mensaje).contains("bitacora-blind-index-v1");
-        assertThat(mensaje).contains("tenant=7");
-        assertThat(mensaje).contains("field=modulo");
-        assertThat(mensaje).contains("value=eventos");
-        assertThat(mensaje).doesNotContain(" EVENTOS ");
+        assertThat(mensaje).contains("bitacora-blind-index-v1", "tenant=7", "field=modulo", "value=eventos")
+                .doesNotContain(" EVENTOS ");
     }
 }

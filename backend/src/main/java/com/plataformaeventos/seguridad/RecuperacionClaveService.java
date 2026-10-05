@@ -48,7 +48,7 @@ public class RecuperacionClaveService {
         if (ultimaSolicitud != null && ultimaSolicitud.plusSeconds(propiedades.intervaloSolicitudSegundos()).isAfter(ahora)) {
             return;
         }
-        tokenRecuperacionRepository.invalidarTokensPendientesPorUsuario(usuario.getId());
+        tokenRecuperacionRepository.invalidarTokensPendientesPorUsuario(usuario.getId(), ahora);
         String token = generarToken();
         tokenRecuperacionRepository.saveAndFlush(new TokenRecuperacion(
                 usuario,

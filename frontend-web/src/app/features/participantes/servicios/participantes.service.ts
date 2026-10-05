@@ -6,6 +6,9 @@ import {
   PaginaParticipantes,
   ParticipanteDetalle,
   ParticipanteResumen,
+  FormatoReporteParticipantes,
+  ReporteParticipantesSolicitud,
+  VistaPreviaReporteParticipantes,
 } from '../modelos/participante.modelo';
 
 @Injectable({ providedIn: 'root' })
@@ -64,6 +67,32 @@ export class ParticipantesService {
     return this.http.get(`${this.url}/exportar`, {
       params,
       responseType: 'blob',
+    });
+  }
+
+  vistaPreviaReporte(solicitud: ReporteParticipantesSolicitud): Observable<VistaPreviaReporteParticipantes> {
+    return this.http.post<VistaPreviaReporteParticipantes>(`${this.url}/reportes/vista-previa`, solicitud);
+  }
+
+  exportarReporte(
+    solicitud: ReporteParticipantesSolicitud,
+    formato: FormatoReporteParticipantes
+  ): Observable<Blob> {
+    return this.http.post(`${this.url}/reportes/exportar`, solicitud, {
+      params: { formato },
+      responseType: 'blob',
+    });
+  }
+
+  enviarReporte(
+    correoDestino: string,
+    solicitud: ReporteParticipantesSolicitud,
+    formato: FormatoReporteParticipantes
+  ): Observable<void> {
+    return this.http.post<void>(`${this.url}/reportes/enviar`, {
+      correoDestino,
+      formato,
+      reporte: solicitud,
     });
   }
 }

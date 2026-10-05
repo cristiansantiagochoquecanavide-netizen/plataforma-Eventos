@@ -70,10 +70,12 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: UiEditableBuilder(
-          service: service,
-          privilege: 'profile.edit',
-          builder: (context, readOnly) => TextField(readOnly: readOnly),
+        home: Scaffold(
+          body: UiEditableBuilder(
+            service: service,
+            privilege: 'profile.edit',
+            builder: (context, readOnly) => TextField(readOnly: readOnly),
+          ),
         ),
       ),
     );

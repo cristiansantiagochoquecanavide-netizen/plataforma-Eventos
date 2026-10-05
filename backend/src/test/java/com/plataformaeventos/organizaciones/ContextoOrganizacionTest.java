@@ -18,8 +18,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import com.plataformaeventos.organizaciones.modelo.Organizacion;
 import com.plataformaeventos.organizaciones.repositorio.MembresiaOrganizacionRepository;
 import com.plataformaeventos.organizaciones.servicio.ContextoOrganizacion;
+import com.plataformaeventos.saas.servicio.SuscripcionOrganizacionService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.security.core.Authentication;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -34,9 +36,15 @@ import static org.mockito.Mockito.*;
 class ContextoOrganizacionTest {
     private final OrganizacionRepository organizaciones = mock(OrganizacionRepository.class);
     private final MembresiaOrganizacionRepository membresias = mock(MembresiaOrganizacionRepository.class);
-    private final ContextoOrganizacion contexto = new ContextoOrganizacion(organizaciones, membresias);
+    private final SuscripcionOrganizacionService suscripcionesActivas = mock(SuscripcionOrganizacionService.class);
+    private final ContextoOrganizacion contexto = new ContextoOrganizacion(organizaciones, membresias, suscripcionesActivas);
     private final Authentication auth = mock(Authentication.class);
     private final HttpServletRequest request = mock(HttpServletRequest.class);
+
+    @BeforeEach
+    void suscripcionesVigentesPorDefecto() {
+        when(suscripcionesActivas.tieneAccesoActivo(anyLong(), any())).thenReturn(true);
+    }
 
     @Test
     void rechazaOrganizacionInactiva() {
@@ -63,6 +71,29 @@ class ContextoOrganizacionTest {
         assertThatThrownBy(() -> contexto.resolver(auth, request))
                 .isInstanceOf(ExcepcionNoAutorizado.class)
                 .hasMessageContaining("no pertenece");
+    }
+
+    @Test
+    void rechazaAccesoTenantCuandoLaSuscripcionFueSuspendidaPeroSaasAdminPuedeAdministrar() {
+        Organizacion organizacion = organizacion(12L, "ACTIVA");
+        SuscripcionOrganizacionService suscripciones = mock(SuscripcionOrganizacionService.class);
+        ContextoOrganizacion conSuscripciones = new ContextoOrganizacion(organizaciones, membresias, suscripciones);
+        when(auth.isAuthenticated()).thenReturn(true);
+        when(auth.getName()).thenReturn("persona@correo.test");
+        when(request.getHeader(ContextoOrganizacion.CABECERA)).thenReturn("12");
+        when(organizaciones.findById(12L)).thenReturn(Optional.of(organizacion));
+        when(suscripciones.tieneAccesoActivo(eq(12L), any())).thenReturn(false);
+
+        assertThatThrownBy(() -> conSuscripciones.resolver(auth, request))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class)
+                .hasMessageContaining("suscripcion");
+
+        org.springframework.security.core.Authentication saas =
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        "saas@plataforma.test", "N/A", java.util.List.of(
+                        new org.springframework.security.core.authority.SimpleGrantedAuthority("SAAS_ADMINISTRADOR")));
+        when(suscripciones.tieneAccesoActivo(eq(12L), any())).thenReturn(false);
+        assertThat(conSuscripciones.resolver(saas, request)).isSameAs(organizacion);
     }
 
 

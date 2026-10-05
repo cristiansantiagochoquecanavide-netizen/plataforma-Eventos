@@ -62,7 +62,7 @@ public class TokenRefrescoService {
 
     @Transactional
     public void revocarTokensDelUsuario(Long idUsuario) {
-        tokenRefrescoRepository.revocarTokensActivosPorUsuario(idUsuario);
+        tokenRefrescoRepository.revocarTokensActivosPorUsuario(idUsuario, OffsetDateTime.now());
     }
 
     private String calcularHash(String token) {

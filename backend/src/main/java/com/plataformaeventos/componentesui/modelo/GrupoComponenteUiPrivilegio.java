@@ -11,7 +11,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinColumns;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
@@ -31,10 +30,7 @@ public class GrupoComponenteUiPrivilegio {
     private Organizacion organizacion;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumns({
-            @JoinColumn(name = "id_grupo", referencedColumnName = "id_grupo", nullable = false),
-            @JoinColumn(name = "id_organizacion", referencedColumnName = "id_organizacion", nullable = false, insertable = false, updatable = false)
-    })
+    @JoinColumn(name = "id_grupo", referencedColumnName = "id_grupo", nullable = false)
     private GrupoUsuario grupo;
 
     @Column(name = "clave_componente", nullable = false, length = 120)

@@ -50,7 +50,7 @@ public class ParticipanteService {
             int tamano,
             Organizacion organizacion
     ) {
-        String query = (busqueda != null && !busqueda.trim().isBlank()) ? busqueda.trim() : null;
+        String query = normalizarBusqueda(busqueda);
         Pageable pageable = PageRequest.of(Math.max(0, pagina), Math.max(1, tamano));
         Page<Usuario> resultado = participanteRepository.buscarParticipantes(
                 organizacion.getId(),
@@ -136,7 +136,7 @@ public class ParticipanteService {
             EstadoUsuario estado,
             Organizacion organizacion
     ) {
-        String query = (busqueda != null && !busqueda.trim().isBlank()) ? busqueda.trim() : null;
+        String query = normalizarBusqueda(busqueda);
         List<Usuario> lista = participanteRepository.listarTodosParaExportacion(
                 organizacion.getId(),
                 eventoId,
@@ -174,6 +174,18 @@ public class ParticipanteService {
         return baos.toByteArray();
     }
 
+    @Transactional(readOnly = true)
+    public List<ParticipanteResumenRespuesta> listarParaReporte(
+            Long eventoId,
+            String busqueda,
+            EstadoUsuario estado,
+            Organizacion organizacion
+    ) {
+        String query = normalizarBusqueda(busqueda);
+        return participanteRepository.buscarResumenParaReporte(
+                organizacion.getId(), eventoId, query, estado, PageRequest.of(0, 5_001)).getContent();
+    }
+
     private ParticipanteResumenRespuesta mapearResumen(Usuario usuario, Long organizacionId) {
         long total = inscripcionRepository.countByParticipanteIdAndOrganizacionId(usuario.getId(), organizacionId);
         long confirmadas = inscripcionRepository.countByParticipanteIdAndOrganizacionIdAndEstado(
@@ -209,8 +221,16 @@ public class ParticipanteService {
         );
     }
 
+    private String normalizarBusqueda(String busqueda) {
+        return busqueda == null || busqueda.isBlank() ? "" : busqueda.trim();
+    }
+
     private String escaparCsv(String valor) {
         if (valor == null) return "";
-        return valor.replace("\"", "\"\"");
+        String seguro = valor;
+        int primerCaracter = 0;
+        while (primerCaracter < seguro.length() && Character.isWhitespace(seguro.charAt(primerCaracter))) primerCaracter++;
+        if (primerCaracter < seguro.length() && "=+-@".indexOf(seguro.charAt(primerCaracter)) >= 0) seguro = "'" + seguro;
+        return seguro.replace("\"", "\"\"");
     }
 }

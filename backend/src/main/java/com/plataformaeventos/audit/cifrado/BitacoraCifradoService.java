@@ -11,16 +11,16 @@ import java.util.Map;
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.awssdk.services.kms.model.DataKeySpec;
 import software.amazon.awssdk.services.kms.model.DecryptRequest;
-import software.amazon.awssdk.services.kms.model.GenerateDataKeyRequest;
 
 @Service
 public class BitacoraCifradoService {
-    private static final int VERSION_ACTUAL = 1;
+    private static final int VERSION_KMS_LEGACY = 1;
+    private static final int VERSION_ACTUAL = 2;
     private static final int NONCE_BYTES = 12;
     private static final int GCM_TAG_BITS = 128;
     private static final String ALGORITMO = "AES/GCM/NoPadding";
@@ -30,6 +30,7 @@ public class BitacoraCifradoService {
     private final BitacoraCifradoProperties properties;
     private final SecureRandom secureRandom;
 
+    @Autowired
     public BitacoraCifradoService(
             KmsClient kmsClient,
             ObjectMapper objectMapper,
@@ -52,42 +53,57 @@ public class BitacoraCifradoService {
 
     public BitacoraPayloadCifrado cifrar(Long tenantId, BitacoraPayload payload) {
         validarTenant(tenantId);
-        validarConfiguracion();
 
-        byte[] dataKey = null;
+        byte[] developerKey = null;
+        byte[] plaintext = null;
         try {
-            var dataKeyResponse = kmsClient.generateDataKey(GenerateDataKeyRequest.builder()
-                    .keyId(properties.kmsKeyId())
-                    .keySpec(DataKeySpec.AES_256)
-                    .encryptionContext(contextoKms(tenantId))
-                    .build());
-
-            dataKey = dataKeyResponse.plaintext().asByteArray();
+            developerKey = claveDesarrollador();
             byte[] nonce = nonce();
-            byte[] plaintext = serializar(payload);
-            try {
-                byte[] ciphertext = cifrarAesGcm(dataKey, nonce, datosAutenticados(tenantId), plaintext);
-                return new BitacoraPayloadCifrado(
-                        Base64.getEncoder().encodeToString(ciphertext),
-                        Base64.getEncoder().encodeToString(dataKeyResponse.ciphertextBlob().asByteArray()),
-                        Base64.getEncoder().encodeToString(nonce),
-                        VERSION_ACTUAL
-                );
-            } finally {
-                Arrays.fill(plaintext, (byte) 0);
-            }
+            plaintext = serializar(payload);
+            byte[] ciphertext = cifrarAesGcm(developerKey, nonce, datosAutenticados(tenantId, VERSION_ACTUAL), plaintext);
+            return new BitacoraPayloadCifrado(
+                    Base64.getEncoder().encodeToString(ciphertext),
+                    null,
+                    Base64.getEncoder().encodeToString(nonce),
+                    VERSION_ACTUAL
+            );
         } catch (RuntimeException | GeneralSecurityException e) {
             throw new IllegalStateException("No se pudo cifrar el payload de bitacora", e);
         } finally {
-            limpiar(dataKey);
+            limpiar(plaintext);
+            limpiar(developerKey);
         }
     }
 
     public BitacoraPayload descifrar(Long tenantId, BitacoraPayloadCifrado envelope) {
         validarTenant(tenantId);
-        validarConfiguracion();
         validarEnvelope(envelope);
 
+        if (envelope.cryptoVersion() == VERSION_KMS_LEGACY) {
+            return descifrarKmsLegacy(tenantId, envelope);
+        }
+
+        byte[] developerKey = null;
+        byte[] plaintext = null;
+        try {
+            developerKey = claveDesarrollador();
+            plaintext = descifrarAesGcm(
+                    developerKey,
+                    Base64.getDecoder().decode(envelope.nonce()),
+                    datosAutenticados(tenantId, envelope.cryptoVersion()),
+                    Base64.getDecoder().decode(envelope.ciphertext())
+            );
+            return objectMapper.readValue(plaintext, BitacoraPayload.class);
+        } catch (RuntimeException | GeneralSecurityException | java.io.IOException e) {
+            throw new IllegalStateException("No se pudo descifrar el payload de bitacora", e);
+        } finally {
+            limpiar(plaintext);
+            limpiar(developerKey);
+        }
+    }
+
+    private BitacoraPayload descifrarKmsLegacy(Long tenantId, BitacoraPayloadCifrado envelope) {
+        validarConfiguracionKms();
         byte[] dataKey = null;
         byte[] plaintext = null;
         try {
@@ -95,17 +111,16 @@ public class BitacoraCifradoService {
                     .ciphertextBlob(SdkBytes.fromByteArray(Base64.getDecoder().decode(envelope.dataKeyCiphertext())))
                     .encryptionContext(contextoKms(tenantId))
                     .build());
-
             dataKey = decryptResponse.plaintext().asByteArray();
             plaintext = descifrarAesGcm(
                     dataKey,
                     Base64.getDecoder().decode(envelope.nonce()),
-                    datosAutenticados(tenantId),
+                    datosAutenticados(tenantId, VERSION_KMS_LEGACY),
                     Base64.getDecoder().decode(envelope.ciphertext())
             );
             return objectMapper.readValue(plaintext, BitacoraPayload.class);
         } catch (RuntimeException | GeneralSecurityException | java.io.IOException e) {
-            throw new IllegalStateException("No se pudo descifrar el payload de bitacora", e);
+            throw new IllegalStateException("No se pudo descifrar el payload KMS heredado de bitacora", e);
         } finally {
             limpiar(plaintext);
             limpiar(dataKey);
@@ -143,9 +158,27 @@ public class BitacoraCifradoService {
         );
     }
 
-    private byte[] datosAutenticados(Long tenantId) {
-        return ("tenantId=" + tenantId + ";purpose=" + properties.proposito() + ";version=" + VERSION_ACTUAL)
+    private byte[] datosAutenticados(Long tenantId, int version) {
+        return ("tenantId=" + tenantId + ";purpose=" + properties.proposito() + ";version=" + version)
                 .getBytes(StandardCharsets.UTF_8);
+    }
+
+    private byte[] claveDesarrollador() {
+        String configurada = properties == null ? null : properties.claveDesarrolladorBase64();
+        if (sinTexto(configurada)) {
+            throw new IllegalStateException("Falta la llave runtime de cifrado de bitacora del desarrollador");
+        }
+        byte[] key;
+        try {
+            key = Base64.getDecoder().decode(configurada);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException("La llave runtime de bitacora no es Base64 valido", e);
+        }
+        if (key.length != 32) {
+            limpiar(key);
+            throw new IllegalStateException("La llave runtime de bitacora debe contener 256 bits");
+        }
+        return key;
     }
 
     private byte[] nonce() {
@@ -155,8 +188,10 @@ public class BitacoraCifradoService {
     }
 
     private void validarEnvelope(BitacoraPayloadCifrado envelope) {
-        if (envelope == null || envelope.cryptoVersion() != VERSION_ACTUAL
-                || sinTexto(envelope.ciphertext()) || sinTexto(envelope.dataKeyCiphertext()) || sinTexto(envelope.nonce())) {
+        if (envelope == null || sinTexto(envelope.ciphertext()) || sinTexto(envelope.nonce())
+                || (envelope.cryptoVersion() == VERSION_KMS_LEGACY && sinTexto(envelope.dataKeyCiphertext()))
+                || (envelope.cryptoVersion() == VERSION_ACTUAL && !sinTexto(envelope.dataKeyCiphertext()))
+                || (envelope.cryptoVersion() != VERSION_ACTUAL && envelope.cryptoVersion() != VERSION_KMS_LEGACY)) {
             throw new IllegalStateException("Envelope de bitacora cifrada invalido");
         }
     }
@@ -167,9 +202,9 @@ public class BitacoraCifradoService {
         }
     }
 
-    private void validarConfiguracion() {
-        if (properties == null || sinTexto(properties.kmsKeyId()) || sinTexto(properties.kmsRegion()) || sinTexto(properties.proposito())) {
-            throw new IllegalStateException("Configuracion de cifrado de bitacora incompleta");
+    private void validarConfiguracionKms() {
+        if (properties == null || sinTexto(properties.kmsRegion()) || sinTexto(properties.proposito())) {
+            throw new IllegalStateException("Configuracion KMS heredada de bitacora incompleta");
         }
     }
 
