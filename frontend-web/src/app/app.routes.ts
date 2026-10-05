@@ -45,6 +45,7 @@ export const routes: Routes = [
       { path: 'roles', loadComponent: () => import('./features/roles/roles.component').then((m) => m.RolesComponent), canActivate: [rolesGuard] },
       { path: 'recursos', loadComponent: () => import('./features/recursos/recursos.component').then((m) => m.RecursosComponent), canActivate: [recursosGuard] },
       { path: 'espacios', loadComponent: () => import('./features/espacios/espacios.component').then((m) => m.EspaciosComponent), canActivate: [espaciosGuard] },
+
       {
         path: 'convocatorias',
         loadComponent: () => import('./features/convocatorias/convocatorias.component').then((m) => m.ConvocatoriasComponent),

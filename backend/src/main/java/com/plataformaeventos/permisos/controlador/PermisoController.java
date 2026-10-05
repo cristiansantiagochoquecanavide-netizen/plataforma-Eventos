@@ -27,7 +27,7 @@ public class PermisoController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('SAAS_ADMINISTRADOR')")
+    @PreAuthorize("hasAuthority('PERMISO_VER') or hasAuthority('SAAS_ADMINISTRADOR')")
     @Operation(summary = "Listar permisos")
     @ApiResponse(responseCode = "200", description = "Permisos consultados")
     public ResponseEntity<List<PermisoRespuesta>> listarPermisos() {

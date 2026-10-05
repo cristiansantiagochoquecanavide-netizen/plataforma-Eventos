@@ -39,4 +39,16 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("select e from com.plataformaeventos.eventos.modelo.Evento e where e.id = :id and e.organizacion.id = :org")
     java.util.Optional<com.plataformaeventos.eventos.modelo.Evento> bloquearEvento(@Param("id") Long id, @Param("org") Long org);
+
+    @Query("SELECT i FROM Inscripcion i JOIN FETCH i.participante u JOIN FETCH i.evento e WHERE i.organizacion.id = :org ORDER BY i.fechaInscripcion DESC")
+    List<Inscripcion> findByOrganizacionIdConDetalles(@Param("org") Long org);
+
+    @Query("SELECT i FROM Inscripcion i JOIN FETCH i.participante u JOIN FETCH i.evento e WHERE i.evento.id = :idEvento AND i.organizacion.id = :org ORDER BY i.fechaInscripcion DESC")
+    List<Inscripcion> findByEventoIdAndOrganizacionIdConDetalles(@Param("idEvento") Long idEvento, @Param("org") Long org);
+
+    @Query("SELECT i FROM Inscripcion i JOIN FETCH i.participante u JOIN FETCH i.evento e ORDER BY i.fechaInscripcion DESC")
+    List<Inscripcion> findAllConDetalles();
+
+    @Query("SELECT i FROM Inscripcion i JOIN FETCH i.participante u JOIN FETCH i.evento e WHERE i.evento.id = :idEvento ORDER BY i.fechaInscripcion DESC")
+    List<Inscripcion> findByEventoIdConDetalles(@Param("idEvento") Long idEvento);
 }

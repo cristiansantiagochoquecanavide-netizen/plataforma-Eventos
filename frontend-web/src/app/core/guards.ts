@@ -103,3 +103,4 @@ export const asignacionesGuard = permisoGuard((s) => s.puedeGestionarAsignacione
 export const bitacoraGuard = permisoGuard((s) => s.puedeVerBitacora());
 export const miembrosGuard = permisoGuard((s) => s.puedeGestionarMiembros());
 export const participantesGuard = permisoGuard((s) => s.puedeVerParticipantes());
+

@@ -2,6 +2,7 @@ package com.plataformaeventos.inscripciones.controlador;
 
 import com.plataformaeventos.inscripciones.dto.DisponibilidadEventoRespuesta;
 import com.plataformaeventos.inscripciones.dto.InscripcionRespuesta;
+import com.plataformaeventos.inscripciones.dto.ParticipanteInscritoRespuesta;
 import com.plataformaeventos.inscripciones.servicio.InscripcionService;
 import com.plataformaeventos.organizaciones.servicio.ContextoOrganizacion;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -83,5 +85,16 @@ public class InscripcionController {
     ) {
         String correo = autenticacion != null ? autenticacion.getName() : null;
         return ResponseEntity.ok(inscripcionService.consultarDisponibilidad(idEvento, correo, contextoOrganizacion.resolver(autenticacion, request)));
+    }
+
+    @GetMapping("/participantes")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'PARTICIPANTE_VER')")
+    @Operation(summary = "Listar participantes inscritos (CU10)")
+    @ApiResponse(responseCode = "200", description = "Listado de participantes de la organización o evento")
+    public ResponseEntity<List<ParticipanteInscritoRespuesta>> listarParticipantes(
+            @RequestParam(required = false) Long idEvento,
+            Authentication autenticacion, HttpServletRequest request
+    ) {
+        return ResponseEntity.ok(inscripcionService.listarParticipantes(idEvento, contextoOrganizacion.resolver(autenticacion, request)));
     }
 }

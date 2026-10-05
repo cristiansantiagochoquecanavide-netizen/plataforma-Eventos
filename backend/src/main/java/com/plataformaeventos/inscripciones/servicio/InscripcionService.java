@@ -6,6 +6,7 @@ import com.plataformaeventos.eventos.repositorio.EventoRepository;
 import com.plataformaeventos.excepciones.ExcepcionNoEncontrado;
 import com.plataformaeventos.inscripciones.dto.DisponibilidadEventoRespuesta;
 import com.plataformaeventos.inscripciones.dto.InscripcionRespuesta;
+import com.plataformaeventos.inscripciones.dto.ParticipanteInscritoRespuesta;
 import com.plataformaeventos.inscripciones.modelo.EstadoInscripcion;
 import com.plataformaeventos.inscripciones.modelo.Inscripcion;
 import com.plataformaeventos.inscripciones.repositorio.InscripcionRepository;
@@ -172,6 +173,23 @@ public class InscripcionService {
     private Usuario buscarUsuario(String correo) {
         return usuarioRepository.findByCorreo(correo.trim().toLowerCase(Locale.ROOT))
                 .orElseThrow(() -> new ExcepcionNoEncontrado("Usuario no encontrado con correo " + correo));
+    }
+
+    @Transactional(readOnly = true)
+    public List<ParticipanteInscritoRespuesta> listarParticipantes(Long idEvento, Organizacion organizacion) {
+        List<Inscripcion> inscripciones;
+        if (idEvento != null && idEvento > 0) {
+            inscripciones = organizacion == null
+                    ? inscripcionRepository.findByEventoIdConDetalles(idEvento)
+                    : inscripcionRepository.findByEventoIdAndOrganizacionIdConDetalles(idEvento, organizacion.getId());
+        } else {
+            inscripciones = organizacion == null
+                    ? inscripcionRepository.findAllConDetalles()
+                    : inscripcionRepository.findByOrganizacionIdConDetalles(organizacion.getId());
+        }
+        return inscripciones.stream()
+                .map(ParticipanteInscritoRespuesta::desdeEntidad)
+                .toList();
     }
 
     private String generarCodigoQr(Long idEvento, Long idParticipante) {
