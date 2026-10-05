@@ -23,6 +23,7 @@ import com.plataformaeventos.postulacionesstaff.modelo.PostulacionStaff;
 import com.plataformaeventos.postulacionesstaff.repositorio.PostulacionStaffRepository;
 import com.plataformaeventos.roles.modelo.Rol;
 import com.plataformaeventos.roles.repositorio.RolRepository;
+import com.plataformaeventos.saas.servicio.SuscripcionOrganizacionService;
 import com.plataformaeventos.usuarios.modelo.EstadoUsuario;
 import com.plataformaeventos.usuarios.modelo.Usuario;
 import com.plataformaeventos.usuarios.repositorio.UsuarioRepository;
@@ -32,6 +33,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -63,6 +65,7 @@ public class DemoDatosInicializador {
             AsignacionStaffRepository asignaciones,
             InscripcionRepository inscripciones,
             PasswordEncoder codificadorClave,
+            ObjectProvider<SuscripcionOrganizacionService> suscripciones,
             TransactionTemplate transactionTemplate
     ) {
         return argumentos -> transactionTemplate.executeWithoutResult(status -> crearDatosDemo(
@@ -77,7 +80,8 @@ public class DemoDatosInicializador {
                 postulaciones,
                 asignaciones,
                 inscripciones,
-                codificadorClave
+                codificadorClave,
+                suscripciones.getIfAvailable()
         ));
     }
 
@@ -95,6 +99,26 @@ public class DemoDatosInicializador {
             AsignacionStaffRepository asignaciones,
             InscripcionRepository inscripciones,
             PasswordEncoder codificadorClave
+    ) {
+        crearDatosDemo(organizaciones, usuarios, roles, membresias, categorias, espacios, eventos,
+                convocatorias, postulaciones, asignaciones, inscripciones, codificadorClave, null);
+    }
+
+    @Transactional
+    void crearDatosDemo(
+            OrganizacionRepository organizaciones,
+            UsuarioRepository usuarios,
+            RolRepository roles,
+            MembresiaOrganizacionRepository membresias,
+            CategoriaRepository categorias,
+            EspacioRepository espacios,
+            EventoRepository eventos,
+            ConvocatoriaRepository convocatorias,
+            PostulacionStaffRepository postulaciones,
+            AsignacionStaffRepository asignaciones,
+            InscripcionRepository inscripciones,
+            PasswordEncoder codificadorClave,
+            SuscripcionOrganizacionService suscripciones
     ) {
         Rol administrador = rol(roles, "ADMINISTRADOR");
         Rol organizador = rol(roles, "ORGANIZADOR");
@@ -136,6 +160,11 @@ public class DemoDatosInicializador {
                         3),
                 organizaciones, usuarios, membresias, categorias, espacios, eventos, convocatorias,
                 postulaciones, asignaciones, inscripciones, codificadorClave, administrador, organizador, staff, participante);
+
+        if (suscripciones != null) {
+            organizaciones.findBySlug("demo-universidad-norte").ifPresent(suscripciones::crearPlanBaseSiFalta);
+            organizaciones.findBySlug("demo-centro-cultural-sur").ifPresent(suscripciones::crearPlanBaseSiFalta);
+        }
 
         LOGGER.info("Datos demo multi-tenant sincronizados");
     }

@@ -24,6 +24,7 @@ class SesionServiceStub {
     });
 
   esAdministrador = jasmine.createSpy('esAdministrador').and.returnValue(true);
+  esAdministradorSaas = jasmine.createSpy('esAdministradorSaas').and.returnValue(false);
   tieneAccesoUsuarios = jasmine.createSpy('tieneAccesoUsuarios').and.returnValue(false);
   puedeVerParticipantes = jasmine.createSpy('puedeVerParticipantes').and.returnValue(false);
   tieneAccesoRoles = jasmine.createSpy('tieneAccesoRoles').and.returnValue(false);

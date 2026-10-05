@@ -14,12 +14,16 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "grupo_usuario")
+@Table(name = "grupo_usuario", uniqueConstraints = @UniqueConstraint(
+        name = "uk_grupo_usuario_grupo_organizacion",
+        columnNames = {"id_grupo", "id_organizacion"}
+))
 public class GrupoUsuario {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

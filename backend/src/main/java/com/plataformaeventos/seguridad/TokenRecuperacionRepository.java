@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.OffsetDateTime;
 import java.util.Optional;
 
 public interface TokenRecuperacionRepository extends JpaRepository<TokenRecuperacion, Long> {
@@ -18,7 +19,10 @@ public interface TokenRecuperacionRepository extends JpaRepository<TokenRecupera
     Optional<TokenRecuperacion> findByTokenHashForUpdate(@Param("tokenHash") String tokenHash);
 
     @Modifying
-    @Query("update TokenRecuperacion token set token.activo = false, token.fechaInactivacion = CURRENT_TIMESTAMP "
+    @Query("update TokenRecuperacion token set token.activo = false, token.fechaInactivacion = :fechaInactivacion "
             + "where token.usuario.id = :idUsuario and token.activo = true and token.utilizado = false")
-    void invalidarTokensPendientesPorUsuario(@Param("idUsuario") Long idUsuario);
+    void invalidarTokensPendientesPorUsuario(
+            @Param("idUsuario") Long idUsuario,
+            @Param("fechaInactivacion") OffsetDateTime fechaInactivacion
+    );
 }

@@ -104,5 +104,8 @@ public class Bitacora {
     public String getIndiceEntidad() { return indiceEntidad; }
     public String getIndiceIdEntidad() { return indiceIdEntidad; }
     public String getIndiceExito() { return indiceExito; }
-    public boolean estaCifrada() { return payloadCiphertext != null && payloadDekCifrada != null && payloadNonce != null && cryptoVersion != null; }
+    public boolean estaCifrada() {
+        return payloadCiphertext != null && payloadNonce != null && cryptoVersion != null
+                && (payloadDekCifrada != null || cryptoVersion == 2);
+    }
 }

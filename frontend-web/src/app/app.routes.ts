@@ -20,6 +20,7 @@ import { RestablecerClaveComponent } from './features/auth/restablecer-clave.com
 import { ConsultaEventosComponent } from './features/eventos/consulta-eventos.component';
 import { PanelComponent } from './features/panel/panel.component';
 import { PerfilComponent } from './features/perfil/perfil.component';
+import { AyudaComponent } from './features/ayuda/ayuda.component';
 
 export const routes: Routes = [
   { path: 'iniciar-sesion', component: InicioSesionComponent },
@@ -31,6 +32,12 @@ export const routes: Routes = [
     canActivate: [autenticacionGuard],
     children: [
       { path: 'perfil', component: PerfilComponent },
+      { path: 'ayuda', component: AyudaComponent },
+      {
+        path: 'saas/suscripciones',
+        loadComponent: () => import('./features/saas/suscripciones.component').then((m) => m.SuscripcionesComponent),
+        canActivate: [rolesGuard],
+      },
       { path: 'consulta-eventos', component: ConsultaEventosComponent },
       { path: 'eventos', loadComponent: () => import('./features/eventos/eventos.component').then((m) => m.EventosComponent), canActivate: [eventosGuard] },
       { path: 'categorias', loadComponent: () => import('./features/categorias/categorias.component').then((m) => m.CategoriasComponent), canActivate: [eventosGuard] },

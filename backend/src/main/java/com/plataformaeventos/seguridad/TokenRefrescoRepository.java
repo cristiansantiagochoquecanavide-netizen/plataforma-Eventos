@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import jakarta.persistence.LockModeType;
 
+import java.time.OffsetDateTime;
 import java.util.Optional;
 
 public interface TokenRefrescoRepository extends JpaRepository<TokenRefresco, Long> {
@@ -22,7 +23,10 @@ public interface TokenRefrescoRepository extends JpaRepository<TokenRefresco, Lo
     Optional<TokenRefresco> findByTokenHashForUpdate(@Param("tokenHash") String tokenHash);
 
     @Modifying
-    @Query("update TokenRefresco token set token.revocado = true, token.fechaRevocacion = CURRENT_TIMESTAMP "
+    @Query("update TokenRefresco token set token.revocado = true, token.fechaRevocacion = :fechaRevocacion "
             + "where token.usuario.id = :idUsuario and token.revocado = false")
-    void revocarTokensActivosPorUsuario(@Param("idUsuario") Long idUsuario);
+    void revocarTokensActivosPorUsuario(
+            @Param("idUsuario") Long idUsuario,
+            @Param("fechaRevocacion") OffsetDateTime fechaRevocacion
+    );
 }

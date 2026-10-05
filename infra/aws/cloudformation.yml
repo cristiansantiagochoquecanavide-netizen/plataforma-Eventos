@@ -27,6 +27,23 @@ Parameters:
     NoEcho: true
   SesFrom:
     Type: String
+  DeveloperAuditKeySecretArn:
+    Type: String
+  DeveloperAuditSecretKmsKeyArn:
+    Type: String
+  TlsCertificateArn:
+    Type: String
+  PublicDomainName:
+    Type: String
+  EnableLegacyAuditPayloadDecrypt:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+Conditions:
+  LegacyAuditPayloadDecryptEnabled: !Equals [!Ref EnableLegacyAuditPayloadDecrypt, 'true']
 
 Resources:
   Vpc:
@@ -105,6 +122,10 @@ Resources:
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
@@ -159,6 +180,7 @@ Resources:
     UpdateReplacePolicy: Snapshot
     Properties:
       AllocatedStorage: 20
+      BackupRetentionPeriod: 7
       DBInstanceClass: db.t3.micro
       DBName: eventos
       DBSubnetGroupName: !Ref DatabaseSubnetGroup
@@ -168,6 +190,7 @@ Resources:
       MasterUserPassword: !Ref DatabasePassword
       MultiAZ: false
       PubliclyAccessible: false
+      PreferredBackupWindow: '03:00-04:00'
       StorageEncrypted: true
       VPCSecurityGroups:
         - !GetAtt DatabaseSecurityGroup.GroupId
@@ -191,13 +214,28 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: read-developer-owned-audit-secret
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref DeveloperAuditKeySecretArn
+        - PolicyName: decrypt-developer-owned-audit-secret
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: kms:Decrypt
+                Resource: !Ref DeveloperAuditSecretKmsKeyArn
 
   AuditPayloadKmsKey:
     Type: AWS::KMS::Key
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      Description: Audit payload data-key envelope encryption key
+      Description: Legacy KMS key retained only to decrypt version 1 audit envelopes during migration
       Enabled: true
       EnableKeyRotation: true
       KeySpec: SYMMETRIC_DEFAULT
@@ -217,7 +255,7 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      Description: Audit exact blind-index HMAC key
+      Description: Legacy audit blind-index HMAC key retained through v1 index reindexing
       Enabled: true
       KeySpec: HMAC_256
       KeyUsage: GENERATE_VERIFY_MAC
@@ -246,17 +284,26 @@ Resources:
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              - Sid: AuditPayloadEnvelopeEncryption
-                Effect: Allow
-                Action:
-                  - kms:GenerateDataKey
-                  - kms:Decrypt
-                Resource: !GetAtt AuditPayloadKmsKey.Arn
-              - Sid: AuditExactBlindIndexMac
+              - Sid: AuditLegacyBlindIndexMac
                 Effect: Allow
                 Action:
                   - kms:GenerateMac
                 Resource: !GetAtt AuditIndexKmsKey.Arn
+
+  LegacyAuditPayloadDecryptPolicy:
+    Type: AWS::IAM::Policy
+    Condition: LegacyAuditPayloadDecryptEnabled
+    Properties:
+      PolicyName: temporary-legacy-audit-payload-decrypt
+      Roles:
+        - !Ref BackendTaskRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AuditPayloadEnvelopeDecryptDuringMigration
+            Effect: Allow
+            Action: kms:Decrypt
+            Resource: !GetAtt AuditPayloadKmsKey.Arn
 
   LogGroup:
     Type: AWS::Logs::LogGroup
@@ -311,11 +358,27 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref FrontendTargetGroup
+        - Type: redirect
+          RedirectConfig:
+            Protocol: HTTPS
+            Port: '443'
+            StatusCode: HTTP_301
       LoadBalancerArn: !Ref LoadBalancer
       Port: 80
       Protocol: HTTP
+
+  HttpsListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      Certificates:
+        - CertificateArn: !Ref TlsCertificateArn
+      SslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref FrontendTargetGroup
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 443
+      Protocol: HTTPS
 
   BackendListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
@@ -327,7 +390,7 @@ Resources:
         - Field: path-pattern
           Values:
             - /api/*
-      ListenerArn: !Ref HttpListener
+      ListenerArn: !Ref HttpsListener
       Priority: 10
 
   IaListenerRule:
@@ -340,7 +403,7 @@ Resources:
         - Field: path-pattern
           Values:
             - /api/salud
-      ListenerArn: !Ref HttpListener
+      ListenerArn: !Ref HttpsListener
       Priority: 5
 
   BackendTaskDefinition:
@@ -377,9 +440,9 @@ Resources:
             - Name: ADMIN_CLAVE
               Value: !Ref AdminPassword
             - Name: CORS_ORIGENES
-              Value: !Sub http://${LoadBalancer.DNSName}
+              Value: !Sub https://${PublicDomainName}
             - Name: URL_FRONTEND_WEB
-              Value: !Sub http://${LoadBalancer.DNSName}
+              Value: !Sub https://${PublicDomainName}
             - Name: URL_APLICACION_MOVIL
               Value: eventos://recuperar-clave
             - Name: SMTP_HOST
@@ -410,6 +473,9 @@ Resources:
               Value: !Ref AuditIndexKmsKey
             - Name: AUDIT_KMS_REGION
               Value: !Ref AWS::Region
+          Secrets:
+            - Name: AUDIT_DEVELOPER_KEY_BASE64
+              ValueFrom: !Ref DeveloperAuditKeySecretArn
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -529,11 +595,11 @@ Resources:
 
 Outputs:
   ApplicationUrl:
-    Value: !Sub http://${LoadBalancer.DNSName}
+    Value: !Sub https://${PublicDomainName}
   ApiUrl:
-    Value: !Sub http://${LoadBalancer.DNSName}/api
+    Value: !Sub https://${PublicDomainName}/api
   IaHealthUrl:
-    Value: !Sub http://${LoadBalancer.DNSName}/api/salud
+    Value: !Sub https://${PublicDomainName}/api/salud
   EcsClusterName:
     Value: !Ref EcsCluster
   DatabaseEndpoint:

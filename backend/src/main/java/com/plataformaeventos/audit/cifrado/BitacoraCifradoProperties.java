@@ -10,7 +10,8 @@ public record BitacoraCifradoProperties(
         String kmsIndiceKeyId,
         String kmsRegion,
         String proposito,
-        Backfill backfill
+        Backfill backfill,
+        String claveDesarrolladorBase64
 ) {
     private static final int DEFAULT_BACKFILL_BATCH_SIZE = 500;
 
@@ -22,11 +23,21 @@ public record BitacoraCifradoProperties(
     }
 
     public BitacoraCifradoProperties(String kmsKeyId, String kmsRegion, String proposito) {
-        this(kmsKeyId, null, kmsRegion, proposito, null);
+        this(kmsKeyId, null, kmsRegion, proposito, null, null);
     }
 
-    public BitacoraCifradoProperties(String kmsKeyId, String kmsIndiceKeyId, String kmsRegion, String proposito) {
-        this(kmsKeyId, kmsIndiceKeyId, kmsRegion, proposito, null);
+    public BitacoraCifradoProperties(String kmsKeyId, String kmsRegion, String proposito, Backfill backfill) {
+        this(kmsKeyId, null, kmsRegion, proposito, backfill, null);
+    }
+
+    public BitacoraCifradoProperties(String kmsKeyId, String kmsRegion, String proposito,
+                                     Backfill backfill, String claveDesarrolladorBase64) {
+        this(kmsKeyId, null, kmsRegion, proposito, backfill, claveDesarrolladorBase64);
+    }
+
+    public BitacoraCifradoProperties(String kmsKeyId, String kmsIndiceKeyId,
+                                     String kmsRegion, String proposito) {
+        this(kmsKeyId, kmsIndiceKeyId, kmsRegion, proposito, null, null);
     }
 
     public Region configuredRegionOrDefault() {
@@ -40,7 +51,21 @@ public record BitacoraCifradoProperties(
         return backfill.batchSizeOrDefault(DEFAULT_BACKFILL_BATCH_SIZE);
     }
 
-    public record Backfill(boolean enabled, Integer batchSize) {
+    @Override
+    public String toString() {
+        return "BitacoraCifradoProperties[kmsKeyId=" + kmsKeyId
+                + ", kmsIndiceKeyId=" + kmsIndiceKeyId
+                + ", kmsRegion=" + kmsRegion
+                + ", proposito=" + proposito
+                + ", backfill=" + backfill
+                + ", claveDesarrolladorBase64=<redactada>]";
+    }
+
+    public record Backfill(boolean enabled, Integer batchSize, boolean reindexIndexes) {
+        public Backfill(boolean enabled, Integer batchSize) {
+            this(enabled, batchSize, false);
+        }
+
         int batchSizeOrDefault(int defaultValue) {
             if (batchSize == null || batchSize < 1) {
                 return defaultValue;

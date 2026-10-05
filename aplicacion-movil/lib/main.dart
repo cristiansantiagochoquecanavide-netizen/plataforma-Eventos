@@ -829,10 +829,18 @@ class _HomeShellState extends State<HomeShell> {
             page: ProfilePage(session: widget.session),
           ));
         }
+        destinations.add((
+          destination: const NavigationDestination(
+            icon: Icon(Icons.help_outline_rounded),
+            selectedIcon: Icon(Icons.help_rounded),
+            label: 'Ayuda',
+          ),
+          page: MobileHelpPage(session: widget.session),
+        ));
 
         final selectedIndex = destinations.isEmpty
             ? 0
-            : _currentIndex.clamp(0, destinations.length - 1) as int;
+            : _currentIndex.clamp(0, destinations.length - 1);
         if (selectedIndex != _currentIndex) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) setState(() => _currentIndex = selectedIndex);
@@ -862,7 +870,7 @@ class _HomeShellState extends State<HomeShell> {
               ),
             ],
           ),
-          bottomNavigationBar: destinations.isEmpty
+          bottomNavigationBar: destinations.length < 2
               ? null
               : NavigationBar(
                   selectedIndex: selectedIndex,
@@ -871,6 +879,79 @@ class _HomeShellState extends State<HomeShell> {
                 ),
         );
       },
+    );
+  }
+}
+
+class MobileHelpPage extends StatelessWidget {
+  const MobileHelpPage({required this.session, super.key});
+
+  final SessionController session;
+
+  @override
+  Widget build(BuildContext context) {
+    const guias = <({String titulo, String descripcion, List<String> pasos})>[
+      (
+        titulo: 'Organización activa',
+        descripcion: 'La organización elegida limita los eventos, inscripciones y permisos que puedes consultar.',
+        pasos: ['Elige la organización desde el selector superior.', 'Si no aparece información, comprueba filtros y membresía activa.'],
+      ),
+      (
+        titulo: 'Eventos e inscripciones',
+        descripcion: 'Busca eventos publicados y revisa el estado de tus inscripciones.',
+        pasos: ['Actualiza la lista si acabas de cambiar de organización.', 'Abre un evento para revisar sus detalles y opciones disponibles.'],
+      ),
+      (
+        titulo: 'Postulaciones de staff',
+        descripcion: 'Envía postulaciones y revisa asignaciones de trabajo desde la sección Staff.',
+        pasos: ['Selecciona una convocatoria abierta.', 'Completa la motivación y envía.', 'Consulta cambios de estado desde la misma sección.'],
+      ),
+      (
+        titulo: 'Perfil y permisos',
+        descripcion: 'La aplicación muestra solo acciones habilitadas para tu grupo en la organización activa.',
+        pasos: ['Si una opción no aparece, solicita acceso al administrador.', 'La ayuda no cambia los permisos de la cuenta.'],
+      ),
+    ];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Ayuda y guías'),
+        actions: [
+          IconButton(
+            onPressed: session.logout,
+            tooltip: 'Cerrar sesión',
+            icon: const Icon(Icons.logout_rounded),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text(
+            'Respuestas rápidas para usar la plataforma',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          const Text('Tus datos y permisos corresponden a la organización seleccionada.'),
+          const SizedBox(height: 12),
+          for (final guia in guias)
+            Card(
+              child: ExpansionTile(
+                leading: const Icon(Icons.info_outline_rounded),
+                title: Text(guia.titulo),
+                subtitle: Text(guia.descripcion),
+                children: [
+                  for (final paso in guia.pasos)
+                    ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.check_circle_outline, size: 18),
+                      title: Text(paso),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

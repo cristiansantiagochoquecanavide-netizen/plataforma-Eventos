@@ -21,24 +21,27 @@ public class BitacoraIndiceService {
     }
 
     public String token(Long tenantId, String campo, Object valor) {
-        if (valor == null) {
-            return null;
-        }
-        validarTenant(tenantId);
-        validarCampo(campo);
-        validarConfiguracion();
+        if (valor == null) return null;
+        if (tenantId == null) throw new IllegalStateException("Tenant requerido para indice de bitacora");
+        if (campo == null || campo.isBlank()) throw new IllegalStateException("Campo requerido para indice de bitacora");
 
         String normalizado = normalizar(valor);
-        if (normalizado.isBlank()) {
-            return null;
+        if (normalizado == null || normalizado.isBlank()) return null;
+        String indexKey = properties == null ? null : properties.kmsIndiceKeyId();
+        if (indexKey == null || indexKey.isBlank()) {
+            throw new IllegalStateException("Configuracion de indice KMS heredado de bitacora incompleta");
         }
-
-        var response = kmsClient.generateMac(GenerateMacRequest.builder()
-                .keyId(properties.kmsIndiceKeyId())
-                .macAlgorithm(MacAlgorithmSpec.HMAC_SHA_256)
-                .message(SdkBytes.fromByteArray(mensaje(tenantId, campo, normalizado)))
-                .build());
-        return HexFormat.of().formatHex(response.mac().asByteArray());
+        byte[] mensaje = mensaje(tenantId, campo, normalizado);
+        try {
+            var response = kmsClient.generateMac(GenerateMacRequest.builder()
+                    .keyId(indexKey)
+                    .macAlgorithm(MacAlgorithmSpec.HMAC_SHA_256)
+                    .message(SdkBytes.fromByteArray(mensaje))
+                    .build());
+            return HexFormat.of().formatHex(response.mac().asByteArray());
+        } finally {
+            java.util.Arrays.fill(mensaje, (byte) 0);
+        }
     }
 
     public String normalizar(Object valor) {
@@ -48,23 +51,5 @@ public class BitacoraIndiceService {
     private byte[] mensaje(Long tenantId, String campo, String normalizado) {
         return (DOMINIO + "\ntenant=" + tenantId + "\nfield=" + campo.trim().toLowerCase(java.util.Locale.ROOT)
                 + "\nvalue=" + normalizado).getBytes(StandardCharsets.UTF_8);
-    }
-
-    private void validarTenant(Long tenantId) {
-        if (tenantId == null) {
-            throw new IllegalStateException("Tenant requerido para indice de bitacora");
-        }
-    }
-
-    private void validarCampo(String campo) {
-        if (campo == null || campo.isBlank()) {
-            throw new IllegalStateException("Campo requerido para indice de bitacora");
-        }
-    }
-
-    private void validarConfiguracion() {
-        if (properties == null || properties.kmsIndiceKeyId() == null || properties.kmsIndiceKeyId().isBlank()) {
-            throw new IllegalStateException("Configuracion de indice de bitacora incompleta");
-        }
     }
 }

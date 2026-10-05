@@ -12,6 +12,9 @@ import { Evento } from '../eventos/modelos/evento.modelo';
 import {
   ParticipanteDetalle,
   ParticipanteResumen,
+  ColumnaReporteParticipantes,
+  FormatoReporteParticipantes,
+  VistaPreviaReporteParticipantes,
 } from './modelos/participante.modelo';
 import { ToastService } from '../../core/toast.service';
 import { SesionService } from '../../core/sesion.service';
@@ -27,6 +30,27 @@ import { UiPrivilegeEditableDirective, UiPrivilegeEnabledDirective, UiPrivilegeV
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ParticipantesComponent implements OnInit {
+  readonly columnasDisponibles: { id: ColumnaReporteParticipantes; nombre: string }[] = [
+    { id: 'ID', nombre: 'Identificador' },
+    { id: 'NOMBRES', nombre: 'Nombres' },
+    { id: 'APELLIDOS', nombre: 'Apellidos' },
+    { id: 'CORREO', nombre: 'Correo' },
+    { id: 'ESTADO', nombre: 'Estado' },
+    { id: 'TOTAL_INSCRIPCIONES', nombre: 'Total de inscripciones' },
+    { id: 'INSCRIPCIONES_CONFIRMADAS', nombre: 'Inscripciones confirmadas' },
+    { id: 'INSCRIPCIONES_CANCELADAS', nombre: 'Inscripciones canceladas' },
+    { id: 'ULTIMA_INSCRIPCION', nombre: 'Última inscripción' },
+    { id: 'FECHA_REGISTRO', nombre: 'Fecha de registro' },
+  ];
+  readonly columnasReporte = signal<ColumnaReporteParticipantes[]>([
+    'NOMBRES', 'APELLIDOS', 'CORREO', 'ESTADO', 'TOTAL_INSCRIPCIONES', 'FECHA_REGISTRO',
+  ]);
+  readonly ordenarReporte = signal<ColumnaReporteParticipantes>('APELLIDOS');
+  readonly ascendenteReporte = signal(true);
+  readonly formatoReporte = signal<FormatoReporteParticipantes>('CSV');
+  readonly correoReporte = signal('');
+  readonly vistaPreviaReporte = signal<VistaPreviaReporteParticipantes | null>(null);
+  readonly procesandoReporte = signal(false);
   readonly participantes = signal<ParticipanteResumen[]>([]);
   readonly eventos = signal<Evento[]>([]);
   readonly cargando = signal(false);
@@ -103,6 +127,7 @@ export class ParticipantesComponent implements OnInit {
 
   aplicarFiltros() {
     this.pagina.set(0);
+    this.vistaPreviaReporte.set(null);
     this.cargarParticipantes();
   }
 
@@ -111,6 +136,7 @@ export class ParticipantesComponent implements OnInit {
     this.estadoFiltro.set('TODOS');
     this.eventoFiltro.set(null);
     this.pagina.set(0);
+    this.vistaPreviaReporte.set(null);
     this.cargarParticipantes();
   }
 
@@ -196,5 +222,77 @@ export class ParticipantesComponent implements OnInit {
           this.exportando.set(false);
         },
       });
+  }
+
+  alternarColumnaReporte(columna: ColumnaReporteParticipantes, marcada: boolean) {
+    this.columnasReporte.update((actuales) => marcada
+      ? [...new Set([...actuales, columna])]
+      : actuales.filter((actual) => actual !== columna));
+    this.vistaPreviaReporte.set(null);
+  }
+
+  private solicitudReporte() {
+    return {
+      eventoId: this.eventoFiltro(),
+      busqueda: this.busqueda(),
+      estado: this.estadoFiltro() === 'TODOS' ? null : this.estadoFiltro() as 'ACTIVO' | 'INACTIVO',
+      columnas: this.columnasReporte(),
+      ordenarPor: this.ordenarReporte(),
+      ascendente: this.ascendenteReporte(),
+    };
+  }
+
+  cargarVistaPreviaReporte() {
+    if (!this.columnasReporte().length) {
+      this.toast.error('Selecciona al menos una columna para el reporte.');
+      return;
+    }
+    this.procesandoReporte.set(true);
+    this.participantesService.vistaPreviaReporte(this.solicitudReporte()).subscribe({
+      next: (preview) => {
+        this.vistaPreviaReporte.set(preview);
+        this.procesandoReporte.set(false);
+      },
+      error: (err) => {
+        this.toast.error(obtenerMensajeError(err, 'No fue posible generar la vista previa.'));
+        this.procesandoReporte.set(false);
+      },
+    });
+  }
+
+  descargarReporte() {
+    this.procesandoReporte.set(true);
+    this.participantesService.exportarReporte(this.solicitudReporte(), this.formatoReporte()).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const enlace = document.createElement('a');
+        enlace.href = url;
+        enlace.download = `participantes-${new Date().toISOString().slice(0, 10)}.${this.formatoReporte().toLowerCase()}`;
+        enlace.click();
+        window.URL.revokeObjectURL(url);
+        this.toast.exito('Reporte descargado.');
+        this.procesandoReporte.set(false);
+      },
+      error: (err) => {
+        this.toast.error(obtenerMensajeError(err, 'No fue posible exportar el reporte.'));
+        this.procesandoReporte.set(false);
+      },
+    });
+  }
+
+  enviarReporte() {
+    this.procesandoReporte.set(true);
+    this.participantesService.enviarReporte(
+      this.correoReporte().trim(), this.solicitudReporte(), this.formatoReporte()
+    ).subscribe({
+      next: () => {
+        this.toast.exito('Reporte enviado al correo indicado.');
+        this.procesandoReporte.set(false);
+      },
+      error: (err) => {
+        this.toast.error(obtenerMensajeError(err, 'No fue posible enviar el reporte.'));
+        this.procesandoReporte.set(false);
+      },
+    });
   }
 }

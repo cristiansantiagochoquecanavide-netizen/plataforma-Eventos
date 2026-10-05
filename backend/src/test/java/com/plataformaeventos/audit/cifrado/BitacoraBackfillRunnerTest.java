@@ -3,7 +3,10 @@ package com.plataformaeventos.audit.cifrado;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.security.SecureRandom;
 import java.time.OffsetDateTime;
+import java.util.Base64;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +22,7 @@ import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 import org.springframework.transaction.PlatformTransactionManager;
+import software.amazon.awssdk.services.kms.KmsClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -75,7 +79,7 @@ class BitacoraBackfillRunnerTest {
             assertThat(payload.entidadId()).isEqualTo(123L);
             assertThat(payload.ip()).isEqualTo("198.51.100.10");
             assertThat(payload.exito()).isTrue();
-            return new BitacoraPayloadCifrado("cipher-" + payload.resultado(), "wrapped", "nonce", 1);
+            return new BitacoraPayloadCifrado("cipher-" + payload.resultado(), null, "nonce", 2);
         });
 
         runner(jdbcTemplate, cifradoService, indiceService, 1).run();
@@ -92,6 +96,36 @@ class BitacoraBackfillRunnerTest {
         assertThat(jdbcTemplate.queryForObject("SELECT fecha FROM bitacora WHERE id_bitacora = 1", String.class)).isNotBlank();
         assertThat(jdbcTemplate.queryForObject("SELECT idx_accion FROM bitacora WHERE id_bitacora = 1", String.class))
                 .isEqualTo("idx-accion-CREAR-SECRETO");
+    }
+
+    @Test
+    void backfillRealCifraPayloadConLlaveRuntimeDelDesarrollador() {
+        JdbcTemplate jdbcTemplate = jdbcConEsquema();
+        insertarLegacy(jdbcTemplate, 1L, "RESULTADO-SECRETO");
+        byte[] key = new byte[32];
+        java.util.Arrays.fill(key, (byte) 9);
+        BitacoraCifradoProperties properties = new BitacoraCifradoProperties(
+                "legacy-kms", "us-east-1", "bitacora-payload",
+                new BitacoraCifradoProperties.Backfill(true, 10), Base64.getEncoder().encodeToString(key));
+        BitacoraCifradoService cifradoService = new BitacoraCifradoService(
+                mock(KmsClient.class), new ObjectMapper(), properties, new SecureRandom());
+
+        runner(jdbcTemplate, cifradoService, indiceServiceMock(), 10).run();
+
+        String ciphertext = jdbcTemplate.queryForObject(
+                "SELECT payload_ciphertext FROM bitacora WHERE id_bitacora = 1", String.class);
+        assertThat(ciphertext).isNotBlank().doesNotContain("RESULTADO-SECRETO");
+        assertThat(jdbcTemplate.queryForObject("SELECT payload_dek_cifrada FROM bitacora WHERE id_bitacora = 1", String.class))
+                .isNull();
+        Integer version = jdbcTemplate.queryForObject("SELECT crypto_version FROM bitacora WHERE id_bitacora = 1", Integer.class);
+        assertThat(version).isEqualTo(2);
+        BitacoraPayload resultado = cifradoService.descifrar(7L, new BitacoraPayloadCifrado(
+                ciphertext,
+                null,
+                jdbcTemplate.queryForObject("SELECT payload_nonce FROM bitacora WHERE id_bitacora = 1", String.class),
+                version
+        ));
+        assertThat(resultado.resultado()).isEqualTo("RESULTADO-SECRETO");
     }
 
     @Test
@@ -127,7 +161,7 @@ class BitacoraBackfillRunnerTest {
 
         BitacoraCifradoService cifradoExitoso = mock(BitacoraCifradoService.class);
         when(cifradoExitoso.cifrar(eq(7L), any(BitacoraPayload.class)))
-                .thenReturn(new BitacoraPayloadCifrado("cipher", "wrapped", "nonce", 1));
+                .thenReturn(new BitacoraPayloadCifrado("cipher", null, "nonce", 2));
         runner(jdbcTemplate, cifradoExitoso, indiceServiceMock(), 10).run();
 
         assertThat(jdbcTemplate.queryForObject("SELECT payload_ciphertext FROM bitacora WHERE id_bitacora = 1", String.class))
@@ -141,7 +175,7 @@ class BitacoraBackfillRunnerTest {
         jdbcTemplate.update("""
                 INSERT INTO bitacora (id_bitacora, id_organizacion, fecha, payload_ciphertext, payload_dek_cifrada,
                                       payload_nonce, crypto_version)
-                VALUES (1, 7, ?, 'cipher-existing', 'wrapped', 'nonce', 1)
+                 VALUES (1, 7, ?, 'cipher-existing', NULL, 'nonce', 2)
                 """, OffsetDateTime.now().toString());
         BitacoraCifradoService cifradoService = mock(BitacoraCifradoService.class);
 
@@ -152,16 +186,94 @@ class BitacoraBackfillRunnerTest {
                 .isEqualTo("cipher-existing");
     }
 
+    @Test
+    void reindexaPayloadsV2SoloConOptInYConservaContenidoCifrado() {
+        JdbcTemplate jdbcTemplate = jdbcConEsquema();
+        jdbcTemplate.update("""
+                INSERT INTO bitacora (id_bitacora, id_organizacion, fecha, payload_ciphertext,
+                                      payload_nonce, crypto_version, idx_accion)
+                VALUES (1, 7, ?, 'cipher-existing', 'nonce-existing', 2, 'idx-old')
+                """, OffsetDateTime.now().toString());
+        BitacoraPayload payload = new BitacoraPayload(99L, "CREAR", "EVENTOS", "EVENTO",
+                123L, "198.51.100.10", true, "resultado confidencial");
+        BitacoraCifradoService cifradoService = mock(BitacoraCifradoService.class);
+        when(cifradoService.descifrar(eq(7L), any(BitacoraPayloadCifrado.class))).thenReturn(payload);
+        when(cifradoService.cifrar(7L, payload))
+                .thenReturn(new BitacoraPayloadCifrado("cipher-reindexed", null, "nonce-new", 2));
+
+        runner(jdbcTemplate, cifradoService, indiceServiceMock(), 10, true).run();
+
+        verify(cifradoService).descifrar(eq(7L), any(BitacoraPayloadCifrado.class));
+        assertThat(jdbcTemplate.queryForObject("SELECT payload_ciphertext FROM bitacora WHERE id_bitacora = 1", String.class))
+                .isEqualTo("cipher-reindexed");
+        assertThat(jdbcTemplate.queryForObject("SELECT idx_accion FROM bitacora WHERE id_bitacora = 1", String.class))
+                .isEqualTo("idx-accion-CREAR");
+    }
+
+    @Test
+    void descifraKmsHeredadoYLoMigraALlaveDesarrollador() {
+        JdbcTemplate jdbcTemplate = jdbcConEsquema();
+        jdbcTemplate.update("""
+                INSERT INTO bitacora (id_bitacora, id_organizacion, fecha, payload_ciphertext,
+                                      payload_dek_cifrada, payload_nonce, crypto_version)
+                VALUES (1, 7, ?, 'cipher-v1', 'wrapped-v1', 'nonce-v1', 1)
+                """, OffsetDateTime.now().toString());
+        BitacoraCifradoService cifradoService = mock(BitacoraCifradoService.class);
+        BitacoraPayload payload = new BitacoraPayload(99L, "CREAR", "EVENTOS", "EVENTO",
+                123L, "203.0.113.10", true, "resultado legacy");
+        when(cifradoService.descifrar(eq(7L), any(BitacoraPayloadCifrado.class))).thenReturn(payload);
+        when(cifradoService.cifrar(7L, payload))
+                .thenReturn(new BitacoraPayloadCifrado("cipher-v2", null, "nonce-v2", 2));
+
+        runner(jdbcTemplate, cifradoService, indiceServiceMock(), 10).run();
+
+        verify(cifradoService).descifrar(eq(7L), any(BitacoraPayloadCifrado.class));
+        assertThat(jdbcTemplate.queryForObject("SELECT crypto_version FROM bitacora WHERE id_bitacora = 1", Integer.class))
+                .isEqualTo(2);
+        assertThat(jdbcTemplate.queryForObject("SELECT payload_dek_cifrada FROM bitacora WHERE id_bitacora = 1", String.class))
+                .isNull();
+    }
+
+    @Test
+    void recifraEnvelopeKmsHeredadoConLaLlaveDelDesarrollador() {
+        JdbcTemplate jdbcTemplate = jdbcConEsquema();
+        jdbcTemplate.update("""
+                INSERT INTO bitacora (id_bitacora, id_organizacion, fecha, payload_ciphertext,
+                                      payload_dek_cifrada, payload_nonce, crypto_version)
+                VALUES (1, 7, ?, 'old-cipher', 'old-wrapped-key', 'old-nonce', 1)
+                """, OffsetDateTime.now().toString());
+        BitacoraCifradoService cifradoService = mock(BitacoraCifradoService.class);
+        BitacoraPayload payload = new BitacoraPayload(12L, "CONSULTAR", "EVENTOS", "EVENTO",
+                45L, "192.0.2.1", true, "legacy result");
+        when(cifradoService.descifrar(eq(7L), any(BitacoraPayloadCifrado.class))).thenReturn(payload);
+        when(cifradoService.cifrar(7L, payload)).thenReturn(new BitacoraPayloadCifrado("new-cipher", null, "new-nonce", 2));
+
+        runner(jdbcTemplate, cifradoService, indiceServiceMock(), 10).run();
+
+        verify(cifradoService).descifrar(eq(7L), any(BitacoraPayloadCifrado.class));
+        assertThat(jdbcTemplate.queryForObject("SELECT crypto_version FROM bitacora WHERE id_bitacora = 1", Integer.class))
+                .isEqualTo(2);
+        assertThat(jdbcTemplate.queryForObject("SELECT payload_ciphertext FROM bitacora WHERE id_bitacora = 1", String.class))
+                .isEqualTo("new-cipher");
+        assertThat(jdbcTemplate.queryForObject("SELECT payload_dek_cifrada FROM bitacora WHERE id_bitacora = 1", String.class))
+                .isNull();
+    }
+
     private BitacoraBackfillRunner runner(JdbcTemplate jdbcTemplate, BitacoraCifradoService cifradoService,
                                           BitacoraIndiceService indiceService, int batchSize) {
+        return runner(jdbcTemplate, cifradoService, indiceService, batchSize, false);
+    }
+
+    private BitacoraBackfillRunner runner(JdbcTemplate jdbcTemplate, BitacoraCifradoService cifradoService,
+                                          BitacoraIndiceService indiceService, int batchSize, boolean reindexIndexes) {
         DataSource dataSource = jdbcTemplate.getDataSource();
         return new BitacoraBackfillRunner(
                 jdbcTemplate,
                 new DataSourceTransactionManager(dataSource),
                 cifradoService,
                 indiceService,
-                new BitacoraCifradoProperties("kms", "idx-kms", "us-east-1", "bitacora-payload",
-                        new BitacoraCifradoProperties.Backfill(true, batchSize))
+                new BitacoraCifradoProperties("kms", "us-east-1", "bitacora-payload",
+                        new BitacoraCifradoProperties.Backfill(true, batchSize, reindexIndexes), null)
         );
     }
 

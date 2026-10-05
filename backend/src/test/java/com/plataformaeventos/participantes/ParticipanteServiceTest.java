@@ -55,7 +55,7 @@ class ParticipanteServiceTest {
         ReflectionTestUtils.setField(usuario, "id", 10L);
         ReflectionTestUtils.setField(usuario, "fechaCreacion", OffsetDateTime.now().minusMonths(1));
 
-        when(participanteRepository.buscarParticipantes(eq(1L), eq(null), eq(null), eq(null), any(Pageable.class)))
+        when(participanteRepository.buscarParticipantes(eq(1L), eq(null), eq(""), eq(null), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(usuario)));
         when(inscripcionRepository.countByParticipanteIdAndOrganizacionId(10L, 1L)).thenReturn(2L);
         when(inscripcionRepository.countByParticipanteIdAndOrganizacionIdAndEstado(10L, 1L, EstadoInscripcion.CONFIRMADA)).thenReturn(1L);
@@ -118,7 +118,7 @@ class ParticipanteServiceTest {
         ReflectionTestUtils.setField(otraOrganizacion, "id", 2L);
 
         when(participanteRepository.buscarPorIdYOrganizacion(30L, 1L)).thenReturn(Optional.of(usuario));
-        when(participanteRepository.buscarParticipantes(eq(2L), eq(null), eq(null), eq(null), any(Pageable.class)))
+        when(participanteRepository.buscarParticipantes(eq(2L), eq(null), eq(""), eq(null), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(usuario)));
         when(participanteRepository.cambiarEstadoParticipante(30L, 1L, EstadoUsuario.INACTIVO)).thenReturn(1);
         when(participanteRepository.buscarEstadoParticipante(30L, 1L)).thenReturn(Optional.of(EstadoUsuario.INACTIVO));
@@ -145,10 +145,10 @@ class ParticipanteServiceTest {
 
     @Test
     void exportarCsvExitoso() {
-        Usuario usuario = new Usuario("Lucia", "Vargas", "lucia@test.com", "hash", EstadoUsuario.ACTIVO);
+        Usuario usuario = new Usuario("=1+1", "Vargas", "lucia@test.com", "hash", EstadoUsuario.ACTIVO);
         ReflectionTestUtils.setField(usuario, "id", 40L);
 
-        when(participanteRepository.listarTodosParaExportacion(1L, null, null, null)).thenReturn(List.of(usuario));
+        when(participanteRepository.listarTodosParaExportacion(1L, null, "", null)).thenReturn(List.of(usuario));
         when(inscripcionRepository.countByParticipanteIdAndOrganizacionId(40L, 1L)).thenReturn(0L);
 
         byte[] csv = participanteService.exportarParticipantesCsv(null, null, null, organizacion);
@@ -156,7 +156,7 @@ class ParticipanteServiceTest {
         assertThat(csv).isNotEmpty();
         String contenido = new String(csv);
         assertThat(contenido).contains("Nombres,Apellidos,Correo,Estado");
-        assertThat(contenido).contains("Lucia");
+        assertThat(contenido).contains("\"'=1+1\"");
         assertThat(contenido).contains("lucia@test.com");
     }
 }

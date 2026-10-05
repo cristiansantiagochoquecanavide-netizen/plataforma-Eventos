@@ -42,3 +42,33 @@ export interface PaginaParticipantes {
   totalElementos: number;
   totalPaginas: number;
 }
+
+export type ColumnaReporteParticipantes =
+  | 'ID'
+  | 'NOMBRES'
+  | 'APELLIDOS'
+  | 'CORREO'
+  | 'ESTADO'
+  | 'TOTAL_INSCRIPCIONES'
+  | 'INSCRIPCIONES_CONFIRMADAS'
+  | 'INSCRIPCIONES_CANCELADAS'
+  | 'ULTIMA_INSCRIPCION'
+  | 'FECHA_REGISTRO';
+
+export type FormatoReporteParticipantes = 'CSV' | 'XLSX' | 'HTML' | 'PDF';
+
+export interface ReporteParticipantesSolicitud {
+  eventoId: number | null;
+  busqueda: string;
+  estado: 'ACTIVO' | 'INACTIVO' | null;
+  columnas: ColumnaReporteParticipantes[];
+  ordenarPor: ColumnaReporteParticipantes | null;
+  ascendente: boolean;
+}
+
+export interface VistaPreviaReporteParticipantes {
+  columnas: string[];
+  filas: string[][];
+  totalFilas: number;
+  limiteAplicado: boolean;
+}

@@ -13,6 +13,7 @@ import com.plataformaeventos.organizaciones.modelo.Organizacion;
 import com.plataformaeventos.organizaciones.repositorio.MembresiaOrganizacionRepository;
 import com.plataformaeventos.organizaciones.repositorio.OrganizacionRepository;
 import com.plataformaeventos.organizaciones.servicio.ContextoOrganizacion;
+import com.plataformaeventos.saas.servicio.SuscripcionOrganizacionService;
 import com.plataformaeventos.postulacionesstaff.repositorio.PostulacionStaffRepository;
 import com.plataformaeventos.usuarios.repositorio.UsuarioRepository;
 import com.plataformaeventos.usuarios.servicio.UsuarioService;
@@ -41,7 +42,7 @@ class Fase5TenantIsolationTest {
 
     @Test
     void contextoPermiteAperoRechazaBParaElMismoUsuario() {
-        ContextoOrganizacion contexto = new ContextoOrganizacion(organizaciones, membresias);
+        ContextoOrganizacion contexto = contextoConSuscripcionesActivas();
         when(auth.isAuthenticated()).thenReturn(true);
         when(auth.getName()).thenReturn("ana@test");
         when(request.getHeader(ContextoOrganizacion.CABECERA)).thenReturn("10", "20");
@@ -58,7 +59,7 @@ class Fase5TenantIsolationTest {
 
     @Test
     void permisoContextualTambienDependeDelTenantYDeLaMembresiaActiva() {
-        ContextoOrganizacion contexto = new ContextoOrganizacion(organizaciones, membresias);
+        ContextoOrganizacion contexto = contextoConSuscripcionesActivas();
         when(auth.isAuthenticated()).thenReturn(true);
         when(auth.getName()).thenReturn("ana@test");
         when(request.getHeader(ContextoOrganizacion.CABECERA)).thenReturn("10");
@@ -125,5 +126,11 @@ class Fase5TenantIsolationTest {
         ReflectionTestUtils.setField(org, "id", id);
         ReflectionTestUtils.setField(org, "estado", estado);
         return org;
+    }
+
+    private ContextoOrganizacion contextoConSuscripcionesActivas() {
+        SuscripcionOrganizacionService suscripciones = mock(SuscripcionOrganizacionService.class);
+        when(suscripciones.tieneAccesoActivo(anyLong(), any())).thenReturn(true);
+        return new ContextoOrganizacion(organizaciones, membresias, suscripciones);
     }
 }

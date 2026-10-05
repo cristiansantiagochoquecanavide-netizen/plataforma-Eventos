@@ -80,6 +80,83 @@
   </div>
 </section>
 
+<section class="card report-builder" [appUiPrivilegeVisible]="'participants.export'" [attr.aria-busy]="procesandoReporte()">
+  <div class="card-title compact">
+    <div>
+      <h2>Reporte configurable</h2>
+      <p class="text-muted">Usa los filtros actuales de organización, evento, búsqueda y estado.</p>
+    </div>
+  </div>
+  <fieldset class="report-columns">
+    <legend>Columnas ({{ columnasReporte().length }}/10)</legend>
+    @for (columna of columnasDisponibles; track columna.id) {
+      <label class="report-column">
+        <input
+          type="checkbox"
+          [checked]="columnasReporte().includes(columna.id)"
+          (change)="alternarColumnaReporte(columna.id, $any($event.target).checked)"
+        />
+        {{ columna.nombre }}
+      </label>
+    }
+  </fieldset>
+  <div class="report-options">
+    <label>Ordenar por
+      <select [ngModel]="ordenarReporte()" (ngModelChange)="ordenarReporte.set($event); vistaPreviaReporte.set(null)">
+        @for (columna of columnasDisponibles; track columna.id) {
+          <option [ngValue]="columna.id">{{ columna.nombre }}</option>
+        }
+      </select>
+    </label>
+    <label>Dirección
+      <select [ngModel]="ascendenteReporte()" (ngModelChange)="ascendenteReporte.set($event); vistaPreviaReporte.set(null)">
+        <option [ngValue]="true">Ascendente</option>
+        <option [ngValue]="false">Descendente</option>
+      </select>
+    </label>
+    <label>Formato
+      <select [ngModel]="formatoReporte()" (ngModelChange)="formatoReporte.set($event)">
+        <option value="CSV">CSV</option>
+        <option value="XLSX">Excel (XLSX)</option>
+        <option value="HTML">HTML</option>
+        <option value="PDF">PDF</option>
+      </select>
+    </label>
+    <button type="button" class="secondary-btn" (click)="cargarVistaPreviaReporte()" [disabled]="procesandoReporte() || !columnasReporte().length">
+      Vista previa
+    </button>
+    <button type="button" class="secondary-btn" (click)="descargarReporte()" [disabled]="procesandoReporte() || !columnasReporte().length">
+      {{ procesandoReporte() ? 'Procesando…' : 'Descargar' }}
+    </button>
+  </div>
+  <div class="report-email">
+    <label for="correoReporte">Enviar el reporte adjunto por correo</label>
+    <input id="correoReporte" type="email" [ngModel]="correoReporte()" (ngModelChange)="correoReporte.set($event)" placeholder="persona@ejemplo.com" />
+    <button type="button" class="secondary-btn" (click)="enviarReporte()" [disabled]="procesandoReporte() || !correoReporte().trim() || !columnasReporte().length">
+      Enviar {{ formatoReporte() }}
+    </button>
+    <small class="text-muted">El archivo puede contener datos personales; envíalo solo a destinatarios autorizados.</small>
+  </div>
+  @if (vistaPreviaReporte(); as preview) {
+    <div class="report-preview" role="status" aria-live="polite">
+      <p>{{ preview.totalFilas }} filas en la vista previa (máximo 5000 por reporte).</p>
+      @if (preview.limiteAplicado) {
+        <p class="notice">Se alcanzó el límite de filas; agrega filtros para acotar el reporte.</p>
+      }
+      <div class="table-wrap">
+        <table>
+          <thead><tr>@for (columna of preview.columnas; track columna) { <th>{{ columna }}</th> }</tr></thead>
+          <tbody>
+            @for (fila of preview.filas.slice(0, 10); track $index) {
+              <tr>@for (valor of fila; track $index) { <td>{{ valor }}</td> }</tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</section>
+
 <!-- Tabla de participantes -->
 <section class="card table-card" [appUiPrivilegeVisible]="'participants.list'">
   <div class="card-title compact">

@@ -458,6 +458,17 @@ small {
   white-space: nowrap;
 }
 
+.report-builder{margin-bottom:20px;padding:16px 20px}
+.report-columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px 16px;border:1px solid var(--line);border-radius:8px;padding:14px;margin:12px 0}
+.report-columns legend{padding:0 6px;font-size:.84rem;font-weight:800}
+.report-column{display:flex;align-items:center;gap:8px;font-size:.84rem;color:var(--ink)}
+.report-options{display:flex;align-items:flex-end;flex-wrap:wrap;gap:12px;margin:14px 0}
+.report-options label,.report-email{display:flex;flex-direction:column;gap:6px;font-size:.82rem;font-weight:700;color:var(--muted)}
+.report-email{display:grid;grid-template-columns:minmax(220px,1fr) auto;align-items:end;gap:10px;margin-top:16px}
+.report-email small{grid-column:1/-1}
+.report-preview{margin-top:16px;overflow:auto}
+.report-preview>p{font-size:.84rem;color:var(--muted)}
+
 .tenant-selector {
   min-width: min(280px, 100%);
   color: var(--muted);
