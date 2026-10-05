@@ -19,6 +19,8 @@ import java.util.stream.Collectors;
 @Service
 public class RolPermisoService {
 
+    private static final String ROL_SAAS_ADMINISTRADOR = "SAAS_ADMINISTRADOR";
+
     private final RolRepository rolRepository;
     private final PermisoRepository permisoRepository;
 
@@ -35,6 +37,9 @@ public class RolPermisoService {
     @Transactional
     public RolPermisosRespuesta asignarPermisos(Long idRol, AsignarPermisosSolicitud solicitud) {
         Rol rol = buscarRolConPermisos(idRol);
+        if (ROL_SAAS_ADMINISTRADOR.equals(rol.getNombre())) {
+            throw new IllegalArgumentException("Los permisos de SAAS_ADMINISTRADOR se gestionan por migracion base");
+        }
         Set<String> nombres = solicitud.permisos().stream()
                 .map(nombre -> nombre.trim().toUpperCase(Locale.ROOT))
                 .collect(Collectors.toSet());

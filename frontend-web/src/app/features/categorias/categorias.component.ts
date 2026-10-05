@@ -5,10 +5,11 @@ import { CategoriasService } from './servicios/categorias.service';
 import { obtenerMensajeError } from '../../core/mensajes-error';
 import { Categoria, GuardarCategoriaSolicitud } from './modelos/categoria.modelo';
 import { ToastService } from '../../core/toast.service';
+import { UiPrivilegeEnabledDirective, UiPrivilegeVisibleDirective } from '../../core/ui-privilege.directive';
 
 @Component({
   selector: 'app-categorias',
-  imports: [DatePipe, ReactiveFormsModule],
+  imports: [DatePipe, ReactiveFormsModule, UiPrivilegeEnabledDirective, UiPrivilegeVisibleDirective],
   templateUrl: './categorias.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

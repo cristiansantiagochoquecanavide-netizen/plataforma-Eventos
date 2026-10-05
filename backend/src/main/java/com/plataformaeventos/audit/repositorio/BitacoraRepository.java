@@ -13,17 +13,20 @@ public interface BitacoraRepository extends Repository<Bitacora, Long> {
 
     @Query("""
         select b from Bitacora b where b.organizacion.id = :organizacion
-        and (:modulo is null or lower(b.modulo) like lower(concat('%', :modulo, '%')))
-        and (:entidad is null or lower(b.entidad) like lower(concat('%', :entidad, '%')))
-        and (:accion is null or lower(b.accion) like lower(concat('%', :accion, '%')))
-        and (:exito is null or b.exito = :exito)
-        and (:actor is null or b.actor.id = :actor)
+        and (:moduloIdx is null or (b.indiceModulo = :moduloIdx or (b.indiceModulo is null and lower(trim(b.modulo)) = :moduloNormalizado)))
+        and (:entidadIdx is null or (b.indiceEntidad = :entidadIdx or (b.indiceEntidad is null and lower(trim(b.entidad)) = :entidadNormalizada)))
+        and (:accionIdx is null or (b.indiceAccion = :accionIdx or (b.indiceAccion is null and lower(trim(b.accion)) = :accionNormalizada)))
+        and (:exitoIdx is null or (b.indiceExito = :exitoIdx or (b.indiceExito is null and b.exito = :exito)))
+        and (:actorIdx is null or (b.indiceActor = :actorIdx or (b.indiceActor is null and b.actor.id = :actor)))
         and (:desde is null or b.fecha >= :desde)
         and (:hasta is null or b.fecha < :hasta)
         """)
-    Page<Bitacora> buscar(@Param("organizacion") Long organizacion, @Param("modulo") String modulo,
-                          @Param("entidad") String entidad, @Param("accion") String accion,
-                          @Param("exito") Boolean exito, @Param("actor") Long actor,
+    Page<Bitacora> buscar(@Param("organizacion") Long organizacion,
+                          @Param("moduloIdx") String moduloIdx, @Param("moduloNormalizado") String moduloNormalizado,
+                          @Param("entidadIdx") String entidadIdx, @Param("entidadNormalizada") String entidadNormalizada,
+                          @Param("accionIdx") String accionIdx, @Param("accionNormalizada") String accionNormalizada,
+                          @Param("exitoIdx") String exitoIdx, @Param("exito") Boolean exito,
+                          @Param("actorIdx") String actorIdx, @Param("actor") Long actor,
                           @Param("desde") OffsetDateTime desde, @Param("hasta") OffsetDateTime hasta,
                           Pageable pageable);
 }

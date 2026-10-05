@@ -17,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -87,7 +88,10 @@ public class AutenticacionController {
     @Operation(summary = "Consultar usuario autenticado")
     @ApiResponse(responseCode = "200", description = "Usuario autenticado")
     @ApiResponse(responseCode = "401", description = "JWT invalido o ausente", content = @Content)
-    public ResponseEntity<UsuarioActualRespuesta> obtenerUsuarioActual(Authentication autenticacion) {
-        return ResponseEntity.ok(autenticacionService.obtenerUsuarioActual(autenticacion.getName()));
+    public ResponseEntity<UsuarioActualRespuesta> obtenerUsuarioActual(
+            Authentication autenticacion,
+            @RequestHeader(name = "X-Organization-Id", required = false) Long idOrganizacion
+    ) {
+        return ResponseEntity.ok(autenticacionService.obtenerUsuarioActual(autenticacion.getName(), idOrganizacion));
     }
 }

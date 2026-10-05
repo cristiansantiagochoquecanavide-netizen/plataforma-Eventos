@@ -4,10 +4,11 @@ import { EspaciosService } from './servicios/espacios.service';
 import { obtenerMensajeError } from '../../core/mensajes-error';
 import { Espacio, GuardarEspacioSolicitud } from './modelos/espacio.modelo';
 import { ToastService } from '../../core/toast.service';
+import { UiPrivilegeEnabledDirective, UiPrivilegeVisibleDirective } from '../../core/ui-privilege.directive';
 
 @Component({
   selector: 'app-espacios',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, UiPrivilegeEnabledDirective, UiPrivilegeVisibleDirective],
   templateUrl: './espacios.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

@@ -19,7 +19,7 @@ public class BitacoraController {
     public BitacoraController(BitacoraService servicio, ContextoOrganizacion contexto) { this.servicio = servicio; this.contexto = contexto; }
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('BITACORA_VER','ROLE_ADMINISTRADOR')")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication,#request,'BITACORA_VER') or @contextoOrganizacion.esAdministrador(authentication,#request)")
     public ResponseEntity<Page<BitacoraRespuesta>> listar(
             @RequestParam(required = false) String modulo, @RequestParam(required = false) String entidad,
             @RequestParam(required = false) String accion, @RequestParam(required = false) Boolean exito,
@@ -28,6 +28,6 @@ public class BitacoraController {
             @PageableDefault(size = 25, sort = "fecha", direction = Sort.Direction.DESC) Pageable pageable,
             Authentication auth, HttpServletRequest request) {
         Long organizacion = contexto.resolver(auth, request).getId();
-        return ResponseEntity.ok(servicio.listar(organizacion, modulo, entidad, accion, exito, actor, desde, hasta, pageable).map(BitacoraRespuesta::desde));
+        return ResponseEntity.ok(servicio.listar(organizacion, modulo, entidad, accion, exito, actor, desde, hasta, pageable));
     }
 }

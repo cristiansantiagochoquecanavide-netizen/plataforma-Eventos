@@ -1,5 +1,10 @@
 import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import {
+  UiPrivilegeEditableDirective,
+  UiPrivilegeEnabledDirective,
+  UiPrivilegeVisibleDirective,
+} from '../../core/ui-privilege.directive';
 import { obtenerMensajeError } from '../../core/mensajes-error';
 import { SesionService } from '../../core/sesion.service';
 import { ToastService } from '../../core/toast.service';
@@ -8,11 +13,11 @@ import { UsuariosService } from '../usuarios/servicios/usuarios.service';
 import { Membresia } from './modelos/organizacion.modelo';
 import { OrganizacionesService } from './servicios/organizaciones.service';
 
-@Component({ selector: 'app-miembros-organizacion', imports: [FormsModule], template: `
+@Component({ selector: 'app-miembros-organizacion', imports: [FormsModule, UiPrivilegeEditableDirective, UiPrivilegeEnabledDirective, UiPrivilegeVisibleDirective], template: `
   <section class="page-heading"><p class="eyebrow">Organización activa</p><h1>Miembros</h1><p>Administra el acceso de usuarios a esta organización.</p></section>
   @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
-  <section class="card form-grid"><label>Usuario <select [(ngModel)]="idUsuario"><option [ngValue]="0">Selecciona un usuario</option>@for (u of usuarios(); track u.id) {<option [ngValue]="u.id">{{ u.nombres }} {{ u.apellidos }} · {{ u.correo }}</option>}</select></label><label>Roles <input [(ngModel)]="roles" placeholder="STAFF, PARTICIPANTE" /></label><div class="button-row full"><button class="primary" type="button" (click)="agregar()" [disabled]="!idUsuario">Agregar miembro</button><button type="button" (click)="cargar()">Actualizar</button></div></section>
-  <section class="card table-card" style="margin-top:22px"><div class="card-title compact"><h2>Directorio de la organización</h2><span>{{ miembros().length }} miembros</span></div><div class="table-wrap"><table><thead><tr><th>Miembro</th><th>Correo</th><th>Roles</th><th>Estado</th><th>Acción</th></tr></thead><tbody>@for (m of miembros(); track m.idUsuario) {<tr><td><strong>{{ m.nombres }} {{ m.apellidos }}</strong></td><td>{{ m.correo }}</td><td>{{ m.roles.join(', ') }}</td><td><span class="status" [class.off]="!m.activo">{{ m.activo ? 'ACTIVO' : 'INACTIVO' }}</span></td><td><button type="button" (click)="alternar(m)">{{ m.activo ? 'Inactivar' : 'Activar' }}</button></td></tr>} @empty {<tr><td colspan="5" class="empty-state">No hay miembros.</td></tr>}</tbody></table></div></section>
+  <section class="card form-grid"><label [appUiPrivilegeVisible]="'members.form.user'">Usuario <select [(ngModel)]="idUsuario" [appUiPrivilegeEditable]="'members.form.user'"><option [ngValue]="0">Selecciona un usuario</option>@for (u of usuarios(); track u.id) {<option [ngValue]="u.id">{{ u.nombres }} {{ u.apellidos }} · {{ u.correo }}</option>}</select></label><label [appUiPrivilegeVisible]="'members.form.roles'">Roles <input [(ngModel)]="roles" placeholder="STAFF, PARTICIPANTE (no SAAS_ADMINISTRADOR)" [appUiPrivilegeEditable]="'members.form.roles'" /></label><div class="button-row full"><button class="primary" type="button" (click)="agregar()" [appUiPrivilegeEnabled]="{ key: 'members.add', businessDisabled: !idUsuario }">Agregar miembro</button><button type="button" (click)="cargar()">Actualizar</button></div></section>
+  <section class="card table-card" style="margin-top:22px" [appUiPrivilegeVisible]="'members.list'"><div class="card-title compact"><h2>Directorio de la organización</h2><span>{{ miembros().length }} miembros</span></div><div class="table-wrap"><table><thead><tr><th>Miembro</th><th>Correo</th><th>Roles</th><th>Estado</th><th>Acción</th></tr></thead><tbody>@for (m of miembros(); track m.idUsuario) {<tr><td><strong>{{ m.nombres }} {{ m.apellidos }}</strong></td><td>{{ m.correo }}</td><td>{{ m.roles.join(', ') }}</td><td><span class="status" [class.off]="!m.activo">{{ m.activo ? 'ACTIVO' : 'INACTIVO' }}</span></td><td><button type="button" (click)="alternar(m)" [appUiPrivilegeEnabled]="'members.toggle-state'">{{ m.activo ? 'Inactivar' : 'Activar' }}</button></td></tr>} @empty {<tr><td colspan="5" class="empty-state">No hay miembros.</td></tr>}</tbody></table></div></section>
 `, changeDetection: ChangeDetectionStrategy.OnPush })
 export class MiembrosOrganizacionComponent implements OnInit {
   readonly miembros = signal<Membresia[]>([]); readonly usuarios = signal<Usuario[]>([]); readonly error = signal(''); idUsuario = 0; roles = 'PARTICIPANTE';

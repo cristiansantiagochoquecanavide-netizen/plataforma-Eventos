@@ -14,6 +14,8 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.stream.Stream;
+
 @Service
 public class DetallesUsuarioService implements UserDetailsService {
 
@@ -34,8 +36,10 @@ public class DetallesUsuarioService implements UserDetailsService {
                 .disabled(usuario.getEstado() != EstadoUsuario.ACTIVO)
                 .authorities(usuario.getRoles().stream()
                         .filter(rol -> rol.getEstado() == EstadoRol.ACTIVO)
-                        .flatMap(rol -> rol.getPermisos().stream())
-                        .map(Permiso::getNombre)
+                        .flatMap(rol -> Stream.concat(
+                                Stream.of(rol.getNombre()),
+                                rol.getPermisos().stream().map(Permiso::getNombre)
+                        ))
                         .distinct()
                         .map(SimpleGrantedAuthority::new)
                         .toList())

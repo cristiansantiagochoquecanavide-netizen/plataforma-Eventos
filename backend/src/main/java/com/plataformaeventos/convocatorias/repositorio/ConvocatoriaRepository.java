@@ -21,6 +21,8 @@ public interface ConvocatoriaRepository extends JpaRepository<Convocatoria, Long
     @Query("select c from Convocatoria c join fetch c.evento e where c.id = :id and c.organizacion.id = :org")
     java.util.Optional<Convocatoria> findByIdAndOrganizacionId(@Param("id") Long id, @Param("org") Long org);
 
+    java.util.Optional<Convocatoria> findFirstByEventoIdAndOrganizacionIdAndTipoPersonal(Long evento, Long organizacion, TipoPersonal tipoPersonal);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Convocatoria c where c.id = :id and c.organizacion.id = :org")
     java.util.Optional<Convocatoria> findByIdAndOrganizacionIdForUpdate(@Param("id") Long id, @Param("org") Long org);

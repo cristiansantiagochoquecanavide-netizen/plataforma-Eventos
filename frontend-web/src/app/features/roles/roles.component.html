@@ -1,9 +1,9 @@
-<section class="page-heading">
+<section class="page-heading" [appUiPrivilegeVisible]="'roles.menu'">
   <p class="eyebrow">Gestión de Usuarios, Seguridad y Auditoría</p>
   <h1>Roles y permisos</h1>
-  <p>Perfiles de acceso y capacidades asignadas.</p>
+  <p>Administraci�n global SaaS de perfiles de acceso y capacidades asignadas.</p>
   <div style="margin-top: 14px;">
-    <button class="primary" type="button" (click)="abrirModalCrear()" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px; color: #ffffff;">
+    <button class="primary" type="button" (click)="abrirModalCrear()" [appUiPrivilegeEnabled]="{ key: 'roles.create' }" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px; color: #ffffff;">
       <span style="font-weight: 800; font-size: 1.15rem; line-height: 1; color: #ffffff;">+</span>
       <span style="color: #ffffff; font-weight: 700;">Crear Nuevo Rol</span>
     </button>
@@ -19,7 +19,7 @@
 
 <div class="roles-layout" style="grid-template-columns: minmax(280px, 360px) 1fr;">
   <!-- COLUMNA 1: LISTA DE ROLES DISPONIBLES -->
-  <section class="card">
+  <section class="card" [appUiPrivilegeVisible]="'roles.list'">
     <div class="card-title compact" style="display: flex; justify-content: space-between; align-items: center;">
       <h2>Roles disponibles</h2>
       <span class="role-chip">{{ roles().length }} roles</span>
@@ -31,6 +31,7 @@
           class="role-row"
           [class.selected]="rolSeleccionado()?.id === rol.id"
           (click)="seleccionarRol(rol)"
+          [appUiPrivilegeEnabled]="{ key: 'roles.select' }"
         >
           <span>
             <strong>{{ rol.nombre }}</strong>
@@ -51,19 +52,19 @@
           <h2>{{ rol.nombre }}</h2>
         </div>
         <div class="button-row">
-          <button type="button" (click)="editar(rol)">Editar rol</button>
+          <button type="button" (click)="editar(rol)" [appUiPrivilegeEditable]="'roles.edit'">Editar rol</button>
           <button
             class="primary"
             type="button"
             (click)="guardarPermisos()"
-            [disabled]="guardandoPermisos()"
+            [appUiPrivilegeEnabled]="{ key: 'roles.permissions.save', businessDisabled: guardandoPermisos() }"
             style="color: #ffffff;"
           >
             {{ guardandoPermisos() ? 'Guardando...' : 'Guardar permisos' }}
           </button>
         </div>
       </div>
-      <div class="permission-list">
+      <fieldset class="permission-list" [appUiPrivilegeEditable]="'roles.permissions.assign'" style="border: 0; padding: 0; margin: 0;">
         @for (permiso of permisos(); track permiso.id) {
           <label class="permission-option">
             <input
@@ -77,7 +78,7 @@
             </span>
           </label>
         }
-      </div>
+      </fieldset>
     } @else {
       <div class="empty-state" style="text-align: center; padding: 48px 24px; color: var(--muted);">
         <p style="font-size: 1.05rem; font-weight: 600; margin-bottom: 8px;">Ningún rol seleccionado</p>
@@ -106,19 +107,14 @@
           <p class="notice error" style="margin-top: 0; margin-bottom: 16px;">{{ error() }}</p>
         }
 
-        <form [formGroup]="formulario" (ngSubmit)="guardarRol()" class="form-grid" novalidate>
+        <form [formGroup]="formulario" (ngSubmit)="guardarRol()" class="form-grid" [appUiPrivilegeVisible]="'roles.edit'" novalidate>
           <label [class.invalid]="campoConError('nombre')">
             Nombre del Rol *
             <input
               formControlName="nombre"
               placeholder="Ej: SUPERVISOR_LOGISTICA"
               style="text-transform: uppercase;"
-              [readonly]="
-                editando()?.nombre === 'ADMINISTRADOR' ||
-                editando()?.nombre === 'ORGANIZADOR' ||
-                editando()?.nombre === 'STAFF' ||
-                editando()?.nombre === 'PARTICIPANTE'
-              "
+              [appUiPrivilegeEditable]="{ key: 'roles.edit', businessReadOnly: rolProtegidoSoloLectura() }"
             />
             @if (campoConError('nombre')) {
               <small class="field-error">{{ mensajeCampo('nombre') }}</small>
@@ -127,7 +123,7 @@
 
           <label [class.invalid]="campoConError('estado')">
             Estado Operativo *
-            <select formControlName="estado">
+            <select formControlName="estado" [appUiPrivilegeEditable]="'roles.edit'">
               <option value="ACTIVO">ACTIVO</option>
               <option value="INACTIVO">INACTIVO</option>
             </select>
@@ -138,12 +134,12 @@
 
           <label class="full">
             Descripción
-            <textarea formControlName="descripcion" rows="3" placeholder="Describe las responsabilidades principales de este rol..."></textarea>
+            <textarea formControlName="descripcion" rows="3" placeholder="Describe las responsabilidades principales de este rol..." [appUiPrivilegeEditable]="'roles.edit'"></textarea>
           </label>
 
           <div class="button-row" style="margin-top: 16px;">
             <button type="button" (click)="cerrarModal()">Cancelar</button>
-            <button class="primary" type="submit" [disabled]="guardandoRol()" style="color: #ffffff;">
+            <button class="primary" type="submit" [appUiPrivilegeEnabled]="{ key: 'roles.save', businessDisabled: guardandoRol() }" style="color: #ffffff;">
               {{ guardandoRol() ? 'Guardando...' : editando() ? 'Actualizar Rol' : 'Crear Rol' }}
             </button>
           </div>

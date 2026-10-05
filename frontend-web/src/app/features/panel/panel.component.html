@@ -3,46 +3,50 @@
     <a class="brand" routerLink="/perfil">eventos<span>.</span></a>
     <nav>
       <p class="nav-label">Gestion de Usuarios, Seguridad y Auditoria</p>
-      <a routerLink="/perfil" routerLinkActive="active">Mi perfil</a>
-      <a routerLink="/consulta-eventos" routerLinkActive="active">Consultar eventos</a>
+      <a routerLink="/perfil" routerLinkActive="active" [appUiPrivilegeVisible]="'profile.menu'">Mi perfil</a>
       @if (sesion.tieneAccesoUsuarios()) {
-        <a routerLink="/usuarios" routerLinkActive="active">Usuarios</a>
+        <a routerLink="/usuarios" routerLinkActive="active" [appUiPrivilegeVisible]="'users.menu'">Usuarios</a>
+      }
+      @if (sesion.puedeVerParticipantes()) {
+        <a routerLink="/participantes" routerLinkActive="active" [appUiPrivilegeVisible]="'participants.menu'">Participantes</a>
       }
       @if (sesion.tieneAccesoRoles()) {
-        <a routerLink="/roles" routerLinkActive="active">Roles y permisos</a>
+        <a routerLink="/roles" routerLinkActive="active" [appUiPrivilegeVisible]="'roles.menu'">Roles y permisos</a>
       }
-      @if (sesion.tieneAccesoEventosProgramacionORecursos()) {
-        <p class="nav-label">Gestion de Eventos, Programacion y Recursos</p>
+      @if (sesion.puedeGestionarMiembros()) {
+        <a routerLink="/miembros-organizacion" routerLinkActive="active" [appUiPrivilegeVisible]="'members.menu'">Miembros de organización</a>
       }
+      <a routerLink="/grupos" routerLinkActive="active" [appUiPrivilegeVisible]="'groups.menu'">Grupos</a>
+      <a routerLink="/privilegios-ui" routerLinkActive="active" [appUiPrivilegeVisible]="'ui-privileges.menu'">Privilegios UI</a>
+      @if (sesion.puedeVerBitacora()) {
+        <a routerLink="/bitacora" routerLinkActive="active" [appUiPrivilegeVisible]="'audit.menu'">Bitácora</a>
+      }
+
+      <p class="nav-label">Gestion de Eventos, Programacion y Recursos</p>
+      <a routerLink="/consulta-eventos" routerLinkActive="active" [appUiPrivilegeVisible]="'events.search.menu'">Consultar eventos</a>
       @if (sesion.tieneAccesoEventos()) {
-        <a routerLink="/eventos" routerLinkActive="active">Eventos</a>
-        <a routerLink="/categorias" routerLinkActive="active">Categorias</a>
+        <a routerLink="/eventos" routerLinkActive="active" [appUiPrivilegeVisible]="'events.menu'">Eventos</a>
+        <a routerLink="/categorias" routerLinkActive="active" [appUiPrivilegeVisible]="'categories.menu'">Categorias</a>
       }
       @if (sesion.tieneAccesoRecursos()) {
-        <a routerLink="/recursos" routerLinkActive="active">Recursos</a>
+        <a routerLink="/recursos" routerLinkActive="active" [appUiPrivilegeVisible]="'resources.menu'">Recursos</a>
       }
       @if (sesion.tieneAccesoEspacios()) {
-        <a routerLink="/espacios" routerLinkActive="active">Espacios y salas</a>
+        <a routerLink="/espacios" routerLinkActive="active" [appUiPrivilegeVisible]="'spaces.menu'">Espacios y salas</a>
       }
       @if (sesion.tieneAccesoConvocatorias()) {
         <p class="nav-label">Gestion de Staff y Organizacion</p>
-        <a routerLink="/convocatorias" routerLinkActive="active">Convocatorias</a>
+        <a routerLink="/convocatorias" routerLinkActive="active" [appUiPrivilegeVisible]="'convocations.menu'">Convocatorias</a>
       }
       @if (sesion.puedeCrearPostulacionesStaff() || sesion.puedeGestionarPostulacionesStaff()) {
         <p class="nav-label">Postulación y asignación</p>
-        <a routerLink="/postulaciones" routerLinkActive="active">Postulaciones de staff</a>
+        <a routerLink="/postulaciones" routerLinkActive="active" [appUiPrivilegeVisible]="'staff-applications.menu'">Postulaciones de staff</a>
       }
       @if (sesion.puedeGestionarAsignacionesStaff() || sesion.usuario()) {
-        <a routerLink="/asignaciones" routerLinkActive="active">Asignaciones de staff</a>
-      }
-      @if (sesion.puedeGestionarMiembros()) {
-        <a routerLink="/miembros-organizacion" routerLinkActive="active">Miembros de organización</a>
-      }
-      @if (sesion.puedeVerBitacora()) {
-        <a routerLink="/bitacora" routerLinkActive="active">Bitácora</a>
+        <a routerLink="/asignaciones" routerLinkActive="active" [appUiPrivilegeVisible]="'staff-assignments.menu'">Asignaciones de staff</a>
       }
     </nav>
-    <button class="logout" type="button" (click)="sesion.cerrar()">Cerrar sesion</button>
+    <button class="logout" type="button" (click)="cerrarSesion()">Cerrar sesion</button>
   </aside>
   <main class="workspace">
     <header>

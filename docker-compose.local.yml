@@ -1,0 +1,4 @@
+services:
+  backend:
+    environment:
+      DEMO_SEED_ENABLED: "true"

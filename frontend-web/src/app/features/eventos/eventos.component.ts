@@ -16,6 +16,7 @@ import { Categoria } from '../categorias/modelos/categoria.modelo';
 import { Espacio } from '../espacios/modelos/espacio.modelo';
 import { SesionService } from '../../core/sesion.service';
 import { ToastService } from '../../core/toast.service';
+import { UiPrivilegeEditableDirective, UiPrivilegeEnabledDirective, UiPrivilegeVisibleDirective } from '../../core/ui-privilege.directive';
 
 type CampoEvento =
   | 'nombre'
@@ -29,7 +30,7 @@ type CampoEvento =
 
 @Component({
   selector: 'app-eventos',
-  imports: [DatePipe, ReactiveFormsModule],
+  imports: [DatePipe, ReactiveFormsModule, UiPrivilegeVisibleDirective, UiPrivilegeEnabledDirective, UiPrivilegeEditableDirective],
   templateUrl: './eventos.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

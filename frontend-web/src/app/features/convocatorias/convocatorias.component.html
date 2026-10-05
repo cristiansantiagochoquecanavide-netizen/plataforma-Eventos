@@ -9,7 +9,7 @@
   <p>Organiza las necesidades de personal de cada evento y controla su estado.</p>
   @if (puedeGestionar()) {
     <div style="margin-top: 14px;">
-      <button class="primary" type="button" (click)="abrirModal()" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px; color: #ffffff;">
+      <button class="primary" type="button" (click)="abrirModal()" [appUiPrivilegeEnabled]="{ key: 'convocations.create' }" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px; color: #ffffff;">
         <span style="font-weight: 800; font-size: 1.15rem; line-height: 1; color: #ffffff;">+</span>
         <span style="color: #ffffff; font-weight: 700;">Nueva Convocatoria</span>
       </button>
@@ -64,7 +64,7 @@
   </div>
 </section>
 
-<section class="card table-card">
+<section class="card table-card" [appUiPrivilegeVisible]="'convocations.list'">
   <div class="card-title">
     <h2>Convocatorias existentes</h2>
     <span>{{ convocatorias().length }} registro(s)</span>
@@ -116,7 +116,7 @@
                   <div class="actions">
                     <button
                       type="button"
-                      [disabled]="convocatoria.estado !== 'ABIERTA' || idProcesando() === convocatoria.id"
+                      [appUiPrivilegeEnabled]="{ key: 'convocations.close', businessDisabled: convocatoria.estado !== 'ABIERTA' || idProcesando() === convocatoria.id }"
                       (click)="cerrar(convocatoria)"
                     >
                       Cerrar
@@ -124,7 +124,7 @@
                     <button
                       class="btn-danger"
                       type="button"
-                      [disabled]="convocatoria.estado !== 'ABIERTA' || idProcesando() === convocatoria.id"
+                      [appUiPrivilegeEnabled]="{ key: 'convocations.cancel', businessDisabled: convocatoria.estado !== 'ABIERTA' || idProcesando() === convocatoria.id }"
                       (click)="cancelar(convocatoria)"
                     >
                       Cancelar
@@ -220,7 +220,7 @@
             <button
               class="primary"
               type="submit"
-              [disabled]="guardando() || eventosDisponibles().length === 0"
+              [appUiPrivilegeEnabled]="{ key: 'convocations.create', businessDisabled: guardando() || eventosDisponibles().length === 0 }"
             >
               {{ guardando() ? 'Guardando...' : 'Registrar convocatoria' }}
             </button>

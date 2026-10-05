@@ -127,4 +127,12 @@ public class Usuario {
     public void actualizarEstado(EstadoUsuario estado) {
         this.estado = estado;
     }
+
+    public OffsetDateTime getFechaCreacion() {
+        return fechaCreacion;
+    }
+
+    public OffsetDateTime getFechaActualizacion() {
+        return fechaActualizacion;
+    }
 }

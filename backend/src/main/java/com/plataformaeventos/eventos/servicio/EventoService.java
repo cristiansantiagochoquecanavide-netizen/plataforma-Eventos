@@ -63,7 +63,7 @@ public class EventoService {
                 // Se filtra en el servicio para que web y movil reciban exactamente el mismo resultado.
                 .filter(evento -> texto.isEmpty() || evento.getNombre().toLowerCase().contains(texto))
                 .filter(evento -> filtroCategoria.isEmpty() || nombreCategoria(evento).toLowerCase().equals(filtroCategoria))
-                .map(this::convertirEvento)
+                .map(evento -> convertirEvento(evento, organizacion))
                 .toList();
     }
 
@@ -73,7 +73,7 @@ public class EventoService {
     }
     @Transactional(readOnly = true)
     public EventoRespuesta obtenerEvento(Long idEvento, Organizacion organizacion) {
-        return convertirEvento(buscarEvento(idEvento, organizacion));
+        return convertirEvento(buscarEvento(idEvento, organizacion), organizacion);
     }
 
     @Transactional(readOnly = true)
@@ -83,7 +83,7 @@ public class EventoService {
     @Transactional(readOnly = true)
     public List<ResponsableEventoRespuesta> listarResponsablesDisponibles(Organizacion organizacion) {
         return (organizacion == null ? usuarioRepository.findResponsablesDisponibles(ROLES_RESPONSABLES) : usuarioRepository.findResponsablesDisponiblesPorOrganizacion(ROLES_RESPONSABLES, organizacion.getId())).stream()
-                .map(this::convertirResponsable)
+                .map(usuario -> convertirResponsable(usuario, organizacion))
                 .toList();
     }
 
@@ -111,7 +111,7 @@ public class EventoService {
         if (solicitud.responsables() != null) {
              evento.asignarResponsables(obtenerResponsablesValidos(solicitud.responsables(), organizacion));
         }
-        return convertirEvento(eventoRepository.save(evento));
+        return convertirEvento(eventoRepository.save(evento), organizacion);
     }
 
     @Transactional
@@ -135,7 +135,7 @@ public class EventoService {
                 categoria
         );
         evento.configurarProgramacion(espacio, solicitud.aforoMaximo());
-        return convertirEvento(evento);
+        return convertirEvento(evento, organizacion);
     }
 
     @Transactional
@@ -147,7 +147,7 @@ public class EventoService {
     public EventoRespuesta asignarResponsables(Long idEvento, AsignarResponsablesSolicitud solicitud, Organizacion organizacion) {
         Evento evento = buscarEvento(idEvento, organizacion);
         evento.asignarResponsables(obtenerResponsablesValidos(solicitud.responsables(), organizacion));
-        return convertirEvento(evento);
+        return convertirEvento(evento, organizacion);
     }
 
     private Evento buscarEvento(Long idEvento) { return buscarEvento(idEvento, null); }
@@ -174,21 +174,31 @@ public class EventoService {
             return Set.of();
         }
         Set<Usuario> responsables = idsResponsables.stream()
-                .map(id -> (organizacion == null ? usuarioRepository.findById(id) : usuarioRepository.findByIdAndOrganizacionId(id, organizacion.getId()))
-                        .orElseThrow(() -> new ExcepcionNoEncontrado("Responsable no encontrado")))
+                .map(id -> buscarResponsableValido(id, organizacion))
                 .collect(Collectors.toSet());
         if (responsables.size() != idsResponsables.size()) {
             throw new IllegalArgumentException("No se puede asignar el mismo responsable mas de una vez");
         }
-        boolean hayResponsableInvalido = responsables.stream().anyMatch(usuario ->
-                usuario.getEstado() != EstadoUsuario.ACTIVO || usuario.getRoles().stream()
-                        .map(Rol::getNombre)
-                        .noneMatch(ROLES_RESPONSABLES::contains)
-        );
-        if (hayResponsableInvalido) {
-            throw new IllegalArgumentException("Los responsables deben estar activos y tener rol ORGANIZADOR o STAFF");
+        if (organizacion == null) {
+            boolean hayResponsableInvalido = responsables.stream().anyMatch(usuario ->
+                    usuario.getEstado() != EstadoUsuario.ACTIVO || usuario.getRoles().stream()
+                            .map(Rol::getNombre)
+                            .noneMatch(ROLES_RESPONSABLES::contains)
+            );
+            if (hayResponsableInvalido) {
+                throw new IllegalArgumentException("Los responsables deben estar activos y tener rol ORGANIZADOR o STAFF");
+            }
         }
         return responsables;
+    }
+
+    private Usuario buscarResponsableValido(Long id, Organizacion organizacion) {
+        if (organizacion != null) {
+            return usuarioRepository.findResponsableActivoPorOrganizacionYRol(id, organizacion.getId(), ROLES_RESPONSABLES)
+                    .orElseThrow(() -> new ExcepcionNoEncontrado("Responsable no encontrado"));
+        }
+        return usuarioRepository.findById(id)
+                .orElseThrow(() -> new ExcepcionNoEncontrado("Responsable no encontrado"));
     }
 
     private void validarFechas(OffsetDateTime fechaInicio, OffsetDateTime fechaFin) {
@@ -250,7 +260,8 @@ public class EventoService {
         return valor.trim();
     }
 
-    private EventoRespuesta convertirEvento(Evento evento) {
+    private EventoRespuesta convertirEvento(Evento evento) { return convertirEvento(evento, null); }
+    private EventoRespuesta convertirEvento(Evento evento, Organizacion organizacion) {
         CategoriaRespuesta categoria = convertirCategoria(evento.getCategoria());
         return new EventoRespuesta(
                 evento.getId(),
@@ -266,7 +277,7 @@ public class EventoService {
                 evento.getEstado().name(),
                 evento.getResponsables().stream()
                         .sorted(Comparator.comparing(Usuario::getApellidos).thenComparing(Usuario::getNombres))
-                        .map(this::convertirResponsable)
+                        .map(usuario -> convertirResponsable(usuario, organizacion))
                         .toList()
         );
     }
@@ -301,16 +312,24 @@ public class EventoService {
         );
     }
 
-    private ResponsableEventoRespuesta convertirResponsable(Usuario usuario) {
+    private ResponsableEventoRespuesta convertirResponsable(Usuario usuario) { return convertirResponsable(usuario, null); }
+    private ResponsableEventoRespuesta convertirResponsable(Usuario usuario, Organizacion organizacion) {
         return new ResponsableEventoRespuesta(
                 usuario.getId(),
                 usuario.getNombres(),
                 usuario.getApellidos(),
                 usuario.getCorreo(),
-                usuario.getRoles().stream()
-                        .map(Rol::getNombre)
-                        .sorted()
-                        .toList()
+                nombresRoles(usuario, organizacion)
         );
+    }
+
+    private List<String> nombresRoles(Usuario usuario, Organizacion organizacion) {
+        if (organizacion != null) {
+            return usuarioRepository.findNombresRolesActivosPorUsuarioYOrganizacion(usuario.getId(), organizacion.getId());
+        }
+        return usuario.getRoles().stream()
+                .map(Rol::getNombre)
+                .sorted()
+                .toList();
     }
 }

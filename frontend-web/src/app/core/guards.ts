@@ -38,7 +38,7 @@ export const rolesGuard: CanActivateFn = () => {
   const router = inject(Router);
   return sesion.restaurar().pipe(
     map((autenticado) =>
-      autenticado && sesion.tieneAccesoRoles() ? true : router.createUrlTree(['/perfil']),
+      autenticado && sesion.esAdministradorSaas() ? true : router.createUrlTree(['/perfil']),
     ),
     catchError(() => of(router.createUrlTree(['/iniciar-sesion']))),
   );
@@ -102,3 +102,4 @@ export const postulacionesGuard = permisoGuard((s) => s.puedeCrearPostulacionesS
 export const asignacionesGuard = permisoGuard((s) => s.puedeGestionarAsignacionesStaff() || !!s.usuario());
 export const bitacoraGuard = permisoGuard((s) => s.puedeVerBitacora());
 export const miembrosGuard = permisoGuard((s) => s.puedeGestionarMiembros());
+export const participantesGuard = permisoGuard((s) => s.puedeVerParticipantes());

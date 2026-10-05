@@ -9,6 +9,7 @@ public record UsuarioActualRespuesta(
         String correo,
         String estado,
         List<String> roles,
-        List<String> permisos
+        List<String> permisos,
+        PerfilOrganizacionActivaRespuesta perfilOrganizacionActiva
 ) {
 }

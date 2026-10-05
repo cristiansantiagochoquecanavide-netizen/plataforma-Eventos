@@ -50,13 +50,19 @@ export class SesionService {
     return this.sesion?.accessToken ?? null;
   }
 
-  seleccionarOrganizacion(id: number) {
+  seleccionarOrganizacion(id: number): Observable<Usuario | null> {
     this.organizacionActivaId.set(id);
     localStorage.setItem(CLAVE_ORGANIZACION, String(id));
+    if (!this.sesion) return of(null);
+    return this.auth.usuarioActual().pipe(tap((usuario) => this.usuario.set(usuario)));
   }
 
   esAdministrador() {
-    return this.usuario()?.roles.includes('ADMINISTRADOR') ?? false;
+    return this.usuario()?.perfilOrganizacionActiva?.administrador ?? false;
+  }
+
+  esAdministradorSaas() {
+    return this.usuario()?.roles.includes('SAAS_ADMINISTRADOR') ?? false;
   }
 
   tieneAccesoUsuarios() {
@@ -69,13 +75,7 @@ export class SesionService {
   }
 
   tieneAccesoRoles() {
-    return this.tieneAlgunPermiso([
-      'ROL_VER',
-      'ROL_CREAR',
-      'ROL_EDITAR',
-      'PERMISO_VER',
-      'PERMISO_ASIGNAR',
-    ]);
+    return this.esAdministradorSaas();
   }
 
   tieneAccesoEventos() {
@@ -133,7 +133,9 @@ export class SesionService {
   puedeGestionarPostulacionesStaff() { return this.tienePermiso('POSTULACION_STAFF_GESTIONAR'); }
   puedeGestionarAsignacionesStaff() { return this.tienePermiso('ASIGNACION_STAFF_GESTIONAR'); }
   puedeVerBitacora() { return this.esAdministrador() || this.tienePermiso('BITACORA_VER'); }
-  puedeGestionarMiembros() { return this.esAdministrador(); }
+  puedeGestionarMiembros() { return this.usuario()?.perfilOrganizacionActiva?.administrador ?? false; }
+  puedeVerParticipantes() { return this.esAdministrador() || this.tieneAlgunPermiso(['PARTICIPANTE_VER', 'USUARIO_VER']); }
+  puedeGestionarParticipantes() { return this.esAdministrador() || this.tieneAlgunPermiso(['PARTICIPANTE_GESTIONAR', 'USUARIO_CAMBIAR_ESTADO']); }
 
   puedeGestionarConvocatorias() {
     return this.tieneAlgunPermiso([
@@ -185,7 +187,7 @@ export class SesionService {
   }
 
   private tienePermiso(permiso: string) {
-    return this.usuario()?.permisos?.includes(permiso) ?? false;
+    return this.usuario()?.perfilOrganizacionActiva?.permisos?.includes(permiso) ?? false;
   }
 
   private tieneAlgunPermiso(permisos: string[]) {

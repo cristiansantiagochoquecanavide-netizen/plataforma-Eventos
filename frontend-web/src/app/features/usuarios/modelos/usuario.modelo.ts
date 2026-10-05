@@ -1,3 +1,10 @@
+export interface PerfilOrganizacionActiva {
+  idOrganizacion: number;
+  roles: string[];
+  permisos: string[];
+  administrador: boolean;
+}
+
 export interface Usuario {
   id: number;
   nombres: string;
@@ -6,6 +13,7 @@ export interface Usuario {
   estado?: string;
   roles: string[];
   permisos?: string[];
+  perfilOrganizacionActiva?: PerfilOrganizacionActiva | null;
 }
 
 export interface PaginaUsuarios {

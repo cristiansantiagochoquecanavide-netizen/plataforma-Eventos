@@ -90,6 +90,9 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
     Optional<Evento> findByIdAndOrganizacionId(Long id, Long organizacionId);
 
     @EntityGraph(attributePaths = {"categoria", "espacio", "responsables", "responsables.roles"})
+    Optional<Evento> findFirstByNombreIgnoreCaseAndOrganizacionId(String nombre, Long organizacionId);
+
+    @EntityGraph(attributePaths = {"categoria", "espacio", "responsables", "responsables.roles"})
     List<Evento> findByOrganizacionIdAndEstadoNotOrderByFechaInicioAsc(Long organizacionId, EstadoEvento estado);
 
     boolean existsByCategoriaId(Long idCategoria);
