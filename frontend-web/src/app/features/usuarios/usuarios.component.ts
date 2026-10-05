@@ -1,23 +1,21 @@
 import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UsuariosService } from './servicios/usuarios.service';
-import { RolesService } from '../roles/servicios/roles.service';
 import { obtenerMensajeError } from '../../core/mensajes-error';
 import { Usuario } from './modelos/usuario.modelo';
-import { Rol } from '../roles/modelos/rol.modelo';
 import { ToastService } from '../../core/toast.service';
 import { mensajeClaveInvalida, validadorClaveSegura } from '../../core/validacion-clave';
 import { RequisitosClaveComponent } from '../../shared/requisitos-clave.component';
+import { UiPrivilegeEditableDirective, UiPrivilegeEnabledDirective, UiPrivilegeVisibleDirective } from '../../core/ui-privilege.directive';
 
 @Component({
   selector: 'app-usuarios',
-  imports: [ReactiveFormsModule, RequisitosClaveComponent],
+  imports: [ReactiveFormsModule, RequisitosClaveComponent, UiPrivilegeVisibleDirective, UiPrivilegeEnabledDirective, UiPrivilegeEditableDirective],
   templateUrl: './usuarios.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UsuariosComponent implements OnInit {
   readonly usuarios = signal<Usuario[]>([]);
-  readonly roles = signal<Rol[]>([]);
   readonly error = signal('');
   readonly mensaje = signal('');
   readonly modalAbierto = signal(false);
@@ -35,20 +33,11 @@ export class UsuariosComponent implements OnInit {
 
   constructor(
     private readonly usuariosService: UsuariosService,
-    private readonly rolesService: RolesService,
     private readonly toast: ToastService,
   ) {}
 
   ngOnInit() {
     this.cargar();
-    this.rolesService.listarRoles().subscribe({
-      next: (roles) => this.roles.set(roles),
-      error: (error) => {
-        const mensaje = obtenerMensajeError(error, 'No fue posible cargar roles');
-        this.error.set(mensaje);
-        this.toast.error(mensaje);
-      },
-    });
   }
 
   cargar() {

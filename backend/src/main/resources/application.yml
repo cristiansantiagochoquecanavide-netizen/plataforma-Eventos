@@ -53,6 +53,21 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
+demo:
+  seed:
+    enabled: ${DEMO_SEED_ENABLED:false}
+
+audit:
+  cifrado:
+    kms-key-id: ${AUDIT_KMS_KEY_ID:}
+    kms-indice-key-id: ${AUDIT_KMS_INDICE_KEY_ID:}
+    kms-region: ${AUDIT_KMS_REGION:${AWS_REGION:}}
+    kms-endpoint: ${AUDIT_KMS_ENDPOINT:}
+    proposito: bitacora-payload
+    backfill:
+      enabled: ${AUDIT_CIFRADO_BACKFILL_ENABLED:false}
+      batch-size: ${AUDIT_CIFRADO_BACKFILL_BATCH_SIZE:500}
+
 seguridad:
   jwt:
     secreto: ${JWT_SECRET}

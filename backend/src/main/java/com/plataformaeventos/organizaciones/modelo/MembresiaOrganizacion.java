@@ -6,6 +6,7 @@ import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
 import com.plataformaeventos.roles.modelo.Rol;
+import com.plataformaeventos.usuarios.modelo.EstadoUsuario;
 
 @Entity @Table(name = "usuario_organizacion")
 @IdClass(MembresiaOrganizacion.Clave.class)
@@ -13,6 +14,9 @@ public class MembresiaOrganizacion {
     @Id @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "id_usuario") private Usuario usuario;
     @Id @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "id_organizacion") private Organizacion organizacion;
     @Column(nullable = false) private boolean activo = true;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "estado_participante", nullable = false, length = 10)
+    private EstadoUsuario estadoParticipante = EstadoUsuario.ACTIVO;
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(name = "usuario_organizacion_rol",
             joinColumns = {
@@ -31,6 +35,8 @@ public class MembresiaOrganizacion {
     public boolean isActivo() { return activo; }
     public void activar() { this.activo = true; }
     public void inactivar() { this.activo = false; }
+    public EstadoUsuario getEstadoParticipante() { return estadoParticipante; }
+    public void actualizarEstadoParticipante(EstadoUsuario estadoParticipante) { this.estadoParticipante = estadoParticipante; }
     public Set<Rol> getRoles() { return roles; }
     public void asignarRoles(Set<Rol> roles) { this.roles = new HashSet<>(roles); }
     public static class Clave implements Serializable {

@@ -66,18 +66,20 @@ public class AdministradorInicializador {
         }
 
         String correo = correoAdministrador.trim().toLowerCase(Locale.ROOT);
-        Rol rolAdministrador = rolRepository.findByNombre("ADMINISTRADOR")
+        Rol rolSaasAdministrador = rolRepository.findByNombre("SAAS_ADMINISTRADOR")
+                .orElseThrow(() -> new IllegalStateException("No existe el rol SAAS_ADMINISTRADOR"));
+        Rol rolAdministradorTenant = rolRepository.findByNombre("ADMINISTRADOR")
                 .orElseThrow(() -> new IllegalStateException("No existe el rol ADMINISTRADOR"));
         usuarioRepository.findByCorreoConRoles(correo).ifPresentOrElse(
                 administradorExistente -> {
                     administradorExistente.actualizarClaveHash(codificadorClave.encode(claveAdministrador));
                     administradorExistente.actualizarEstado(EstadoUsuario.ACTIVO);
-                    administradorExistente.getRoles().add(rolAdministrador);
+                    administradorExistente.getRoles().add(rolSaasAdministrador);
                     usuarioRepository.save(administradorExistente);
-                    asegurarMembresiaPrincipal(administradorExistente, rolAdministrador, organizacionRepository, membresiaRepository);
+                    asegurarMembresiaPrincipal(administradorExistente, rolAdministradorTenant, organizacionRepository, membresiaRepository);
                     LOGGER.info("Administrador inicial sincronizado");
                 },
-                () -> crearNuevoAdministrador(usuarioRepository, organizacionRepository, membresiaRepository, codificadorClave, correo, claveAdministrador, rolAdministrador)
+                () -> crearNuevoAdministrador(usuarioRepository, organizacionRepository, membresiaRepository, codificadorClave, correo, claveAdministrador, rolSaasAdministrador, rolAdministradorTenant)
         );
 
         crearUsuariosDePrueba(usuarioRepository, rolRepository, organizacionRepository, membresiaRepository, codificadorClave);
@@ -90,7 +92,8 @@ public class AdministradorInicializador {
             PasswordEncoder codificadorClave,
             String correo,
             String claveAdministrador,
-            Rol rolAdministrador
+            Rol rolSaasAdministrador,
+            Rol rolAdministradorTenant
     ) {
         Usuario administrador = new Usuario(
                 "Administrador",
@@ -99,9 +102,9 @@ public class AdministradorInicializador {
                 codificadorClave.encode(claveAdministrador),
                 EstadoUsuario.ACTIVO
         );
-        administrador.asignarRoles(Set.of(rolAdministrador));
+        administrador.asignarRoles(Set.of(rolSaasAdministrador));
         usuarioRepository.save(administrador);
-        asegurarMembresiaPrincipal(administrador, rolAdministrador, organizacionRepository, membresiaRepository);
+        asegurarMembresiaPrincipal(administrador, rolAdministradorTenant, organizacionRepository, membresiaRepository);
         LOGGER.info("Administrador inicial creado");
     }
 

@@ -1,49 +1,32 @@
 package com.plataformaeventos.audit.repositorio;
 
 import com.plataformaeventos.audit.modelo.Bitacora;
-import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
-
+import org.springframework.data.repository.query.Param;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
-public interface BitacoraRepository extends Repository<Bitacora, Long>, JpaSpecificationExecutor<Bitacora> {
+public interface BitacoraRepository extends Repository<Bitacora, Long> {
     Bitacora save(Bitacora bitacora);
 
-    default Page<Bitacora> buscar(Long organizacion, String modulo, String entidad, String accion,
-                                  Boolean exito, Long actor, OffsetDateTime desde, OffsetDateTime hasta,
-                                  Pageable pageable) {
-        Specification<Bitacora> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-            predicates.add(cb.equal(root.get("organizacion").get("id"), organizacion));
-            if (modulo != null && !modulo.isBlank()) {
-                predicates.add(cb.like(cb.lower(root.get("modulo")), "%" + modulo.trim().toLowerCase() + "%"));
-            }
-            if (entidad != null && !entidad.isBlank()) {
-                predicates.add(cb.like(cb.lower(root.get("entidad")), "%" + entidad.trim().toLowerCase() + "%"));
-            }
-            if (accion != null && !accion.isBlank()) {
-                predicates.add(cb.like(cb.lower(root.get("accion")), "%" + accion.trim().toLowerCase() + "%"));
-            }
-            if (exito != null) {
-                predicates.add(cb.equal(root.get("exito"), exito));
-            }
-            if (actor != null) {
-                predicates.add(cb.equal(root.get("actor").get("id"), actor));
-            }
-            if (desde != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get("fecha"), desde));
-            }
-            if (hasta != null) {
-                predicates.add(cb.lessThan(root.get("fecha"), hasta));
-            }
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-        return findAll(spec, pageable);
-    }
+    @Query("""
+        select b from Bitacora b where b.organizacion.id = :organizacion
+        and (:moduloIdx is null or (b.indiceModulo = :moduloIdx or (b.indiceModulo is null and lower(trim(b.modulo)) = :moduloNormalizado)))
+        and (:entidadIdx is null or (b.indiceEntidad = :entidadIdx or (b.indiceEntidad is null and lower(trim(b.entidad)) = :entidadNormalizada)))
+        and (:accionIdx is null or (b.indiceAccion = :accionIdx or (b.indiceAccion is null and lower(trim(b.accion)) = :accionNormalizada)))
+        and (:exitoIdx is null or (b.indiceExito = :exitoIdx or (b.indiceExito is null and b.exito = :exito)))
+        and (:actorIdx is null or (b.indiceActor = :actorIdx or (b.indiceActor is null and b.actor.id = :actor)))
+        and (:desde is null or b.fecha >= :desde)
+        and (:hasta is null or b.fecha < :hasta)
+        """)
+    Page<Bitacora> buscar(@Param("organizacion") Long organizacion,
+                          @Param("moduloIdx") String moduloIdx, @Param("moduloNormalizado") String moduloNormalizado,
+                          @Param("entidadIdx") String entidadIdx, @Param("entidadNormalizada") String entidadNormalizada,
+                          @Param("accionIdx") String accionIdx, @Param("accionNormalizada") String accionNormalizada,
+                          @Param("exitoIdx") String exitoIdx, @Param("exito") Boolean exito,
+                          @Param("actorIdx") String actorIdx, @Param("actor") Long actor,
+                          @Param("desde") OffsetDateTime desde, @Param("hasta") OffsetDateTime hasta,
+                          Pageable pageable);
 }

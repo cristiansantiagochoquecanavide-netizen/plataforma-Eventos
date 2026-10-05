@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'core/theme/app_theme.dart';
+import 'core/ui_privileges/ui_privilege_service.dart';
+import 'core/ui_privileges/ui_privilege_widgets.dart';
 
 const _apiUrl = String.fromEnvironment(
   'API_URL',
@@ -773,52 +775,102 @@ class _HomeShellState extends State<HomeShell> {
         widget.session.organizations.isEmpty) {
       return OrganizationRequiredPage(session: widget.session);
     }
-    return Scaffold(
-      body: Column(
-        children: [
-          OrganizationSwitcher(session: widget.session),
-          Expanded(
-            child: IndexedStack(
-              index: _currentIndex,
-              children: [
-                EventsPage(
-                  session: widget.session,
-                  onGoToInscriptions: () => setState(() => _currentIndex = 1),
-                ),
-                MyInscriptionsPage(session: widget.session),
-                StaffPage(session: widget.session),
-                ProfilePage(session: widget.session),
-              ],
+    return AnimatedBuilder(
+      animation: widget.session.uiPrivileges,
+      builder: (context, _) {
+        final privileges = widget.session.uiPrivileges;
+        final destinations = <({NavigationDestination destination, Widget page})>[];
+        if (privileges.visible('events.search.menu')) {
+          destinations.add((
+            destination: const NavigationDestination(
+              icon: Icon(Icons.event_outlined),
+              selectedIcon: Icon(Icons.event_rounded),
+              label: 'Eventos',
             ),
+            page: EventsPage(
+              session: widget.session,
+              onGoToInscriptions: () {
+                final index = destinations.indexWhere(
+                  (item) => item.page is MyInscriptionsPage,
+                );
+                if (index >= 0) setState(() => _currentIndex = index);
+              },
+            ),
+          ));
+        }
+        if (privileges.visible('inscriptions.list')) {
+          destinations.add((
+            destination: const NavigationDestination(
+              icon: Icon(Icons.confirmation_number_outlined),
+              selectedIcon: Icon(Icons.confirmation_number_rounded),
+              label: 'Inscripciones',
+            ),
+            page: MyInscriptionsPage(session: widget.session),
+          ));
+        }
+        if (privileges.visible('staff-applications.menu') ||
+            privileges.visible('staff-assignments.menu')) {
+          destinations.add((
+            destination: const NavigationDestination(
+              icon: Icon(Icons.assignment_ind_outlined),
+              selectedIcon: Icon(Icons.assignment_ind_rounded),
+              label: 'Staff',
+            ),
+            page: StaffPage(session: widget.session),
+          ));
+        }
+        if (privileges.visible('profile.menu')) {
+          destinations.add((
+            destination: const NavigationDestination(
+              icon: Icon(Icons.person_outline_rounded),
+              selectedIcon: Icon(Icons.person_rounded),
+              label: 'Mi Perfil',
+            ),
+            page: ProfilePage(session: widget.session),
+          ));
+        }
+
+        final selectedIndex = destinations.isEmpty
+            ? 0
+            : _currentIndex.clamp(0, destinations.length - 1) as int;
+        if (selectedIndex != _currentIndex) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _currentIndex = selectedIndex);
+          });
+        }
+
+        return Scaffold(
+          body: Column(
+            children: [
+              OrganizationSwitcher(session: widget.session),
+              if (privileges.isLoading) const LinearProgressIndicator(minHeight: 2),
+              Expanded(
+                child: destinations.isEmpty
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text(
+                            'No tienes privilegios de interfaz para esta organización.',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      )
+                    : IndexedStack(
+                        index: selectedIndex,
+                        children: destinations.map((item) => item.page).toList(),
+                      ),
+              ),
+            ],
           ),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) => setState(() => _currentIndex = index),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.event_outlined),
-            selectedIcon: Icon(Icons.event_rounded),
-            label: 'Eventos',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.confirmation_number_outlined),
-            selectedIcon: Icon(Icons.confirmation_number_rounded),
-            label: 'Inscripciones',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.assignment_ind_outlined),
-            selectedIcon: Icon(Icons.assignment_ind_rounded),
-            label: 'Staff',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            selectedIcon: Icon(Icons.person_rounded),
-            label: 'Mi Perfil',
-          ),
-        ],
-      ),
+          bottomNavigationBar: destinations.isEmpty
+              ? null
+              : NavigationBar(
+                  selectedIndex: selectedIndex,
+                  onDestinationSelected: (index) => setState(() => _currentIndex = index),
+                  destinations: destinations.map((item) => item.destination).toList(),
+                ),
+        );
+      },
     );
   }
 }
@@ -969,11 +1021,17 @@ class _StaffPageState extends State<StaffPage> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
       children: [
-        _buildApplicationForm(),
-        const SizedBox(height: 24),
-        _buildApplicationsSection(),
-        const SizedBox(height: 24),
-        _buildAssignmentsSection(),
+        if (widget.session.uiPrivileges.visible('staff-applications.menu')) ...[
+          _buildApplicationForm(),
+          const SizedBox(height: 24),
+          _buildApplicationsSection(),
+          const SizedBox(height: 24),
+        ],
+        UiVisible(
+          service: widget.session.uiPrivileges,
+          privilege: 'staff-assignments.menu',
+          child: _buildAssignmentsSection(),
+        ),
         if (_error != null) ...[
           const SizedBox(height: 16),
           Text(_error!, style: const TextStyle(color: AppColors.danger)),
@@ -982,66 +1040,77 @@ class _StaffPageState extends State<StaffPage> {
     );
   }
 
-  Widget _buildApplicationForm() => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Aplicar a convocatoria',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Ingresa el ID de la convocatoria para enviar tu postulación.',
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _convocatoriaId,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'ID de convocatoria',
+  Widget _buildApplicationForm() => UiEditableBuilder(
+    service: widget.session.uiPrivileges,
+    privilege: 'staff-applications.form',
+    builder: (context, readOnly) => Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Aplicar a convocatoria',
+                style: Theme.of(context).textTheme.titleLarge,
               ),
-              validator: (value) {
-                final error = _required(value);
-                if (error != null) return error;
-                return int.tryParse(value!.trim()) != null &&
-                        int.parse(value.trim()) > 0
-                    ? null
-                    : 'Ingresa un ID valido';
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _motivacion,
-              maxLength: 1000,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Motivacion (opcional)',
+              const SizedBox(height: 8),
+              const Text(
+                'Ingresa el ID de la convocatoria para enviar tu postulación.',
               ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _sending ? null : _sendApplication,
-                icon: _sending
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.send_rounded),
-                label: Text(_sending ? 'Enviando...' : 'Enviar postulación'),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _convocatoriaId,
+                readOnly: readOnly,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'ID de convocatoria',
+                ),
+                validator: (value) {
+                  final error = _required(value);
+                  if (error != null) return error;
+                  return int.tryParse(value!.trim()) != null &&
+                          int.parse(value.trim()) > 0
+                      ? null
+                      : 'Ingresa un ID valido';
+                },
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _motivacion,
+                readOnly: readOnly,
+                maxLength: 1000,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Motivacion (opcional)',
+                ),
+              ),
+              const SizedBox(height: 8),
+              UiEnabledBuilder(
+                service: widget.session.uiPrivileges,
+                privilege: 'staff-applications.create',
+                businessDisabled: readOnly || _sending,
+                builder: (context, enabled) => SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: enabled ? _sendApplication : null,
+                    icon: _sending
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.send_rounded),
+                    label: Text(_sending ? 'Enviando...' : 'Enviar postulación'),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     ),
@@ -1299,30 +1368,32 @@ class _EventsPageState extends State<EventsPage> {
       appBar: AppBar(
         title: const Text('Eventos disponibles'),
         actions: [
-          IconButton(
-            onPressed: () {
-              if (widget.onGoToInscriptions != null) {
-                widget.onGoToInscriptions!();
-              } else {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => MyInscriptionsPage(session: widget.session),
-                  ),
-                );
-              }
-            },
-            icon: const Icon(Icons.confirmation_number_outlined),
-            tooltip: 'Mis inscripciones',
-          ),
-          IconButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => ProfilePage(session: widget.session),
-              ),
+          if (widget.session.uiPrivileges.visible('inscriptions.list'))
+            IconButton(
+              onPressed: () {
+                if (widget.onGoToInscriptions != null) {
+                  widget.onGoToInscriptions!();
+                } else {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => MyInscriptionsPage(session: widget.session),
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.confirmation_number_outlined),
+              tooltip: 'Mis inscripciones',
             ),
-            icon: const Icon(Icons.person_outline_rounded),
-            tooltip: 'Mi perfil',
-          ),
+          if (widget.session.uiPrivileges.visible('profile.menu'))
+            IconButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ProfilePage(session: widget.session),
+                ),
+              ),
+              icon: const Icon(Icons.person_outline_rounded),
+              tooltip: 'Mi perfil',
+            ),
           IconButton(
             onPressed: () => widget.session.logout(),
             icon: const Icon(Icons.logout_rounded),
@@ -1340,45 +1411,58 @@ class _EventsPageState extends State<EventsPage> {
               style: TextStyle(color: AppColors.muted),
             ),
             const SizedBox(height: 16),
-            TextField(
-              controller: _search,
-              onSubmitted: (_) => _loadEvents(),
-              decoration: InputDecoration(
-                labelText: 'Buscar por titulo o nombre',
-                prefixIcon: const Icon(Icons.search_rounded),
-                suffixIcon: IconButton(
-                  onPressed: _loadEvents,
-                  icon: const Icon(Icons.arrow_forward_rounded),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _category.isEmpty ? null : _category,
-              decoration: const InputDecoration(
-                labelText: 'Filtrar por categoria',
-                prefixIcon: Icon(Icons.category_outlined),
-              ),
-              items: [
-                const DropdownMenuItem(
-                  value: '',
-                  child: Text('Todas las categorias'),
-                ),
-                ..._categories.map(
-                  (category) =>
-                      DropdownMenuItem(value: category, child: Text(category)),
-                ),
-              ],
-              onChanged: (value) {
-                setState(() => _category = value ?? '');
-                _loadEvents();
-              },
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: _clearFilters,
-                child: const Text('Limpiar filtros'),
+            UiEditableBuilder(
+              service: widget.session.uiPrivileges,
+              privilege: 'events.filters',
+              builder: (context, readOnly) => Column(
+                children: [
+                  TextField(
+                    controller: _search,
+                    readOnly: readOnly,
+                    onSubmitted: readOnly ? null : (_) => _loadEvents(),
+                    decoration: InputDecoration(
+                      labelText: 'Buscar por titulo o nombre',
+                      prefixIcon: const Icon(Icons.search_rounded),
+                      suffixIcon: IconButton(
+                        onPressed: readOnly ? null : _loadEvents,
+                        icon: const Icon(Icons.arrow_forward_rounded),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: _category.isEmpty ? null : _category,
+                    decoration: const InputDecoration(
+                      labelText: 'Filtrar por categoria',
+                      prefixIcon: Icon(Icons.category_outlined),
+                    ),
+                    items: [
+                      const DropdownMenuItem(
+                        value: '',
+                        child: Text('Todas las categorias'),
+                      ),
+                      ..._categories.map(
+                        (category) => DropdownMenuItem(
+                          value: category,
+                          child: Text(category),
+                        ),
+                      ),
+                    ],
+                    onChanged: readOnly
+                        ? null
+                        : (value) {
+                            setState(() => _category = value ?? '');
+                            _loadEvents();
+                          },
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: readOnly ? null : _clearFilters,
+                      child: const Text('Limpiar filtros'),
+                    ),
+                  ),
+                ],
               ),
             ),
             if (_error != null)
@@ -1398,7 +1482,8 @@ class _EventsPageState extends State<EventsPage> {
                   ),
                 ),
               ),
-            ..._events.map(
+            if (widget.session.uiPrivileges.visible('events.list'))
+              ..._events.map(
               (event) => Card(
                 margin: const EdgeInsets.only(bottom: 12),
                 child: InkWell(
@@ -1559,36 +1644,47 @@ class _EventDetailModalState extends State<EventDetailModal> {
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              event.description.isEmpty ? 'Sin descripción' : event.description,
-            ),
-            const SizedBox(height: 12),
-            const Divider(),
-            ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.calendar_today_rounded),
-              title: Text(_formatDate(event.start)),
-              subtitle: const Text('Fecha de inicio'),
-            ),
-            if (event.end != null)
-              ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.event_available_rounded),
-                title: Text(_formatDate(event.end!)),
-                subtitle: const Text('Fecha de finalización'),
+            UiVisible(
+              service: widget.session.uiPrivileges,
+              privilege: 'event.summary',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    event.description.isEmpty
+                        ? 'Sin descripción'
+                        : event.description,
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(),
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.calendar_today_rounded),
+                    title: Text(_formatDate(event.start)),
+                    subtitle: const Text('Fecha de inicio'),
+                  ),
+                  if (event.end != null)
+                    ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.event_available_rounded),
+                      title: Text(_formatDate(event.end!)),
+                      subtitle: const Text('Fecha de finalización'),
+                    ),
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.place_outlined),
+                    title: Text(
+                      event.place.isEmpty ? 'Sin lugar asignado' : event.place,
+                    ),
+                    subtitle: const Text('Lugar'),
+                  ),
+                  const Divider(),
+                ],
               ),
-            ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.place_outlined),
-              title: Text(
-                event.place.isEmpty ? 'Sin lugar asignado' : event.place,
-              ),
-              subtitle: const Text('Lugar'),
             ),
-            const Divider(),
             const SizedBox(height: 4),
             // Sección CU11: Aforo y Control de Cupos
             if (_loading)
@@ -1693,28 +1789,31 @@ class _EventDetailModalState extends State<EventDetailModal> {
                   ),
                 )
               else
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: (!_disponibilidad!.tieneCupo || _inscribiendo)
-                        ? null
-                        : _inscribir,
-                    icon: _inscribiendo
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.how_to_reg_rounded),
-                    label: Text(
-                      _inscribiendo
-                          ? 'Inscribiendo...'
-                          : (_disponibilidad!.tieneCupo
-                                ? 'Inscribirme al evento'
-                                : 'Cupos agotados'),
+                UiEnabledBuilder(
+                  service: widget.session.uiPrivileges,
+                  privilege: 'event.registration.create',
+                  businessDisabled: !_disponibilidad!.tieneCupo || _inscribiendo,
+                  builder: (context, enabled) => SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: enabled ? _inscribir : null,
+                      icon: _inscribiendo
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.how_to_reg_rounded),
+                      label: Text(
+                        _inscribiendo
+                            ? 'Inscribiendo...'
+                            : (_disponibilidad!.tieneCupo
+                                  ? 'Inscribirme al evento'
+                                  : 'Cupos agotados'),
+                      ),
                     ),
                   ),
                 ),
@@ -1852,6 +1951,14 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
   }
 
   Widget _buildBody() {
+    if (!widget.session.uiPrivileges.visible('inscriptions.list')) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text('No tienes privilegios para ver tus inscripciones.'),
+        ),
+      );
+    }
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -2188,21 +2295,27 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
                             ),
                             if (isConfirmada) ...[
                               const SizedBox(height: 12),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: AppColors.danger,
-                                    side: const BorderSide(
-                                      color: AppColors.danger,
+                              UiEnabledBuilder(
+                                service: widget.session.uiPrivileges,
+                                privilege: 'inscriptions.cancel',
+                                builder: (context, enabled) => Align(
+                                  alignment: Alignment.centerRight,
+                                  child: OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.danger,
+                                      side: const BorderSide(
+                                        color: AppColors.danger,
+                                      ),
                                     ),
+                                    onPressed: enabled
+                                        ? () => _cancelarInscripcion(ins)
+                                        : null,
+                                    icon: const Icon(
+                                      Icons.cancel_outlined,
+                                      size: 16,
+                                    ),
+                                    label: const Text('Cancelar inscripción'),
                                   ),
-                                  onPressed: () => _cancelarInscripcion(ins),
-                                  icon: const Icon(
-                                    Icons.cancel_outlined,
-                                    size: 16,
-                                  ),
-                                  label: const Text('Cancelar inscripción'),
                                 ),
                               ),
                             ],
@@ -2455,47 +2568,61 @@ class _ProfilePageState extends State<ProfilePage> {
               style: TextStyle(color: AppColors.muted),
             ),
             const SizedBox(height: 16),
-            Card(
-              elevation: 0,
-              color: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _names,
-                      decoration: const InputDecoration(
-                        labelText: 'Nombres',
-                        prefixIcon: Icon(Icons.person_outline_rounded),
+            UiEditableBuilder(
+              service: widget.session.uiPrivileges,
+              privilege: 'profile.edit',
+              builder: (context, readOnly) => Card(
+                elevation: 0,
+                color: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: _names,
+                        readOnly: readOnly,
+                        decoration: const InputDecoration(
+                          labelText: 'Nombres',
+                          prefixIcon: Icon(Icons.person_outline_rounded),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _lastNames,
-                      decoration: const InputDecoration(
-                        labelText: 'Apellidos',
-                        prefixIcon: Icon(Icons.badge_outlined),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _lastNames,
+                        readOnly: readOnly,
+                        decoration: const InputDecoration(
+                          labelText: 'Apellidos',
+                          prefixIcon: Icon(Icons.badge_outlined),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _email,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Correo',
-                        prefixIcon: Icon(Icons.alternate_email_rounded),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _email,
+                        readOnly: readOnly,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Correo',
+                          prefixIcon: Icon(Icons.alternate_email_rounded),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 18),
-                    FilledButton.icon(
-                      onPressed: _saving ? null : _save,
-                      icon: const Icon(Icons.save_rounded),
-                      label: Text(_saving ? 'Guardando...' : 'Guardar cambios'),
-                    ),
-                  ],
+                      const SizedBox(height: 18),
+                      UiEnabledBuilder(
+                        service: widget.session.uiPrivileges,
+                        privilege: 'profile.save',
+                        businessDisabled: readOnly || _saving,
+                        builder: (context, enabled) => FilledButton.icon(
+                          onPressed: enabled ? _save : null,
+                          icon: const Icon(Icons.save_rounded),
+                          label: Text(
+                            _saving ? 'Guardando...' : 'Guardar cambios',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -2605,6 +2732,7 @@ class SessionController extends ChangeNotifier {
 
   final ApiClient _api;
   final FlutterSecureStorage _storage;
+  final UiPrivilegeService uiPrivileges = UiPrivilegeService();
   UserProfile? user;
   SessionTokens? _tokens;
   List<OrganizationModel> organizations = const [];
@@ -2622,6 +2750,7 @@ class SessionController extends ChangeNotifier {
         _tokens!,
         organizationId: activeOrganization?.id,
       );
+      await _loadUiPrivileges();
       notifyListeners();
     } catch (_) {
       await _clear();
@@ -2629,14 +2758,20 @@ class SessionController extends ChangeNotifier {
   }
 
   Future<void> login(String email, String password) async {
-    _tokens = await _api.login(email, password);
-    await _persist();
-    await _restoreOrganizations();
-    user = await _api.currentUser(
-      _tokens!,
-      organizationId: activeOrganization?.id,
-    );
-    notifyListeners();
+    try {
+      _tokens = await _api.login(email, password);
+      await _persist();
+      await _restoreOrganizations();
+      user = await _api.currentUser(
+        _tokens!,
+        organizationId: activeOrganization?.id,
+      );
+      await _loadUiPrivileges();
+      notifyListeners();
+    } catch (_) {
+      await _clear();
+      rethrow;
+    }
   }
 
   Future<void> _restoreOrganizations() async {
@@ -2681,9 +2816,12 @@ class SessionController extends ChangeNotifier {
       (organization) => organization.id == id,
     );
     if (matches.isEmpty || activeOrganization?.id == id) return;
+    uiPrivileges.clear();
     activeOrganization = matches.first;
     await _storage.write(key: 'organizacion-activa', value: '$id');
     organizationVersion++;
+    notifyListeners();
+    await _loadUiPrivileges();
     notifyListeners();
   }
 
@@ -2815,6 +2953,21 @@ class SessionController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _loadUiPrivileges() async {
+    if (_tokens == null || activeOrganization == null) {
+      uiPrivileges.clear();
+      return;
+    }
+    await uiPrivileges.load(
+      () => _authorized(
+        (tokens, organizationId) => _api.uiPrivileges(
+          tokens,
+          organizationId: organizationId,
+        ),
+      ),
+    );
+  }
+
   Future<void> _persist() =>
       _storage.write(key: 'sesion', value: jsonEncode(_tokens!.toJson()));
   Future<void> _clear() async {
@@ -2823,6 +2976,7 @@ class SessionController extends ChangeNotifier {
     organizations = const [];
     activeOrganization = null;
     organizationsLoaded = false;
+    uiPrivileges.clear();
     organizationVersion++;
     await _storage.delete(key: 'sesion');
     await _storage.delete(key: 'organizacion-activa');
@@ -2905,6 +3059,17 @@ class ApiClient {
         .map((item) => OrganizationModel.fromJson(item as Map<String, dynamic>))
         .toList();
   }
+
+  Future<Map<String, dynamic>> uiPrivileges(
+    SessionTokens tokens, {
+    required int organizationId,
+  }) async => _data(
+    await _get(
+      '/componentes-ui/actual/privilegios',
+      tokens,
+      organizationId: organizationId,
+    ),
+  ) as Map<String, dynamic>;
 
   Future<UserProfile> updateProfile(
     SessionTokens tokens,

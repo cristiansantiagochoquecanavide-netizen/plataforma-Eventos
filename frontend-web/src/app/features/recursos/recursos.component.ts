@@ -16,10 +16,11 @@ import {
 } from './modelos/recurso.modelo';
 import { Evento } from '../eventos/modelos/evento.modelo';
 import { ToastService } from '../../core/toast.service';
+import { UiPrivilegeEnabledDirective, UiPrivilegeVisibleDirective } from '../../core/ui-privilege.directive';
 
 @Component({
   selector: 'app-recursos',
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [ReactiveFormsModule, DatePipe, UiPrivilegeEnabledDirective, UiPrivilegeVisibleDirective],
   templateUrl: './recursos.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

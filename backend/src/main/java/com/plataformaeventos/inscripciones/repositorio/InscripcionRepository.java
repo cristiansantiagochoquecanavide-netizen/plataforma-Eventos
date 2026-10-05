@@ -31,6 +31,11 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
     @Query("select i from Inscripcion i where i.evento.id = :evento and i.participante.id = :usuario and i.organizacion.id = :org")
     Optional<Inscripcion> findByEventoIdAndParticipanteIdAndOrganizacionId(@Param("evento") Long evento, @Param("usuario") Long usuario, @Param("org") Long org);
 
+    long countByParticipanteIdAndOrganizacionId(Long idParticipante, Long organizacionId);
+    long countByParticipanteIdAndOrganizacionIdAndEstado(Long idParticipante, Long organizacionId, EstadoInscripcion estado);
+
+    Optional<Inscripcion> findFirstByParticipanteIdAndOrganizacionIdOrderByFechaInscripcionDesc(Long idParticipante, Long organizacionId);
+
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("select e from com.plataformaeventos.eventos.modelo.Evento e where e.id = :id and e.organizacion.id = :org")
     java.util.Optional<com.plataformaeventos.eventos.modelo.Evento> bloquearEvento(@Param("id") Long id, @Param("org") Long org);

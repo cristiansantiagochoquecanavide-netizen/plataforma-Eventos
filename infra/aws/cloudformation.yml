@@ -192,6 +192,72 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
 
+  AuditPayloadKmsKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: Audit payload data-key envelope encryption key
+      Enabled: true
+      EnableKeyRotation: true
+      KeySpec: SYMMETRIC_DEFAULT
+      KeyUsage: ENCRYPT_DECRYPT
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: EnableAccountRootKeyAdministration
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: '*'
+
+  AuditIndexKmsKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: Audit exact blind-index HMAC key
+      Enabled: true
+      KeySpec: HMAC_256
+      KeyUsage: GENERATE_VERIFY_MAC
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: EnableAccountRootKeyAdministration
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: '*'
+
+  BackendTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: audit-kms-least-privilege
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: AuditPayloadEnvelopeEncryption
+                Effect: Allow
+                Action:
+                  - kms:GenerateDataKey
+                  - kms:Decrypt
+                Resource: !GetAtt AuditPayloadKmsKey.Arn
+              - Sid: AuditExactBlindIndexMac
+                Effect: Allow
+                Action:
+                  - kms:GenerateMac
+                Resource: !GetAtt AuditIndexKmsKey.Arn
+
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -286,6 +352,7 @@ Resources:
       RequiresCompatibilities:
         - FARGATE
       ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt BackendTaskRole.Arn
       ContainerDefinitions:
         - Name: backend
           Image: !Ref BackendImage
@@ -337,6 +404,12 @@ Resources:
               Value: '30'
             - Name: RECUPERACION_CLAVE_INTERVALO_SOLICITUD_SEGUNDOS
               Value: '60'
+            - Name: AUDIT_KMS_KEY_ID
+              Value: !Ref AuditPayloadKmsKey
+            - Name: AUDIT_KMS_INDICE_KEY_ID
+              Value: !Ref AuditIndexKmsKey
+            - Name: AUDIT_KMS_REGION
+              Value: !Ref AWS::Region
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -465,3 +538,7 @@ Outputs:
     Value: !Ref EcsCluster
   DatabaseEndpoint:
     Value: !GetAtt Database.Endpoint.Address
+  AuditPayloadKmsKeyArn:
+    Value: !GetAtt AuditPayloadKmsKey.Arn
+  AuditIndexKmsKeyArn:
+    Value: !GetAtt AuditIndexKmsKey.Arn

@@ -1,10 +1,10 @@
-<section class="page-heading">
+<section class="page-heading" [appUiPrivilegeVisible]="'events.menu'">
   <p class="eyebrow">Gestion de Eventos, Programacion y Recursos</p>
   <h1>Eventos</h1>
   <p>Planificacion, sedes y responsables asignados para cada evento.</p>
   @if (puedeCrear()) {
     <div style="margin-top: 14px;">
-      <button class="primary" type="button" (click)="abrirModalCrear()" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px; color: #ffffff;">
+      <button class="primary" type="button" (click)="abrirModalCrear()" [appUiPrivilegeEnabled]="{ key: 'events.create', businessDisabled: !puedeCrear() }" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px; color: #ffffff;">
         <span style="font-weight: 800; font-size: 1.15rem; line-height: 1; color: #ffffff;">+</span>
         <span style="color: #ffffff; font-weight: 700;">Crear Nuevo Evento</span>
       </button>
@@ -19,7 +19,7 @@
   <p class="notice error">{{ error() }}</p>
 }
 
-<section class="card table-card">
+<section class="card table-card" [appUiPrivilegeVisible]="'events.list'">
   <div class="card-title compact" style="display: flex; justify-content: space-between; align-items: center;">
     <h2>Agenda de Eventos</h2>
     <span class="role-chip">{{ eventos().length }} eventos</span>
@@ -43,7 +43,7 @@
           <tr>
             <td>
               <strong>{{ evento.nombre }}</strong>
-              <small>{{ evento.descripcion || 'Sin descripcion' }}</small>
+              <small [appUiPrivilegeVisible]="'event.summary'">{{ evento.descripcion || 'Sin descripcion' }}</small>
             </td>
             <td>
               {{ evento.fechaInicio | date: 'dd/MM/yyyy HH:mm' }}
@@ -79,7 +79,7 @@
             </td>
             <td class="actions" style="text-align: right; display: flex; justify-content: flex-end; gap: 8px;">
               @if (puedeEditar()) {
-                <button type="button" (click)="editar(evento, $event)">Editar</button>
+                <button type="button" (click)="editar(evento, $event)" [appUiPrivilegeEnabled]="{ key: 'events.edit', businessDisabled: !puedeEditar() }">Editar</button>
               }
             </td>
           </tr>
@@ -111,10 +111,10 @@
           <p class="notice error" style="margin-top: 0; margin-bottom: 16px;">{{ error() }}</p>
         }
 
-        <form [formGroup]="formulario" (ngSubmit)="guardar()" class="form-grid" novalidate>
+        <form [formGroup]="formulario" (ngSubmit)="guardar()" class="form-grid" [appUiPrivilegeVisible]="'event.form'" novalidate>
           <label class="full" [class.invalid]="campoConError('nombre')">
             Nombre del Evento *
-            <input formControlName="nombre" placeholder="Ej: Conferencia Anual de Tecnologia 2026" />
+            <input formControlName="nombre" placeholder="Ej: Conferencia Anual de Tecnologia 2026" [appUiPrivilegeEditable]="'event.form'" />
             @if (campoConError('nombre')) {
               <small class="field-error">{{ mensajeCampo('nombre') }}</small>
             }
@@ -122,7 +122,7 @@
 
           <label class="full" [class.invalid]="campoConError('descripcion')">
             Descripcion
-            <textarea formControlName="descripcion" rows="3" placeholder="Detalla los objetivos, publico y caracteristicas del evento..."></textarea>
+            <textarea formControlName="descripcion" rows="3" placeholder="Detalla los objetivos, publico y caracteristicas del evento..." [appUiPrivilegeEditable]="'event.form'"></textarea>
             @if (campoConError('descripcion')) {
               <small class="field-error">{{ mensajeCampo('descripcion') }}</small>
             }
@@ -130,7 +130,7 @@
 
           <label class="full" [class.invalid]="campoConError('idCategoria')">
             Categoria *
-            <select formControlName="idCategoria">
+            <select formControlName="idCategoria" [appUiPrivilegeEditable]="'event.form'">
               <option [ngValue]="0">Selecciona una categoria</option>
               @for (categoria of categorias(); track categoria.id) {
                 <option [ngValue]="categoria.id">{{ categoria.nombre }}</option>
@@ -149,14 +149,14 @@
               <div style="display: grid; grid-template-columns: 1fr 120px; gap: 8px;">
                 <label [class.invalid]="campoConError('fechaInicio')" style="font-size: 0.78rem; color: var(--muted); margin: 0;">
                   Fecha *
-                  <input type="date" formControlName="fechaInicio" style="margin-top: 4px;" />
+                  <input type="date" formControlName="fechaInicio" style="margin-top: 4px;" [appUiPrivilegeEditable]="'event.form'" />
                   @if (campoConError('fechaInicio')) {
                     <small class="field-error">{{ mensajeCampo('fechaInicio') }}</small>
                   }
                 </label>
                 <label [class.invalid]="campoConError('horaInicio')" style="font-size: 0.78rem; color: var(--muted); margin: 0;">
                   Hora *
-                  <input type="time" formControlName="horaInicio" style="margin-top: 4px;" />
+                  <input type="time" formControlName="horaInicio" style="margin-top: 4px;" [appUiPrivilegeEditable]="'event.form'" />
                   @if (campoConError('horaInicio')) {
                     <small class="field-error">{{ mensajeCampo('horaInicio') }}</small>
                   }
@@ -171,11 +171,11 @@
               <div style="display: grid; grid-template-columns: 1fr 120px; gap: 8px;">
                 <label style="font-size: 0.78rem; color: var(--muted); margin: 0;">
                   Fecha
-                  <input type="date" formControlName="fechaFin" style="margin-top: 4px;" />
+                  <input type="date" formControlName="fechaFin" style="margin-top: 4px;" [appUiPrivilegeEditable]="'event.form'" />
                 </label>
                 <label style="font-size: 0.78rem; color: var(--muted); margin: 0;">
                   Hora
-                  <input type="time" formControlName="horaFin" style="margin-top: 4px;" />
+                  <input type="time" formControlName="horaFin" style="margin-top: 4px;" [appUiPrivilegeEditable]="'event.form'" />
                 </label>
               </div>
             </div>
@@ -183,7 +183,7 @@
 
           <label class="full" [class.invalid]="campoConError('lugarPrincipal')">
             Lugar Principal
-            <input formControlName="lugarPrincipal" placeholder="Ej: Auditorio Central - Campus FICCT" />
+            <input formControlName="lugarPrincipal" placeholder="Ej: Auditorio Central - Campus FICCT" [appUiPrivilegeEditable]="'event.form'" />
             @if (campoConError('lugarPrincipal')) {
               <small class="field-error">{{ mensajeCampo('lugarPrincipal') }}</small>
             }
@@ -191,7 +191,7 @@
 
           <label class="full" [class.invalid]="campoConError('idEspacio')">
             Espacio o sala *
-            <select formControlName="idEspacio">
+            <select formControlName="idEspacio" [appUiPrivilegeEditable]="'event.form'">
               <option [ngValue]="null">Selecciona un espacio</option>
               @for (espacio of espacios(); track espacio.id) {
                 <option [ngValue]="espacio.id">{{ espacio.nombre }} - {{ espacio.ubicacion }} ({{ espacio.capacidad }} personas)</option>
@@ -204,7 +204,7 @@
 
           <label class="full" [class.invalid]="campoConError('aforoMaximo')">
             Aforo del evento *
-            <input type="number" min="1" formControlName="aforoMaximo" placeholder="Ej: 100" />
+            <input type="number" min="1" formControlName="aforoMaximo" placeholder="Ej: 100" [appUiPrivilegeEditable]="'event.capacity'" />
             @if (campoConError('aforoMaximo')) {
               <small class="field-error">{{ mensajeCampo('aforoMaximo') }}</small>
             } @else {
@@ -214,7 +214,7 @@
 
           <label class="full">
             Estado del Evento *
-            <select formControlName="estado">
+            <select formControlName="estado" [appUiPrivilegeEditable]="'event.form'">
               <option value="BORRADOR">BORRADOR</option>
               <option value="PLANIFICADO">PLANIFICADO</option>
               <option value="PUBLICADO">PUBLICADO</option>
@@ -225,7 +225,7 @@
           </label>
 
           @if (eventoSeleccionado() && puedeAsignarResponsables()) {
-            <div class="full" style="margin-top: 8px;">
+            <div class="full" style="margin-top: 8px;" [appUiPrivilegeVisible]="'event.responsibles.assign'">
               <div class="card-title inline-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                 <h3 style="font-size: 0.95rem; margin: 0;">Responsables del Evento</h3>
                 <span class="role-chip">{{ responsablesSeleccionados().size }} seleccionados</span>
@@ -237,6 +237,7 @@
                       type="checkbox"
                       [checked]="responsablesSeleccionados().has(usuario.id)"
                       (change)="alternarResponsable(usuario.id, $any($event.target).checked)"
+                      [appUiPrivilegeEditable]="'event.responsibles.assign'"
                     />
                     <span>
                       <strong>{{ usuario.nombres }} {{ usuario.apellidos }}</strong>
@@ -252,7 +253,7 @@
 
           <div class="button-row full" style="margin-top: 16px;">
             <button type="button" (click)="cerrarModal()">Cancelar</button>
-            <button class="primary" type="submit" [disabled]="guardando()" style="color: #ffffff;">
+            <button class="primary" type="submit" [appUiPrivilegeEnabled]="{ key: 'event.submit', businessDisabled: guardando() }" style="color: #ffffff;">
               {{ guardando() ? 'Guardando...' : eventoSeleccionado() ? 'Actualizar Evento' : 'Crear Evento' }}
             </button>
           </div>

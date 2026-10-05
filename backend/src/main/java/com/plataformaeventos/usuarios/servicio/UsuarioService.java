@@ -32,6 +32,8 @@ import java.util.stream.Collectors;
 @Service
 public class UsuarioService {
 
+    private static final String ROL_SAAS_ADMINISTRADOR = "SAAS_ADMINISTRADOR";
+
     private final UsuarioRepository usuarioRepository;
     private final RolRepository rolRepository;
     private final PasswordEncoder codificadorClave;
@@ -173,9 +175,14 @@ public class UsuarioService {
     @com.plataformaeventos.audit.servicio.OperacionAuditable(modulo = "USUARIOS", entidad = "USUARIO", accion = "CAMBIAR_ESTADO")
     public UsuarioRespuesta cambiarEstado(Long idUsuario, EstadoUsuario estado, String correoSolicitante, Organizacion organizacion) {
         Usuario usuario = usuarioRepository.findByIdAndOrganizacionId(idUsuario, organizacion.getId()).orElseThrow(() -> new ExcepcionNoEncontrado("Usuario no encontrado"));
-        if (usuario.getCorreo().equals(normalizarCorreo(correoSolicitante)) && estado != usuario.getEstado()) throw new IllegalArgumentException("No puedes cambiar el estado de tu propia cuenta");
-        usuario.actualizarEstado(estado);
-        if (estado == EstadoUsuario.INACTIVO) tokenRefrescoService.revocarTokensDelUsuario(usuario.getId());
+        MembresiaOrganizacion membresia = membresiaRepository.findByUsuarioCorreoAndOrganizacionId(usuario.getCorreo(), organizacion.getId()).orElseThrow();
+        boolean activar = estado == EstadoUsuario.ACTIVO;
+        if (usuario.getCorreo().equals(normalizarCorreo(correoSolicitante)) && activar != membresia.isActivo()) throw new IllegalArgumentException("No puedes cambiar el estado de tu propia membresia");
+        if (activar) {
+            membresia.activar();
+        } else {
+            membresia.inactivar();
+        }
         return convertirUsuario(usuario, organizacion);
     }
 
@@ -188,6 +195,9 @@ public class UsuarioService {
         Set<String> nombresNormalizados = (nombresRoles == null || nombresRoles.isEmpty() ? Set.of("PARTICIPANTE") : nombresRoles).stream()
                 .map(nombre -> nombre.trim().toUpperCase(Locale.ROOT))
                 .collect(Collectors.toSet());
+        if (nombresNormalizados.contains(ROL_SAAS_ADMINISTRADOR)) {
+            throw new IllegalArgumentException("SAAS_ADMINISTRADOR no puede asignarse como rol de membresia");
+        }
         List<Rol> roles = rolRepository.findByNombreIn(nombresNormalizados);
         if (roles.size() != nombresNormalizados.size() || roles.stream().anyMatch(rol -> rol.getEstado() != EstadoRol.ACTIVO)) {
             throw new IllegalArgumentException("Uno o mas roles no existen o estan inactivos");
@@ -212,7 +222,8 @@ public class UsuarioService {
 
     private UsuarioRespuesta convertirUsuario(Usuario usuario, Organizacion organizacion) {
         MembresiaOrganizacion membresia = membresiaRepository.findByUsuarioCorreoAndOrganizacionId(usuario.getCorreo(), organizacion.getId()).orElseThrow();
-        return new UsuarioRespuesta(usuario.getId(), usuario.getNombres(), usuario.getApellidos(), usuario.getCorreo(), usuario.getEstado().name(), membresia.getRoles().stream().map(Rol::getNombre).sorted().toList());
+        String estadoLocal = membresia.isActivo() ? EstadoUsuario.ACTIVO.name() : EstadoUsuario.INACTIVO.name();
+        return new UsuarioRespuesta(usuario.getId(), usuario.getNombres(), usuario.getApellidos(), usuario.getCorreo(), estadoLocal, membresia.getRoles().stream().map(Rol::getNombre).sorted().toList());
     }
 
     private PaginaUsuariosRespuesta convertirPagina(Page<Usuario> usuarios, Organizacion organizacion) {

@@ -2,19 +2,19 @@
   <p class="eyebrow">Gestión de Eventos, Programación y Recursos</p>
   <h1>Espacios y salas</h1>
   <p>Administra las ubicaciones y capacidades disponibles para programar eventos.</p>
-  <button class="primary" type="button" (click)="nuevo()">+ Registrar espacio</button>
+  <button class="primary" type="button" (click)="nuevo()" [appUiPrivilegeEnabled]="{ key: 'spaces.create' }">+ Registrar espacio</button>
 </section>
 
 @if (error()) { <p class="notice error">{{ error() }}</p> }
 
-<section class="card table-card">
+<section class="card table-card" [appUiPrivilegeVisible]="'spaces.list'">
   <div class="card-title compact"><h2>Espacios disponibles</h2><span class="role-chip">{{ espacios().length }}</span></div>
   <div class="table-wrap">
     <table>
       <thead><tr><th>Nombre</th><th>Ubicación</th><th>Capacidad</th><th></th></tr></thead>
       <tbody>
         @for (espacio of espacios(); track espacio.id) {
-          <tr><td><strong>{{ espacio.nombre }}</strong></td><td>{{ espacio.ubicacion }}</td><td>{{ espacio.capacidad }} personas</td><td class="actions"><button type="button" (click)="editar(espacio)">Editar</button></td></tr>
+          <tr><td><strong>{{ espacio.nombre }}</strong></td><td>{{ espacio.ubicacion }}</td><td>{{ espacio.capacidad }} personas</td><td class="actions"><button type="button" (click)="editar(espacio)" [appUiPrivilegeEnabled]="{ key: 'spaces.edit' }">Editar</button></td></tr>
         } @empty { <tr><td colspan="4" style="text-align: center; padding: 32px;"><small>No hay espacios registrados.</small></td></tr> }
       </tbody>
     </table>
@@ -29,7 +29,7 @@
         <label class="full">Nombre *<input formControlName="nombre" placeholder="Ej: Auditorio Central" /></label>
         <label class="full">Ubicación *<input formControlName="ubicacion" placeholder="Ej: Campus universitario" /></label>
         <label class="full">Capacidad *<input type="number" min="1" formControlName="capacidad" /></label>
-        <div class="button-row full"><button type="button" (click)="cerrar()">Cancelar</button><button class="primary" type="submit" [disabled]="guardando()">{{ guardando() ? 'Guardando...' : 'Guardar' }}</button></div>
+        <div class="button-row full"><button type="button" (click)="cerrar()">Cancelar</button><button class="primary" type="submit" [appUiPrivilegeEnabled]="{ key: seleccionado() ? 'spaces.edit' : 'spaces.create', businessDisabled: guardando() }">{{ guardando() ? 'Guardando...' : 'Guardar' }}</button></div>
       </form>
     </div>
   </div></div>

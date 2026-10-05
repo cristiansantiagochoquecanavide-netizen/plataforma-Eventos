@@ -2,12 +2,16 @@ package com.plataformaeventos.autenticacion.servicio;
 
 import com.plataformaeventos.autenticacion.dto.InicioSesionSolicitud;
 import com.plataformaeventos.autenticacion.dto.RegistroSolicitud;
+import com.plataformaeventos.autenticacion.dto.PerfilOrganizacionActivaRespuesta;
 import com.plataformaeventos.autenticacion.dto.RestablecerClaveSolicitud;
 import com.plataformaeventos.autenticacion.dto.SesionRespuesta;
 import com.plataformaeventos.autenticacion.dto.SolicitudRecuperacionClave;
 import com.plataformaeventos.autenticacion.dto.TokenRefrescoSolicitud;
 import com.plataformaeventos.autenticacion.dto.UsuarioActualRespuesta;
 import com.plataformaeventos.excepciones.ExcepcionNoAutorizado;
+import com.plataformaeventos.grupos.repositorio.GrupoUsuarioRepository;
+import com.plataformaeventos.organizaciones.modelo.MembresiaOrganizacion;
+import com.plataformaeventos.organizaciones.repositorio.MembresiaOrganizacionRepository;
 import com.plataformaeventos.permisos.modelo.Permiso;
 import com.plataformaeventos.roles.modelo.EstadoRol;
 import com.plataformaeventos.roles.modelo.Rol;
@@ -26,6 +30,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -40,7 +45,11 @@ public class AutenticacionService {
     private final PasswordEncoder codificadorClave;
     private final JwtService jwtService;
     private final TokenRefrescoService tokenRefrescoService;
+    private static final String ROL_SAAS_ADMINISTRADOR = "SAAS_ADMINISTRADOR";
+
     private final RecuperacionClaveService recuperacionClaveService;
+    private final MembresiaOrganizacionRepository membresiaOrganizacionRepository;
+    private final GrupoUsuarioRepository grupoUsuarioRepository;
 
     public AutenticacionService(
             UsuarioRepository usuarioRepository,
@@ -50,7 +59,9 @@ public class AutenticacionService {
             PasswordEncoder codificadorClave,
             JwtService jwtService,
             TokenRefrescoService tokenRefrescoService,
-            RecuperacionClaveService recuperacionClaveService
+            RecuperacionClaveService recuperacionClaveService,
+            MembresiaOrganizacionRepository membresiaOrganizacionRepository,
+            GrupoUsuarioRepository grupoUsuarioRepository
     ) {
         this.usuarioRepository = usuarioRepository;
         this.rolRepository = rolRepository;
@@ -60,6 +71,8 @@ public class AutenticacionService {
         this.jwtService = jwtService;
         this.tokenRefrescoService = tokenRefrescoService;
         this.recuperacionClaveService = recuperacionClaveService;
+        this.membresiaOrganizacionRepository = membresiaOrganizacionRepository;
+        this.grupoUsuarioRepository = grupoUsuarioRepository;
     }
 
     @Transactional
@@ -88,7 +101,7 @@ public class AutenticacionService {
             membresiaRepository.save(membresia);
         });
 
-        return convertirUsuario(guardado);
+        return convertirUsuario(guardado, null);
     }
 
     @Transactional
@@ -144,9 +157,15 @@ public class AutenticacionService {
 
     @Transactional(readOnly = true)
     public UsuarioActualRespuesta obtenerUsuarioActual(String correo) {
-        Usuario usuario = usuarioRepository.findByCorreoConRolesYPermisos(normalizarCorreo(correo))
+        return obtenerUsuarioActual(correo, null);
+    }
+
+    @Transactional(readOnly = true)
+    public UsuarioActualRespuesta obtenerUsuarioActual(String correo, Long idOrganizacionActiva) {
+        String correoNormalizado = normalizarCorreo(correo);
+        Usuario usuario = usuarioRepository.findByCorreoConRolesYPermisos(correoNormalizado)
                 .orElseThrow(() -> new ExcepcionNoAutorizado("Usuario no encontrado"));
-        return convertirUsuario(usuario);
+        return convertirUsuario(usuario, resolverPerfilOrganizacionActiva(correoNormalizado, idOrganizacionActiva));
     }
 
     private SesionRespuesta crearSesion(Usuario usuario) {
@@ -157,7 +176,7 @@ public class AutenticacionService {
         );
     }
 
-    private UsuarioActualRespuesta convertirUsuario(Usuario usuario) {
+    private UsuarioActualRespuesta convertirUsuario(Usuario usuario, PerfilOrganizacionActivaRespuesta perfilOrganizacionActiva) {
         List<String> roles = usuario.getRoles().stream()
                 .map(Rol::getNombre)
                 .sorted()
@@ -169,8 +188,56 @@ public class AutenticacionService {
                 usuario.getCorreo(),
                 usuario.getEstado().name(),
                 roles,
-                obtenerPermisos(usuario)
+                obtenerPermisos(usuario),
+                perfilOrganizacionActiva
         );
+    }
+
+    private PerfilOrganizacionActivaRespuesta resolverPerfilOrganizacionActiva(String correo, Long idOrganizacionActiva) {
+        if (idOrganizacionActiva == null) return null;
+        return membresiaOrganizacionRepository.findByUsuarioCorreoAndOrganizacionIdAndActivoTrueConRolesYPermisos(correo, idOrganizacionActiva)
+                .map(this::convertirPerfilOrganizacionActiva)
+                .orElse(null);
+    }
+
+    private PerfilOrganizacionActivaRespuesta convertirPerfilOrganizacionActiva(MembresiaOrganizacion membresia) {
+        Set<Rol> rolesEfectivos = resolverRolesTenantEfectivos(membresia);
+        List<String> roles = rolesEfectivos.stream()
+                .map(Rol::getNombre)
+                .distinct()
+                .sorted()
+                .toList();
+        List<String> permisos = rolesEfectivos.stream()
+                .flatMap(rol -> rol.getPermisos().stream())
+                .map(Permiso::getNombre)
+                .distinct()
+                .sorted()
+                .toList();
+        return new PerfilOrganizacionActivaRespuesta(
+                membresia.getOrganizacion().getId(),
+                roles,
+                permisos,
+                roles.contains("ADMINISTRADOR")
+        );
+    }
+
+    private Set<Rol> resolverRolesTenantEfectivos(MembresiaOrganizacion membresia) {
+        Set<Rol> rolesEfectivos = new HashSet<>();
+        membresia.getRoles().stream()
+                .filter(this::esRolTenantActivo)
+                .forEach(rolesEfectivos::add);
+        grupoUsuarioRepository.findRolesActivosHeredadosPorUsuarioYOrganizacion(
+                        membresia.getUsuario().getCorreo(),
+                        membresia.getOrganizacion().getId()
+                ).stream()
+                .filter(this::esRolTenantActivo)
+                .forEach(rolesEfectivos::add);
+        return rolesEfectivos;
+    }
+
+    private boolean esRolTenantActivo(Rol rol) {
+        return rol.getEstado() == EstadoRol.ACTIVO
+                && !ROL_SAAS_ADMINISTRADOR.equals(rol.getNombre());
     }
 
     private List<String> obtenerPermisos(Usuario usuario) {

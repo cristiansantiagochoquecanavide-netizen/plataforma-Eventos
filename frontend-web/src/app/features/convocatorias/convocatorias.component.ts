@@ -13,6 +13,7 @@ import {
 import { Evento } from '../eventos/modelos/evento.modelo';
 import { SesionService } from '../../core/sesion.service';
 import { ToastService } from '../../core/toast.service';
+import { UiPrivilegeEnabledDirective, UiPrivilegeVisibleDirective } from '../../core/ui-privilege.directive';
 
 /**
  * CU15: Gestion de Convocatorias de Staff y Voluntarios.
@@ -25,7 +26,7 @@ import { ToastService } from '../../core/toast.service';
  */
 @Component({
   selector: 'app-convocatorias',
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [ReactiveFormsModule, DatePipe, UiPrivilegeEnabledDirective, UiPrivilegeVisibleDirective],
   templateUrl: './convocatorias.component.html',
   styleUrl: './convocatorias.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -1,0 +1,189 @@
+<section class="page-heading">
+  <p class="eyebrow">Organización activa</p>
+  <h1>Grupos de usuarios</h1>
+  <p>Administrá grupos del tenant, sus miembros y los roles que heredan dentro de la organización activa.</p>
+  <div style="margin-top: 14px;">
+    <button
+      class="primary"
+      type="button"
+      (click)="abrirCrear()"
+      [appUiPrivilegeVisible]="'groups.create'"
+      [appUiPrivilegeEnabled]="{ key: 'groups.create', businessDisabled: false }"
+      style="color: #ffffff;"
+    >
+      Crear nuevo grupo
+    </button>
+  </div>
+</section>
+
+@if (mensaje()) {
+  <p class="notice success">{{ mensaje() }}</p>
+}
+@if (error() && !modalAbierto()) {
+  <p class="notice error" role="alert">{{ error() }}</p>
+}
+
+<div class="roles-layout" style="grid-template-columns: minmax(280px, 380px) 1fr;">
+  <section id="groups-list" class="card" [appUiPrivilegeVisible]="'groups.list'">
+    <div class="card-title compact" style="display: flex; justify-content: space-between; align-items: center;">
+      <h2>Grupos disponibles</h2>
+      <span class="role-chip">{{ grupos().length }} grupos</span>
+    </div>
+
+    <div class="role-list">
+      @for (grupo of grupos(); track grupo.id) {
+        <button
+          type="button"
+          class="role-row"
+          [class.selected]="grupoSeleccionado()?.id === grupo.id"
+          (click)="seleccionarGrupo(grupo)"
+        >
+          <span>
+            <strong>{{ grupo.nombre }}</strong>
+            <small>{{ grupo.descripcion || 'Sin descripción' }}</small>
+          </span>
+          <i [class.off]="!grupo.activo">{{ grupo.activo ? 'ACTIVO' : 'INACTIVO' }}</i>
+        </button>
+      } @empty {
+        <p class="empty-state">No hay grupos registrados.</p>
+      }
+    </div>
+  </section>
+
+  <section class="card permissions-card">
+    @if (grupoSeleccionado(); as grupo) {
+      <div class="card-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <p class="eyebrow">Detalle del grupo</p>
+          <h2>{{ grupo.nombre }}</h2>
+          <small>{{ grupo.descripcion || 'Sin descripción' }}</small>
+        </div>
+        <div class="button-row">
+          <button
+            type="button"
+            (click)="editar(grupo)"
+            [appUiPrivilegeVisible]="'groups.edit'"
+          >Editar</button>
+          @if (grupo.activo) {
+            <button
+              type="button"
+              (click)="desactivar(grupo)"
+              [appUiPrivilegeVisible]="'groups.deactivate'"
+              [appUiPrivilegeEnabled]="{ key: 'groups.deactivate', businessDisabled: false }"
+            >Desactivar</button>
+          } @else {
+            <button
+              type="button"
+              (click)="activar(grupo)"
+              [appUiPrivilegeVisible]="'groups.activate'"
+              [appUiPrivilegeEnabled]="{ key: 'groups.activate', businessDisabled: false }"
+            >Activar</button>
+          }
+          <button
+            class="primary"
+            type="button"
+            (click)="guardarAsignaciones()"
+            [appUiPrivilegeVisible]="'groups.assignments.save'"
+            [appUiPrivilegeEnabled]="{ key: 'groups.assignments.save', businessDisabled: guardandoAsignaciones() }"
+            style="color: #ffffff;"
+          >
+            {{ guardandoAsignaciones() ? 'Guardando...' : 'Guardar asignaciones' }}
+          </button>
+        </div>
+      </div>
+
+      <div class="roles-layout" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin-top: 18px;">
+        <section id="groups-members-assign" [appUiPrivilegeVisible]="'groups.members.assign'">
+          <h3>Miembros del tenant</h3>
+          <div class="permission-list">
+            @for (miembro of miembrosDisponibles(); track miembro.idUsuario) {
+              <label class="permission-option">
+                <input
+                  type="checkbox"
+                  [checked]="miembrosSeleccionados().has(miembro.idUsuario)"
+                  (change)="alternarMiembro(miembro.idUsuario, $any($event.target).checked)"
+                  [appUiPrivilegeEditable]="'groups.members.assign'"
+                />
+                <span>
+                  <strong>{{ miembro.nombres }} {{ miembro.apellidos }}</strong>
+                  <small>{{ miembro.correo }}</small>
+                </span>
+              </label>
+            } @empty {
+              <p class="empty-state">No hay miembros activos disponibles.</p>
+            }
+          </div>
+        </section>
+
+        <section id="groups-roles-assign" [appUiPrivilegeVisible]="'groups.roles.assign'">
+          <h3>Roles asignables</h3>
+          <div class="permission-list">
+            @for (rol of rolesDisponibles(); track rol.idRol) {
+              <label class="permission-option">
+                <input
+                  type="checkbox"
+                  [checked]="rolesSeleccionados().has(rol.idRol)"
+                  (change)="alternarRol(rol.idRol, $any($event.target).checked)"
+                  [appUiPrivilegeEditable]="'groups.roles.assign'"
+                />
+                <span>
+                  <strong>{{ rol.nombre }}</strong>
+                  <small>Rol disponible para la organización activa</small>
+                </span>
+              </label>
+            } @empty {
+              <p class="empty-state">No hay roles asignables.</p>
+            }
+          </div>
+        </section>
+      </div>
+    } @else {
+      <div class="empty-state" style="text-align: center; padding: 48px 24px; color: var(--muted);">
+        <p style="font-size: 1.05rem; font-weight: 600; margin-bottom: 8px;">Ningún grupo seleccionado</p>
+        <small>Elegí un grupo para revisar sus miembros y roles.</small>
+      </div>
+    }
+  </section>
+</div>
+
+@if (modalAbierto()) {
+  <div class="modal-overlay" (click)="cerrarModal()">
+    <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h2>{{ editando() ? 'Editar grupo' : 'Crear nuevo grupo' }}</h2>
+          <small style="color: var(--muted);">Los grupos pertenecen a la organización activa.</small>
+        </div>
+        <button class="btn-close" type="button" (click)="cerrarModal()" title="Cerrar">✕</button>
+      </div>
+
+      <div class="modal-body">
+        @if (error()) {
+          <p class="notice error" role="alert" style="margin-top: 0; margin-bottom: 16px;">{{ error() }}</p>
+        }
+
+        <form id="groups-edit-form" [formGroup]="formulario" (ngSubmit)="guardarGrupo()" class="form-grid" novalidate [appUiPrivilegeVisible]="'groups.edit'">
+          <label [class.invalid]="campoConError('nombre')">
+            Nombre del grupo *
+            <input formControlName="nombre" placeholder="Ej: Logística del evento" [appUiPrivilegeEditable]="'groups.edit'" />
+            @if (campoConError('nombre')) {
+              <small class="field-error">{{ mensajeCampo('nombre') }}</small>
+            }
+          </label>
+
+          <label class="full">
+            Descripción
+            <textarea formControlName="descripcion" rows="3" placeholder="Describe el alcance operativo de este grupo..." [appUiPrivilegeEditable]="'groups.edit'"></textarea>
+          </label>
+
+          <div class="button-row" style="margin-top: 16px;">
+            <button type="button" (click)="cerrarModal()">Cancelar</button>
+            <button class="primary" type="submit" [disabled]="guardandoGrupo()" style="color: #ffffff;">
+              {{ guardandoGrupo() ? 'Guardando...' : editando() ? 'Actualizar grupo' : 'Crear grupo' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}

@@ -9,6 +9,7 @@ public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
 
     boolean existsByNombreIgnoreCase(String nombre);
     boolean existsByNombreIgnoreCaseAndOrganizacionId(String nombre, Long organizacionId);
+    Optional<Categoria> findFirstByNombreIgnoreCaseAndOrganizacionId(String nombre, Long organizacionId);
     boolean existsByNombreIgnoreCaseAndOrganizacionIdAndIdNot(String nombre, Long organizacionId, Long id);
     List<Categoria> findByOrganizacionIdOrderByNombreAsc(Long organizacionId);
     Optional<Categoria> findByIdAndOrganizacionId(Long id, Long organizacionId);

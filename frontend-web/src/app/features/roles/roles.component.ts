@@ -4,10 +4,11 @@ import { RolesService } from './servicios/roles.service';
 import { obtenerMensajeError } from '../../core/mensajes-error';
 import { Permiso, Rol } from './modelos/rol.modelo';
 import { ToastService } from '../../core/toast.service';
+import { UiPrivilegeEditableDirective, UiPrivilegeEnabledDirective, UiPrivilegeVisibleDirective } from '../../core/ui-privilege.directive';
 
 @Component({
   selector: 'app-roles',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, UiPrivilegeVisibleDirective, UiPrivilegeEnabledDirective, UiPrivilegeEditableDirective],
   templateUrl: './roles.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -167,6 +168,16 @@ export class RolesComponent implements OnInit {
   campoConError(nombre: 'nombre' | 'estado') {
     const control = this.formulario.controls[nombre];
     return control.invalid && (control.touched || this.intentoEnvio());
+  }
+
+  rolProtegidoSoloLectura() {
+    const nombre = this.editando()?.nombre;
+    return (
+      nombre === 'ADMINISTRADOR' ||
+      nombre === 'ORGANIZADOR' ||
+      nombre === 'STAFF' ||
+      nombre === 'PARTICIPANTE'
+    );
   }
 
   mensajeCampo(nombre: 'nombre' | 'estado') {

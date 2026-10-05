@@ -12,6 +12,7 @@ import com.plataformaeventos.eventos.modelo.Evento;
 import com.plataformaeventos.eventos.repositorio.EventoRepository;
 import com.plataformaeventos.eventos.servicio.EventoService;
 import com.plataformaeventos.excepciones.ExcepcionNoEncontrado;
+import com.plataformaeventos.organizaciones.modelo.Organizacion;
 import com.plataformaeventos.roles.modelo.EstadoRol;
 import com.plataformaeventos.roles.modelo.Rol;
 import com.plataformaeventos.usuarios.modelo.EstadoUsuario;
@@ -31,6 +32,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 class EventoServiceTest {
@@ -278,6 +280,86 @@ class EventoServiceTest {
         assertThat(evento.getResponsables()).isEmpty();
     }
 
+
+    @Test
+    void listarResponsablesDisponiblesPorOrganizacionUsaRolesDeMembresiaActiva() {
+        Organizacion organizacion = organizacionConId(7L);
+        Usuario responsable = responsableConRol(8L, "PARTICIPANTE");
+        when(usuarioRepository.findResponsablesDisponiblesPorOrganizacion(Set.of("ORGANIZADOR", "STAFF"), 7L))
+                .thenReturn(java.util.List.of(responsable));
+        when(usuarioRepository.findNombresRolesActivosPorUsuarioYOrganizacion(8L, 7L))
+                .thenReturn(java.util.List.of("STAFF"));
+
+        var respuesta = eventoService.listarResponsablesDisponibles(organizacion);
+
+        assertThat(respuesta).hasSize(1);
+        assertThat(respuesta.get(0).roles()).containsExactly("STAFF");
+        verify(usuarioRepository).findResponsablesDisponiblesPorOrganizacion(Set.of("ORGANIZADOR", "STAFF"), 7L);
+        verify(usuarioRepository, never()).findResponsablesDisponibles(Set.of("ORGANIZADOR", "STAFF"));
+    }
+
+    @Test
+    void asignarResponsablesPorOrganizacionValidaRolActivoEnMembresiaNoRolesGlobales() {
+        Organizacion organizacion = organizacionConId(7L);
+        Categoria categoria = categoriaConId(1L, "General");
+        Evento evento = new Evento(
+                "Evento inicial",
+                null,
+                OffsetDateTime.now().plusDays(5),
+                OffsetDateTime.now().plusDays(6),
+                "Salon",
+                EstadoEvento.PLANIFICADO,
+                categoria
+        );
+        ReflectionTestUtils.setField(evento, "id", 20L);
+        Usuario responsable = responsableConRol(9L, "PARTICIPANTE");
+
+        when(eventoRepository.findByIdAndOrganizacionId(20L, 7L)).thenReturn(Optional.of(evento));
+        when(usuarioRepository.findResponsableActivoPorOrganizacionYRol(9L, 7L, Set.of("ORGANIZADOR", "STAFF")))
+                .thenReturn(Optional.of(responsable));
+        when(usuarioRepository.findNombresRolesActivosPorUsuarioYOrganizacion(9L, 7L))
+                .thenReturn(java.util.List.of("STAFF"));
+
+        EventoRespuesta respuesta = eventoService.asignarResponsables(
+                20L,
+                new AsignarResponsablesSolicitud(Set.of(9L)),
+                organizacion
+        );
+
+        assertThat(respuesta.responsables()).hasSize(1);
+        assertThat(respuesta.responsables().get(0).roles()).containsExactly("STAFF");
+        verify(usuarioRepository).findResponsableActivoPorOrganizacionYRol(9L, 7L, Set.of("ORGANIZADOR", "STAFF"));
+        verify(usuarioRepository, never()).findByIdAndOrganizacionId(9L, 7L);
+    }
+
+    @Test
+    void asignarResponsablesPorOrganizacionRechazaRolSoloEnOtroTenantOGlobal() {
+        Organizacion organizacion = organizacionConId(7L);
+        Categoria categoria = categoriaConId(1L, "General");
+        Evento evento = new Evento(
+                "Evento inicial",
+                null,
+                OffsetDateTime.now().plusDays(5),
+                OffsetDateTime.now().plusDays(6),
+                "Salon",
+                EstadoEvento.PLANIFICADO,
+                categoria
+        );
+        ReflectionTestUtils.setField(evento, "id", 20L);
+
+        when(eventoRepository.findByIdAndOrganizacionId(20L, 7L)).thenReturn(Optional.of(evento));
+        when(usuarioRepository.findResponsableActivoPorOrganizacionYRol(9L, 7L, Set.of("ORGANIZADOR", "STAFF")))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> eventoService.asignarResponsables(
+                20L,
+                new AsignarResponsablesSolicitud(Set.of(9L)),
+                organizacion
+        ))
+                .isInstanceOf(ExcepcionNoEncontrado.class)
+                .hasMessageContaining("Responsable no encontrado");
+    }
+
     private Categoria categoriaConId(Long id, String nombre) {
         Categoria categoria = new Categoria(nombre, null);
         ReflectionTestUtils.setField(categoria, "id", id);
@@ -288,6 +370,12 @@ class EventoServiceTest {
         Espacio espacio = new Espacio("Auditorio " + id, "Campus", capacidad);
         ReflectionTestUtils.setField(espacio, "id", id);
         return espacio;
+    }
+
+    private Organizacion organizacionConId(Long id) {
+        Organizacion organizacion = new Organizacion("Organizacion " + id, "organizacion-" + id);
+        ReflectionTestUtils.setField(organizacion, "id", id);
+        return organizacion;
     }
 
     private Usuario responsableConRol(Long id, String rolNombre) {

@@ -30,9 +30,16 @@ services:
       JWT_REFRESH_EXPIRACION_DIAS: ${JWT_REFRESH_EXPIRACION_DIAS:-7}
       ADMIN_CORREO: ${ADMIN_CORREO:-AdminEventos@gmail.com}
       ADMIN_CLAVE: ${ADMIN_CLAVE:-Admin123}
+      DEMO_SEED_ENABLED: ${DEMO_SEED_ENABLED:-false}
       CORS_ORIGENES: ${CORS_ORIGENES:-http://localhost:4200}
       URL_FRONTEND_WEB: ${URL_FRONTEND_WEB:-http://localhost:4200}
       URL_APLICACION_MOVIL: ${URL_APLICACION_MOVIL:-eventos://recuperar-clave}
+      AUDIT_KMS_KEY_ID: ${AUDIT_KMS_KEY_ID:-alias/bitacora-payload-local}
+      AUDIT_KMS_INDICE_KEY_ID: ${AUDIT_KMS_INDICE_KEY_ID:-alias/bitacora-hmac-local}
+      AUDIT_KMS_REGION: ${AUDIT_KMS_REGION:-us-east-1}
+      AUDIT_KMS_ENDPOINT: ${AUDIT_KMS_ENDPOINT:-http://kms-local:4566}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-local-only}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-local-only}
       SMTP_HOST: ${SMTP_HOST:-mailpit}
       SMTP_PORT: ${SMTP_PORT:-1025}
       SMTP_USER: ${SMTP_USER:-}
@@ -54,6 +61,8 @@ services:
         condition: service_healthy
       mailpit:
         condition: service_started
+      kms-bootstrap:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health >/dev/null || exit 1"]
       interval: 10s
@@ -61,6 +70,28 @@ services:
       retries: 12
       start_period: 25s
     restart: unless-stopped
+
+  kms-local:
+    image: localstack/localstack:4.4
+    environment: { SERVICES: kms, AWS_DEFAULT_REGION: us-east-1, PERSISTENCE: 1 }
+    volumes:
+      - datos_localstack:/var/lib/localstack
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:4566/_localstack/health | grep '\"kms\"' >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  kms-bootstrap:
+    image: amazon/aws-cli:2.27.29
+    environment: { AWS_ACCESS_KEY_ID: local-only, AWS_SECRET_ACCESS_KEY: local-only, AWS_DEFAULT_REGION: us-east-1 }
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      for a in alias/bitacora-payload-local alias/bitacora-hmac-local; do if ! aws --endpoint-url=http://kms-local:4566 kms describe-key --key-id $$a >/dev/null 2>&1; then case $$a in alias/bitacora-payload-local) o="--key-spec SYMMETRIC_DEFAULT --key-usage ENCRYPT_DECRYPT" ;; alias/bitacora-hmac-local) o="--key-spec HMAC_256 --key-usage GENERATE_VERIFY_MAC" ;; esac; k=$$(aws --endpoint-url=http://kms-local:4566 kms create-key $$o --query KeyMetadata.KeyId --output text) && aws --endpoint-url=http://kms-local:4566 kms create-alias --alias-name $$a --target-key-id $$k; fi; done
+    depends_on:
+      kms-local:
+        condition: service_healthy
 
   mailpit:
     image: axllent/mailpit:v1.28
@@ -97,3 +128,4 @@ services:
 
 volumes:
   datos_postgres:
+  datos_localstack:

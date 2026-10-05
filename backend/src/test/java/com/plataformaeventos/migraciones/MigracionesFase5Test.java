@@ -27,9 +27,9 @@ class MigracionesFase5Test {
                     .toList();
         }
 
-        assertThat(nombres).hasSize(21);
+        assertThat(nombres).hasSize(28);
         assertThat(nombres.stream().map(MigracionesFase5Test::version).toList())
-                .containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21);
+                .containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28);
         assertThat(version(nombres.get(13))).isEqualTo(14);
         assertThat(version(nombres.get(14))).isEqualTo(15);
         assertThat(version(nombres.get(15))).isEqualTo(16);
@@ -38,6 +38,58 @@ class MigracionesFase5Test {
         assertThat(version(nombres.get(18))).isEqualTo(19);
         assertThat(version(nombres.get(19))).isEqualTo(20);
         assertThat(version(nombres.get(20))).isEqualTo(21);
+        assertThat(version(nombres.get(21))).isEqualTo(22);
+        assertThat(version(nombres.get(22))).isEqualTo(23);
+        assertThat(version(nombres.get(23))).isEqualTo(24);
+        assertThat(version(nombres.get(24))).isEqualTo(25);
+        assertThat(version(nombres.get(25))).isEqualTo(26);
+        assertThat(version(nombres.get(26))).isEqualTo(27);
+        assertThat(version(nombres.get(27))).isEqualTo(28);
+    }
+
+    @Test
+    @DisplayName("V27 crea privilegios UI tenant por grupo con estados soportados")
+    void v27CreaPrivilegiosUiPorGrupoTenant() throws IOException {
+        String migracion = Files.readString(new ClassPathResource("db/migration/V27__privilegios_ui_por_grupo.sql").getFile().toPath());
+
+        assertThat(migracion).contains("grupo_componente_ui_privilegio");
+        assertThat(migracion).contains("id_organizacion", "id_grupo", "clave_componente", "estado");
+        assertThat(migracion).contains("FOREIGN KEY (id_grupo, id_organizacion) REFERENCES grupo_usuario");
+        assertThat(migracion).contains("UNIQUE (id_organizacion, id_grupo, clave_componente, estado)");
+        assertThat(migracion).contains("'VISIBLE'", "'HABILITADO'", "'EDITABLE'");
+    }
+
+    @Test
+    @DisplayName("V26 crea grupos tenant con miembros y roles aislados por organizacion")
+    void v26CreaGruposTenantConMiembrosYRoles() throws IOException {
+        String migracion = Files.readString(new ClassPathResource("db/migration/V26__grupos_usuario_tenant.sql").getFile().toPath());
+
+        assertThat(migracion).contains("grupo_usuario", "grupo_usuario_miembro", "grupo_usuario_rol");
+        assertThat(migracion).contains("id_organizacion");
+        assertThat(migracion).contains("FOREIGN KEY (id_usuario, id_organizacion) REFERENCES usuario_organizacion");
+        assertThat(migracion).contains("CHECK (nombre <> '')");
+    }
+
+    @Test
+    @DisplayName("V23 separa el administrador SaaS del administrador tenant")
+    void v23DistingueAdministradorSaasDeMembresiasTenant() throws IOException {
+        String migracion = Files.readString(new ClassPathResource("db/migration/V23__distinguir_administrador_saas.sql").getFile().toPath());
+
+        assertThat(migracion).contains("SAAS_ADMINISTRADOR");
+        assertThat(migracion).contains("ROL_VER", "ROL_CREAR", "ROL_EDITAR", "PERMISO_VER", "PERMISO_ASIGNAR");
+        assertThat(migracion).contains("INSERT INTO usuario_rol");
+        assertThat(migracion).contains("DELETE FROM usuario_rol");
+        assertThat(migracion).doesNotContain("usuario_organizacion_rol");
+    }
+
+    @Test
+    @DisplayName("V25 limita estado_participante a estados soportados")
+    void v25RestringeEstadoParticipanteAEstadosSoportados() throws IOException {
+        String migracion = Files.readString(new ClassPathResource("db/migration/V25__estado_participante_por_membresia.sql").getFile().toPath());
+
+        assertThat(migracion).contains("estado_participante");
+        assertThat(migracion).contains("CHECK");
+        assertThat(migracion).contains("'ACTIVO'", "'INACTIVO'");
     }
 
     private static int version(String nombre) {

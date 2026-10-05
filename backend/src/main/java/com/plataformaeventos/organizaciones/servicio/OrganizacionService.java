@@ -10,6 +10,7 @@ import com.plataformaeventos.organizaciones.modelo.Organizacion;
 import com.plataformaeventos.organizaciones.repositorio.MembresiaOrganizacionRepository;
 import com.plataformaeventos.organizaciones.repositorio.OrganizacionRepository;
 import com.plataformaeventos.usuarios.repositorio.UsuarioRepository;
+import com.plataformaeventos.usuarios.modelo.EstadoUsuario;
 import com.plataformaeventos.roles.modelo.EstadoRol;
 import com.plataformaeventos.roles.modelo.Rol;
 import com.plataformaeventos.roles.repositorio.RolRepository;
@@ -26,6 +27,8 @@ import java.util.Set;
 
 @Service
 public class OrganizacionService {
+    private static final String ROL_SAAS_ADMINISTRADOR = "SAAS_ADMINISTRADOR";
+
     private final OrganizacionRepository organizaciones;
     private final MembresiaOrganizacionRepository membresias;
     private final UsuarioRepository usuarios;
@@ -112,9 +115,10 @@ public class OrganizacionService {
     }
     private Set<Rol> resolverRoles(Set<String> nombres) {
         Set<String> solicitados = nombres == null || nombres.isEmpty() ? Set.of("PARTICIPANTE") : nombres.stream().map(s -> s.trim().toUpperCase()).collect(java.util.stream.Collectors.toSet());
+        if (solicitados.contains(ROL_SAAS_ADMINISTRADOR)) throw new IllegalArgumentException("SAAS_ADMINISTRADOR no puede asignarse como rol de membresia");
         List<Rol> encontrados = roles.findByNombreIn(solicitados);
         if (encontrados.size() != solicitados.size() || encontrados.stream().anyMatch(r -> r.getEstado() != EstadoRol.ACTIVO)) throw new IllegalArgumentException("Uno o mas roles no existen o estan inactivos");
         return Set.copyOf(encontrados);
     }
-    private MembresiaRespuesta respuestaMembresia(MembresiaOrganizacion m) { var u = m.getUsuario(); return new MembresiaRespuesta(u.getId(), u.getNombres(), u.getApellidos(), u.getCorreo(), m.estaActiva(), m.getRoles().stream().map(Rol::getNombre).sorted().toList()); }
+    private MembresiaRespuesta respuestaMembresia(MembresiaOrganizacion m) { var u = m.getUsuario(); return new MembresiaRespuesta(u.getId(), u.getNombres(), u.getApellidos(), u.getCorreo(), m.estaActiva(), u.getEstado() == EstadoUsuario.ACTIVO, m.getRoles().stream().map(Rol::getNombre).sorted().toList()); }
 }

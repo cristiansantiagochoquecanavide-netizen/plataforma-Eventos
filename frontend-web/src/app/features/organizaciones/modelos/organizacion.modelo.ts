@@ -11,6 +11,7 @@ export interface Membresia {
   apellidos: string;
   correo: string;
   activo: boolean;
+  cuentaActiva: boolean;
   roles: string[];
 }
 

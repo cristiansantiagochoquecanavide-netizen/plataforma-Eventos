@@ -21,6 +21,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Optional;
 import java.util.Set;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -61,6 +62,35 @@ class OrganizacionServiceTest {
         servicio.agregarMembresia(1L, new AgregarMembresiaSolicitud(8L, Set.of("STAFF")), "actor@test", mock(Authentication.class), mock(HttpServletRequest.class));
 
         verify(membresias).save(argThat(m -> m.getRoles().contains(rol)));
+    }
+
+    @Test
+    void listarMiembrosDistingueMembresiaActivaDeCuentaActiva() {
+        Organizacion activa = org(1L);
+        Usuario cuentaActiva = usuario(8L, "Ana", EstadoUsuario.ACTIVO);
+        Usuario cuentaInactiva = usuario(9L, "Luis", EstadoUsuario.INACTIVO);
+        MembresiaOrganizacion membresiaActivaCuentaActiva = new MembresiaOrganizacion(cuentaActiva, activa);
+        MembresiaOrganizacion membresiaActivaCuentaInactiva = new MembresiaOrganizacion(cuentaInactiva, activa);
+        Rol rol = new Rol("STAFF", null, EstadoRol.ACTIVO);
+        membresiaActivaCuentaActiva.asignarRoles(Set.of(rol));
+        membresiaActivaCuentaInactiva.asignarRoles(Set.of(rol));
+        when(contexto.resolver(any(), any())).thenReturn(activa);
+        when(membresias.findByOrganizacionIdOrderByUsuarioApellidosAscUsuarioNombresAsc(1L))
+                .thenReturn(java.util.List.of(membresiaActivaCuentaActiva, membresiaActivaCuentaInactiva));
+
+        var respuesta = servicio.listarMiembros(mock(Authentication.class), mock(HttpServletRequest.class));
+
+        assertThat(respuesta).extracting("idUsuario", "activo", "cuentaActiva")
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(8L, true, true),
+                        org.assertj.core.groups.Tuple.tuple(9L, true, false)
+                );
+    }
+
+    private Usuario usuario(Long id, String nombres, EstadoUsuario estado) {
+        Usuario usuario = new Usuario(nombres, "Lopez", nombres.toLowerCase() + "@test", "hash", estado);
+        ReflectionTestUtils.setField(usuario, "id", id);
+        return usuario;
     }
 
     private Organizacion org(Long id) {

@@ -18,7 +18,7 @@ import java.util.Set;
 @Service
 public class RolService {
 
-    private static final Set<String> ROLES_BASE = Set.of("ADMINISTRADOR", "ORGANIZADOR", "STAFF", "PARTICIPANTE");
+    private static final Set<String> ROLES_BASE = Set.of("SAAS_ADMINISTRADOR", "ADMINISTRADOR", "ORGANIZADOR", "STAFF", "PARTICIPANTE");
 
     private final RolRepository rolRepository;
 
