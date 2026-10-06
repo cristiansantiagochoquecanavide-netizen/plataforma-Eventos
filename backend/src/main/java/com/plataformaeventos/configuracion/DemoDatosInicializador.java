@@ -41,8 +41,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Set;
+import java.util.UUID;
 
 @Configuration
 @ConditionalOnProperty(name = "demo.seed.enabled", havingValue = "true")
@@ -68,21 +70,15 @@ public class DemoDatosInicializador {
             ObjectProvider<SuscripcionOrganizacionService> suscripciones,
             TransactionTemplate transactionTemplate
     ) {
-        return argumentos -> transactionTemplate.executeWithoutResult(status -> crearDatosDemo(
-                organizaciones,
-                usuarios,
-                roles,
-                membresias,
-                categorias,
-                espacios,
-                eventos,
-                convocatorias,
-                postulaciones,
-                asignaciones,
-                inscripciones,
-                codificadorClave,
-                suscripciones.getIfAvailable()
-        ));
+        return argumentos -> transactionTemplate.executeWithoutResult(status -> {
+            SuscripcionOrganizacionService servicioSuscripciones = suscripciones.getIfAvailable();
+            crearDatosDemo(organizaciones, usuarios, roles, membresias, categorias, espacios, eventos,
+                    convocatorias, postulaciones, asignaciones, inscripciones, codificadorClave,
+                    servicioSuscripciones);
+            DatasetEmpresasHistoricas.sembrar(organizaciones, usuarios, roles, membresias, categorias,
+                    espacios, eventos, convocatorias, postulaciones, asignaciones, inscripciones,
+                    codificadorClave, servicioSuscripciones);
+        });
     }
 
     @Transactional
@@ -286,7 +282,8 @@ public class DemoDatosInicializador {
     }
 
     private String codigoQr(String slug, Usuario participante) {
-        return "demo-" + slug + "-" + participante.getCorreo();
+        return UUID.nameUUIDFromBytes((slug + ":" + participante.getCorreo())
+                .getBytes(StandardCharsets.UTF_8)).toString();
     }
 
     private record TenantDemo(

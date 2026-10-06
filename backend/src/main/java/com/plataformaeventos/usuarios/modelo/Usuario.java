@@ -70,10 +70,16 @@ public class Usuario {
         this.estado = estado;
     }
 
+    public Usuario(String nombres, String apellidos, String correo, String claveHash, EstadoUsuario estado,
+                   OffsetDateTime fechaCreacion) {
+        this(nombres, apellidos, correo, claveHash, estado);
+        this.fechaCreacion = fechaCreacion;
+    }
+
     @PrePersist
     void asignarFechasCreacion() {
         OffsetDateTime ahora = OffsetDateTime.now();
-        fechaCreacion = ahora;
+        if (fechaCreacion == null) fechaCreacion = ahora;
         fechaActualizacion = ahora;
     }
 

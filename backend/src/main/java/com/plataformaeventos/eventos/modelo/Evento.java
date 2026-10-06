@@ -117,13 +117,20 @@ public class Evento {
         configurarProgramacion(espacio, aforoMaximo);
     }
 
+    public Evento(String nombre, String descripcion, OffsetDateTime fechaInicio, OffsetDateTime fechaFin,
+                  String lugarPrincipal, EstadoEvento estado, Categoria categoria, Espacio espacio,
+                  Integer aforoMaximo, OffsetDateTime fechaCreacion) {
+        this(nombre, descripcion, fechaInicio, fechaFin, lugarPrincipal, estado, categoria, espacio, aforoMaximo);
+        this.fechaCreacion = fechaCreacion;
+    }
+
     @PrePersist
     void prePersist() {
         OffsetDateTime ahora = OffsetDateTime.now();
         if (fechaCreacion == null) {
             fechaCreacion = ahora;
         }
-        fechaActualizacion = ahora;
+        if (fechaActualizacion == null) fechaActualizacion = ahora;
         if (estado == null) {
             estado = EstadoEvento.PLANIFICADO;
         }

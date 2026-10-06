@@ -16,6 +16,7 @@ public class PostulacionStaff {
  @Column(name="fecha_actualizacion",nullable=false) private OffsetDateTime fechaActualizacion=OffsetDateTime.now();
  protected PostulacionStaff() {}
  public PostulacionStaff(Convocatoria c, Usuario u, Organizacion o, String m) { convocatoria=c; usuario=u; organizacion=o; motivacion=m; }
+ public PostulacionStaff(Convocatoria c, Usuario u, Organizacion o, String m, EstadoPostulacionStaff estado, OffsetDateTime fechaPostulacion) { this(c,u,o,m); this.estado=estado; this.fechaPostulacion=fechaPostulacion; this.fechaActualizacion=fechaPostulacion; }
  public Long getId(){return id;} public Convocatoria getConvocatoria(){return convocatoria;} public Usuario getUsuario(){return usuario;} public EstadoPostulacionStaff getEstado(){return estado;} public String getMotivacion(){return motivacion;} public OffsetDateTime getFechaPostulacion(){return fechaPostulacion;}
   public void aceptar(){transicionar(EstadoPostulacionStaff.ACEPTADA);} public void rechazar(){transicionar(EstadoPostulacionStaff.RECHAZADA);}
   private void transicionar(EstadoPostulacionStaff nuevo){if(estado!=EstadoPostulacionStaff.PENDIENTE)throw new IllegalStateException("La postulacion ya fue resuelta");estado=nuevo;fechaActualizacion=OffsetDateTime.now();}

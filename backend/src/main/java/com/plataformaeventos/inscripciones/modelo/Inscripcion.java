@@ -53,11 +53,16 @@ public class Inscripcion {
     }
 
     public Inscripcion(Evento evento, Usuario participante, String codigoQr) {
+        this(evento, participante, codigoQr, OffsetDateTime.now(), EstadoInscripcion.CONFIRMADA);
+    }
+
+    public Inscripcion(Evento evento, Usuario participante, String codigoQr,
+                       OffsetDateTime fechaInscripcion, EstadoInscripcion estado) {
         this.evento = evento;
         this.participante = participante;
         this.codigoQr = codigoQr;
-        this.estado = EstadoInscripcion.CONFIRMADA;
-        this.fechaInscripcion = OffsetDateTime.now();
+        this.estado = estado == null ? EstadoInscripcion.CONFIRMADA : estado;
+        this.fechaInscripcion = fechaInscripcion == null ? OffsetDateTime.now() : fechaInscripcion;
     }
 
     @PrePersist

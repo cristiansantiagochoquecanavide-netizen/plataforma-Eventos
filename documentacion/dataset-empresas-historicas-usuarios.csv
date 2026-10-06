@@ -1,0 +1,146 @@
+empresa,slug,nombres,apellidos,correo,roles
+Casa Cultural La Estación,casa-cultural-la-estacion,Bruno,Alarcón,bruno.alarcon@laestacion.local,ADMINISTRADOR / ORGANIZADOR
+Casa Cultural La Estación,casa-cultural-la-estacion,Mauricio,Alarcón,mauricio.alarcon@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Daniela,Arce,daniela.arce@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Elena,Camacho,elena.camacho@laestacion.local,STAFF
+Casa Cultural La Estación,casa-cultural-la-estacion,René,Choque,rene.choque@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Sebastián,Copa,sebastian.copa@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Fabián,Cruz,fabian.cruz@laestacion.local,STAFF
+Casa Cultural La Estación,casa-cultural-la-estacion,Álvaro,Cárdenas,alvaro.cardenas@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Nicolás,Céspedes,nicolas.cespedes@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Camila,Flores,camila.flores@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Valeria,Gutiérrez,valeria.gutierrez@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Fernanda,Limachi,fernanda.limachi@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Paola,Loayza,paola.loayza@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Diego,Mamani,diego.mamani@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Gabriela,Medina,gabriela.medina@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Carla,Montaño,carla.montano@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Lucía,Paredes,lucia.paredes@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Micaela,Paz,micaela.paz@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Ana,Quispe,ana.quispe@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Tomás,Rivero,tomas.rivero@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Mateo,Rojas,mateo.rojas@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Andrés,Salazar,andres.salazar@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Natalia,Soria,natalia.soria@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Joaquín,Suárez,joaquin.suarez@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Rocío,Terceros,rocio.terceros@laestacion.local,STAFF
+Casa Cultural La Estación,casa-cultural-la-estacion,Mariana,Torrez,mariana.torrez@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Bruno,Vargas,bruno.vargas@laestacion.local,PARTICIPANTE
+Casa Cultural La Estación,casa-cultural-la-estacion,Mariela,Vargas,mariela.vargas@laestacion.local,ADMINISTRADOR / ORGANIZADOR
+Casa Cultural La Estación,casa-cultural-la-estacion,Rodrigo,Villca,rodrigo.villca@laestacion.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Mauricio,Alarcón,mauricio.alarcon@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Belén,Alba,belen.alba@clubillimani.local,STAFF
+Club Deportivo Illimani,club-deportivo-illimani,Daniela,Arce,daniela.arce@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,René,Choque,rene.choque@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Paula,Condori,paula.condori@clubillimani.local,ADMINISTRADOR / ORGANIZADOR
+Club Deportivo Illimani,club-deportivo-illimani,Sebastián,Copa,sebastian.copa@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Javier,Cárdenas,javier.cardenas@clubillimani.local,ADMINISTRADOR / ORGANIZADOR
+Club Deportivo Illimani,club-deportivo-illimani,Álvaro,Cárdenas,alvaro.cardenas@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Nicolás,Céspedes,nicolas.cespedes@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Óscar,Fernández,oscar.fernandez@clubillimani.local,STAFF
+Club Deportivo Illimani,club-deportivo-illimani,Camila,Flores,camila.flores@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Valeria,Gutiérrez,valeria.gutierrez@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Fernanda,Limachi,fernanda.limachi@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Paola,Loayza,paola.loayza@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Diego,Mamani,diego.mamani@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Gabriela,Medina,gabriela.medina@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Carla,Montaño,carla.montano@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Lucía,Paredes,lucia.paredes@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Micaela,Paz,micaela.paz@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Ana,Quispe,ana.quispe@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Tomás,Rivero,tomas.rivero@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Mateo,Rojas,mateo.rojas@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Andrés,Salazar,andres.salazar@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Natalia,Soria,natalia.soria@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Joaquín,Suárez,joaquin.suarez@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Mariana,Torrez,mariana.torrez@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Bruno,Vargas,bruno.vargas@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Rodrigo,Villca,rodrigo.villca@clubillimani.local,PARTICIPANTE
+Club Deportivo Illimani,club-deportivo-illimani,Héctor,Yujra,hector.yujra@clubillimani.local,STAFF
+Cámara Creativa del Valle,camara-creativa-del-valle,Mauricio,Alarcón,mauricio.alarcon@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Daniela,Arce,daniela.arce@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,René,Choque,rene.choque@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Sebastián,Copa,sebastian.copa@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Álvaro,Cárdenas,alvaro.cardenas@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Nicolás,Céspedes,nicolas.cespedes@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Marcelo,Durán,marcelo.duran@camaravalle.local,STAFF
+Cámara Creativa del Valle,camara-creativa-del-valle,Camila,Flores,camila.flores@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Valeria,Gutiérrez,valeria.gutierrez@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Gonzalo,Herrera,gonzalo.herrera@camaravalle.local,ADMINISTRADOR / ORGANIZADOR
+Cámara Creativa del Valle,camara-creativa-del-valle,Fernanda,Limachi,fernanda.limachi@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Paola,Loayza,paola.loayza@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Diego,Mamani,diego.mamani@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Gabriela,Medina,gabriela.medina@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Carla,Montaño,carla.montano@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Raúl,Navia,raul.navia@camaravalle.local,STAFF
+Cámara Creativa del Valle,camara-creativa-del-valle,Lucía,Paredes,lucia.paredes@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Irene,Paz,irene.paz@camaravalle.local,STAFF
+Cámara Creativa del Valle,camara-creativa-del-valle,Micaela,Paz,micaela.paz@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Ana,Quispe,ana.quispe@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Tomás,Rivero,tomas.rivero@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Sofía,Rocha,sofia.rocha@camaravalle.local,ADMINISTRADOR / ORGANIZADOR
+Cámara Creativa del Valle,camara-creativa-del-valle,Mateo,Rojas,mateo.rojas@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Andrés,Salazar,andres.salazar@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Natalia,Soria,natalia.soria@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Joaquín,Suárez,joaquin.suarez@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Mariana,Torrez,mariana.torrez@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Bruno,Vargas,bruno.vargas@camaravalle.local,PARTICIPANTE
+Cámara Creativa del Valle,camara-creativa-del-valle,Rodrigo,Villca,rodrigo.villca@camaravalle.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Mauricio,Alarcón,mauricio.alarcon@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Daniela,Arce,daniela.arce@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Lucía,Arce,lucia.arce@sumaqamana.local,ADMINISTRADOR / ORGANIZADOR
+Fundación Suma Qamaña,fundacion-suma-qamana,Daniela,Choque,daniela.choque@sumaqamana.local,STAFF
+Fundación Suma Qamaña,fundacion-suma-qamana,René,Choque,rene.choque@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Sebastián,Copa,sebastian.copa@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Álvaro,Cárdenas,alvaro.cardenas@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Nicolás,Céspedes,nicolas.cespedes@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Camila,Flores,camila.flores@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Valeria,Gutiérrez,valeria.gutierrez@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Fernanda,Limachi,fernanda.limachi@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Paola,Loayza,paola.loayza@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Diego,Mamani,diego.mamani@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Gabriela,Medina,gabriela.medina@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Andrés,Mercado,andres.mercado@sumaqamana.local,ADMINISTRADOR / ORGANIZADOR
+Fundación Suma Qamaña,fundacion-suma-qamana,Carla,Montaño,carla.montano@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Marco,Nina,marco.nina@sumaqamana.local,STAFF
+Fundación Suma Qamaña,fundacion-suma-qamana,Lucía,Paredes,lucia.paredes@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Micaela,Paz,micaela.paz@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Ana,Quispe,ana.quispe@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Tomás,Rivero,tomas.rivero@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Mateo,Rojas,mateo.rojas@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Andrés,Salazar,andres.salazar@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Natalia,Soria,natalia.soria@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Joaquín,Suárez,joaquin.suarez@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Mariana,Torrez,mariana.torrez@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Bruno,Vargas,bruno.vargas@sumaqamana.local,PARTICIPANTE
+Fundación Suma Qamaña,fundacion-suma-qamana,Jaime,Villarroel,jaime.villarroel@sumaqamana.local,STAFF
+Fundación Suma Qamaña,fundacion-suma-qamana,Rodrigo,Villca,rodrigo.villca@sumaqamana.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Mauricio,Alarcón,mauricio.alarcon@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Daniela,Arce,daniela.arce@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Iván,Calle,ivan.calle@nexoandino.local,STAFF
+Nexo Andino Tecnología,nexo-andino-tecnologia,René,Choque,rene.choque@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Sebastián,Copa,sebastian.copa@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Álvaro,Cárdenas,alvaro.cardenas@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Matías,Céspedes,matias.cespedes@nexoandino.local,ADMINISTRADOR / ORGANIZADOR
+Nexo Andino Tecnología,nexo-andino-tecnologia,Nicolás,Céspedes,nicolas.cespedes@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Camila,Flores,camila.flores@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Valeria,Gutiérrez,valeria.gutierrez@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Fernanda,Limachi,fernanda.limachi@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Paola,Loayza,paola.loayza@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Diego,Mamani,diego.mamani@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Gabriela,Medina,gabriela.medina@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Carla,Montaño,carla.montano@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Lucía,Paredes,lucia.paredes@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Micaela,Paz,micaela.paz@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Gabriel,Poma,gabriel.poma@nexoandino.local,STAFF
+Nexo Andino Tecnología,nexo-andino-tecnologia,Ana,Quispe,ana.quispe@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Paola,Ribera,paola.ribera@nexoandino.local,ADMINISTRADOR / ORGANIZADOR
+Nexo Andino Tecnología,nexo-andino-tecnologia,Tomás,Rivero,tomas.rivero@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Mateo,Rojas,mateo.rojas@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Andrés,Salazar,andres.salazar@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Mara,Soliz,mara.soliz@nexoandino.local,STAFF
+Nexo Andino Tecnología,nexo-andino-tecnologia,Natalia,Soria,natalia.soria@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Joaquín,Suárez,joaquin.suarez@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Mariana,Torrez,mariana.torrez@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Bruno,Vargas,bruno.vargas@nexoandino.local,PARTICIPANTE
+Nexo Andino Tecnología,nexo-andino-tecnologia,Rodrigo,Villca,rodrigo.villca@nexoandino.local,PARTICIPANTE

@@ -31,6 +31,8 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
     @Query("select i from Inscripcion i where i.evento.id = :evento and i.participante.id = :usuario and i.organizacion.id = :org")
     Optional<Inscripcion> findByEventoIdAndParticipanteIdAndOrganizacionId(@Param("evento") Long evento, @Param("usuario") Long usuario, @Param("org") Long org);
 
+    List<Inscripcion> findByEventoIdAndOrganizacionId(Long evento, Long organizacionId);
+
     long countByParticipanteIdAndOrganizacionId(Long idParticipante, Long organizacionId);
     long countByParticipanteIdAndOrganizacionIdAndEstado(Long idParticipante, Long organizacionId, EstadoInscripcion estado);
 

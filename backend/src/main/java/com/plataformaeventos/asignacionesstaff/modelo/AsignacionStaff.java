@@ -18,9 +18,10 @@ public class AsignacionStaff {
     @Column(name = "turno_fin") private OffsetDateTime turnoFin;
     private String observaciones;
     @Enumerated(EnumType.STRING) @Column(nullable = false) private EstadoAsignacionStaff estado = EstadoAsignacionStaff.ASIGNADA;
-    @Column(name = "fecha_creacion", nullable = false) private OffsetDateTime fechaCreacion = OffsetDateTime.now();
+    @Column(name = "fecha_creacion", nullable = false) private OffsetDateTime fechaCreacion;
     protected AsignacionStaff() {}
-    public AsignacionStaff(PostulacionStaff p, Organizacion o, String t, OffsetDateTime i, OffsetDateTime f, String obs) { postulacion=p; organizacion=o; usuario=p.getUsuario(); tarea=t; turnoInicio=i; turnoFin=f; observaciones=obs; }
+    public AsignacionStaff(PostulacionStaff p, Organizacion o, String t, OffsetDateTime i, OffsetDateTime f, String obs) { this(p,o,t,i,f,obs,OffsetDateTime.now()); }
+    public AsignacionStaff(PostulacionStaff p, Organizacion o, String t, OffsetDateTime i, OffsetDateTime f, String obs, OffsetDateTime fechaCreacion) { postulacion=p; organizacion=o; usuario=p.getUsuario(); tarea=t; turnoInicio=i; turnoFin=f; observaciones=obs; this.fechaCreacion=fechaCreacion; }
     public Long getId() { return id; }
     public PostulacionStaff getPostulacion() { return postulacion; }
     public String getTarea() { return tarea; }

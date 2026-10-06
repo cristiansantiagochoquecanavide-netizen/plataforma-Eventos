@@ -77,13 +77,20 @@ public class Convocatoria {
         this.estado = EstadoConvocatoria.ABIERTA;
     }
 
+    public Convocatoria(Evento evento, TipoPersonal tipoPersonal, String descripcion,
+                        Integer cantidadRequerida, LocalDate fechaLimite, OffsetDateTime fechaCreacion) {
+        this(evento, tipoPersonal, descripcion, cantidadRequerida, fechaLimite);
+        this.fechaCreacion = fechaCreacion;
+        this.fechaActualizacion = fechaCreacion;
+    }
+
     @PrePersist
     void prePersist() {
         OffsetDateTime ahora = OffsetDateTime.now();
         if (fechaCreacion == null) {
             fechaCreacion = ahora;
         }
-        fechaActualizacion = ahora;
+        if (fechaActualizacion == null) fechaActualizacion = ahora;
         if (estado == null) {
             estado = EstadoConvocatoria.ABIERTA;
         }
