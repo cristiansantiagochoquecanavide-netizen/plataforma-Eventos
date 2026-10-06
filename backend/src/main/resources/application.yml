@@ -57,6 +57,15 @@ demo:
   seed:
     enabled: ${DEMO_SEED_ENABLED:false}
 
+saas:
+  stripe:
+    enabled: ${STRIPE_ENABLED:false}
+    secret-key: ${STRIPE_SECRET_KEY:}
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+    success-url: ${STRIPE_SUCCESS_URL:}
+    cancel-url: ${STRIPE_CANCEL_URL:}
+    frontend-url: ${URL_FRONTEND_WEB:http://localhost:4200}
+
 audit:
   cifrado:
     clave-desarrollador-base64: ${AUDIT_DEVELOPER_KEY_BASE64:}

@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
+@import './app/features/saas/alta-saas.component.css';
 
 :root {
   color: #17211f;
@@ -385,6 +386,28 @@ small {
   letter-spacing: 0;
   margin: 28px 10px 8px;
   text-transform: uppercase;
+}
+
+.sidebar nav .nav-placeholder {
+  border-radius: 8px;
+  color: #6d8e85;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+}
+
+.sidebar nav .nav-placeholder span {
+  font-size: 0.68rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: #86aaa0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-style: normal;
 }
 
 .logout {

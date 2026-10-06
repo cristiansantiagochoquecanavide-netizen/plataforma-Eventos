@@ -1,0 +1,85 @@
+<main class="saas-page">
+  <header class="saas-nav">
+    <a class="saas-brand" routerLink="/planes" aria-label="Eventos, inicio">eventos<span>.</span></a>
+    <span class="nav-note">Hecho para equipos que crean experiencias</span>
+    <a class="login-link" routerLink="/iniciar-sesion">Ya tengo cuenta <span aria-hidden="true">↗</span></a>
+  </header>
+
+  @if (vista() === 'planes') {
+    <section class="saas-hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Operación de eventos, en orden</p>
+        <h1>Tu próximo evento<br /><em>empieza aquí.</em></h1>
+        <p class="hero-intro">Personas, espacios, inscripciones y reportes en un solo lugar. Elige el ritmo que necesita tu equipo.</p>
+        <a class="hero-scroll" href="#planes">Explorar planes <span aria-hidden="true">↓</span></a>
+      </div>
+      <div class="hero-visual" aria-label="Vista abstracta de calendario y actividad de eventos">
+        <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+        <div class="visual-card calendar-card"><span class="visual-label">PRÓXIMA FECHA</span><strong>24</strong><small>OCT · 2026</small><i></i></div>
+        <div class="visual-card activity-card"><span class="activity-dot"></span><span>Inscripción confirmada</span><small>hace 2 min</small></div>
+        <div class="visual-note">Una operación<br />más liviana.</div>
+        <span class="visual-index">01 / 03</span>
+      </div>
+    </section>
+
+    @if (aviso()) { <p class="banner success" role="status">{{ aviso() }}</p> }
+    @if (error()) { <p class="banner error" role="alert">{{ error() }}</p> }
+
+    <section class="plans-section" id="planes">
+      <div class="section-heading">
+        <div><p class="eyebrow">Precios claros, en bolivianos</p><h2>Un plan para cada escala.</h2></div>
+        <p>Mensual. Sin cobros sorpresa.<br />Todos incluyen exportación de reportes y correo.</p>
+      </div>
+      @if (planes().length === 0 && !error()) { <p class="loading">Cargando opciones<span>…</span></p> }
+      <div class="plan-grid">
+        @for (plan of planes(); track plan.codigo; let i = $index) {
+          <article class="plan-card" [class.featured]="plan.codigo === 'PROFESIONAL'">
+            @if (plan.codigo === 'PROFESIONAL') { <span class="popular">MÁS ELEGIDO</span> }
+            <div class="plan-top"><span class="plan-index">0{{ i + 1 }}</span><span class="plan-marker" aria-hidden="true">↗</span></div>
+            <h3>{{ plan.nombre }}</h3>
+            <p class="plan-summary">{{ plan.codigo === 'BASICO' ? 'Para empezar con lo esencial.' : plan.codigo === 'PROFESIONAL' ? 'Para equipos en movimiento.' : 'Para operaciones a gran escala.' }}</p>
+            <p class="price"><strong>{{ plan.gratuito ? 'Gratis' : ('Bs ' + plan.precioMensualBob) }}</strong>@if (!plan.gratuito) { <span>/ mes</span> }</p>
+            <div class="plan-rule"></div>
+            <p class="includes">TU CAPACIDAD</p>
+            <ul class="limits">
+              <li><strong>{{ plan.usuariosInternos }}</strong> usuarios internos</li>
+              <li><strong>{{ plan.eventosActivos }}</strong> eventos activos</li>
+              <li><strong>{{ plan.inscripcionesMes | number }}</strong> inscripciones / mes</li>
+            </ul>
+            <p class="includes">INCLUYE REPORTES</p>
+            <p class="report-types">{{ plan.reportes.join(' · ') }} <span>+ envío por correo</span></p>
+            <button type="button" class="plan-cta" [class.cta-featured]="plan.codigo === 'PROFESIONAL'" (click)="seleccionarPlan(plan)">
+              {{ plan.gratuito ? 'Empezar gratis' : 'Elegir ' + plan.nombre }} <span aria-hidden="true">→</span>
+            </button>
+          </article>
+        }
+      </div>
+    </section>
+
+    @if (planSeleccionado(); as plan) {
+      <section class="signup-section" id="alta-formulario" aria-labelledby="signup-title">
+        <div class="signup-aside"><p class="eyebrow">Un buen comienzo</p><h2 id="signup-title">Cuéntanos<br />de tu equipo.</h2><p>Verificaremos tu correo antes de crear el espacio de trabajo.</p><div class="selected-plan"><span>PLAN SELECCIONADO</span><strong>{{ plan.nombre }}</strong><b>{{ plan.gratuito ? 'Sin costo' : 'Bs ' + plan.precioMensualBob + ' / mes' }}</b></div></div>
+        <form class="signup-form" [formGroup]="formularioAlta" (ngSubmit)="enviarAlta()" novalidate>
+          <label>Nombre de la organización<input formControlName="nombreEmpresa" autocomplete="organization" placeholder="Ej. Colectivo Horizonte" /></label>
+          <label>Dirección sugerida <small>Opcional · letras minúsculas, números y guiones</small><div class="slug-field"><span>app.eventos.bo/</span><input formControlName="slugSugerido" placeholder="colectivo-horizonte" /></div></label>
+          <div class="name-fields"><label>Nombres<input formControlName="nombresContacto" autocomplete="given-name" placeholder="Tu nombre" /></label><label>Apellidos<input formControlName="apellidosContacto" autocomplete="family-name" placeholder="Tus apellidos" /></label></div>
+          <label>Correo de trabajo<input type="email" formControlName="correoContacto" autocomplete="email" placeholder="nombre@organizacion.bo" /></label>
+          @if (error()) { <p class="form-error" role="alert">{{ error() }}</p> }
+          <button class="submit-button" type="submit" [disabled]="cargando()">{{ cargando() ? 'Enviando…' : 'Continuar con el correo' }} <span aria-hidden="true">→</span></button>
+          <p class="privacy-note">Al continuar, enviaremos un enlace de verificación a tu correo. No se crea la cuenta hasta confirmar la dirección.</p>
+        </form>
+      </section>
+    }
+    <footer class="saas-footer"><span>eventos<span class="footer-dot">.</span> · Bolivia</span><span>Menos fricción. Mejores encuentros.</span></footer>
+  } @else if (vista() === 'verificar') {
+    <section class="flow-state"><span class="flow-icon">{{ cargando() ? '…' : error() ? '!' : '✓' }}</span><p class="eyebrow">Verificación de correo</p><h1>{{ cargando() ? 'Revisando tu enlace.' : error() ? 'No pudimos verificarlo.' : activacionEnviada() ? 'Revisa tu correo.' : 'Preparando tu espacio.' }}</h1><p>{{ error() || aviso() || 'Estamos validando el enlace de forma segura.' }}</p>@if (activacionEnviada()) { <p class="email-next-step">Te enviamos un segundo enlace para definir tu clave. Abre ese mensaje para terminar de activar tu acceso.</p> }<a class="back-link" routerLink="/planes">Volver a planes</a></section>
+  } @else if (vista() === 'activar') {
+    <section class="flow-state activation-state">
+      @if (activacionEnviada()) { <span class="flow-icon">✓</span><p class="eyebrow">Acceso listo</p><h1>Bienvenido a bordo.</h1><p>Tu cuenta ya está activa y puedes entrar a tu espacio de trabajo.</p><a class="submit-button flow-link" routerLink="/iniciar-sesion">Iniciar sesión <span aria-hidden="true">→</span></a> }
+      @else { <p class="eyebrow">Último paso</p><h1>Define tu clave.</h1><p>Con ella podrás administrar la organización y empezar a organizar eventos.</p><form [formGroup]="formularioActivacion" (ngSubmit)="activarPropietario()"><label>Nueva clave<input type="password" formControlName="nuevaClave" autocomplete="new-password" placeholder="Mínimo 8 caracteres" /></label><small>Al menos 8 caracteres, una mayúscula, una minúscula y dos números.</small>@if (error()) { <p class="form-error" role="alert">{{ error() }}</p> }<button class="submit-button" type="submit" [disabled]="cargando()">{{ cargando() ? 'Activando…' : 'Activar mi cuenta' }} <span aria-hidden="true">→</span></button></form> }
+      <a class="back-link" routerLink="/planes">Volver al inicio</a>
+    </section>
+  } @else {
+    <section class="flow-state"><span class="flow-icon">✓</span><p class="eyebrow">Pago enviado a verificar</p><h1>Gracias. Estamos cerrando el ciclo.</h1><p>Stripe notificará el resultado de forma segura. Cuando el pago sea confirmado, te enviaremos el enlace para activar tu acceso. Puedes cerrar esta ventana.</p><a class="back-link" routerLink="/iniciar-sesion">Ir a iniciar sesión</a></section>
+  }
+</main>

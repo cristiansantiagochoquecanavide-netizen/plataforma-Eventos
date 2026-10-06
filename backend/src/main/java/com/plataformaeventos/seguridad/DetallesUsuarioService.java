@@ -31,10 +31,8 @@ public class DetallesUsuarioService implements UserDetailsService {
         Usuario usuario = usuarioRepository.findByCorreoConRolesYPermisos(correo)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado"));
 
-        return User.withUsername(usuario.getCorreo())
-                .password(usuario.getClaveHash())
-                .disabled(usuario.getEstado() != EstadoUsuario.ACTIVO)
-                .authorities(usuario.getRoles().stream()
+        var authorities = new java.util.ArrayList<org.springframework.security.core.GrantedAuthority>(
+                usuario.getRoles().stream()
                         .filter(rol -> rol.getEstado() == EstadoRol.ACTIVO)
                         .flatMap(rol -> Stream.concat(
                                 Stream.of(rol.getNombre()),
@@ -42,7 +40,21 @@ public class DetallesUsuarioService implements UserDetailsService {
                         ))
                         .distinct()
                         .map(SimpleGrantedAuthority::new)
-                        .toList())
+                        .toList()
+        );
+
+        boolean esAdmin = usuario.getRoles().stream()
+                .filter(rol -> rol.getEstado() == EstadoRol.ACTIVO)
+                .anyMatch(rol -> "ADMINISTRADOR".equalsIgnoreCase(rol.getNombre()));
+        if (esAdmin) {
+            authorities.add(new SimpleGrantedAuthority("SAAS_ADMINISTRADOR"));
+            authorities.add(new SimpleGrantedAuthority("ROLE_ADMINISTRADOR"));
+        }
+
+        return User.withUsername(usuario.getCorreo())
+                .password(usuario.getClaveHash())
+                .disabled(usuario.getEstado() != EstadoUsuario.ACTIVO)
+                .authorities(authorities)
                 .build();
     }
 }

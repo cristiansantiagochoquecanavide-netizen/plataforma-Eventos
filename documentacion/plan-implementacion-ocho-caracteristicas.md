@@ -6,6 +6,9 @@ Completar y demostrar las ocho características del documento `8 puntos Sprint_2
 
 ## Situación de partida
 
+### Actualización posterior: autoservicio SaaS con Stripe (2026-10-05)
+
+La decisión inicial de administración manual sin pasarela descrita abajo queda supersedida para la iteración actual: el usuario confirmó catálogo mensual en BOB y Stripe para el piloto. Se implementó el flujo público de alta, verificación de correo, Checkout y activación tras webhook, junto con los límites indicados por el usuario. La implementación local compila; backend pasó 164 pruebas y Angular el build de producción más 49 pruebas. La ruta, configuración, limitaciones de Stripe Bolivia/BOB y pendientes operativos están en `documentacion/onboarding-saas-stripe.md`. No se ha configurado una cuenta Stripe, procesado un cobro ni desplegado infraestructura; hace falta confirmar elegibilidad comercial/moneda y probar el ciclo end-to-end en test antes de considerarlo listo para producción.
 - Ya existen backend, web y móvil; API multi-tenant; gestión de usuarios, roles, permisos y grupos; privilegios de interfaz; bitácora con cifrado de payload; exportación CSV de participantes; e infraestructura declarativa inicial para AWS.
 - Backend: 159 pruebas aprobadas en la última ejecución. Frontend: build de producción y 49 pruebas aprobadas. Flutter: 16 pruebas aprobadas y análisis estático sin issues. Compose principal con override local validado.
 - Ya se verificaron localmente aislamiento HTTP con dos tenants, exportaciones/correo SMTP en Mailpit, restauración/backfill de 16 filas históricas y gate SaaS suspendido/vencido/reactivación. Restan evaluación de usabilidad/paridad de clientes, recorrido visual administrativo y despliegue cloud.

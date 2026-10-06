@@ -23,6 +23,10 @@ import { PerfilComponent } from './features/perfil/perfil.component';
 import { AyudaComponent } from './features/ayuda/ayuda.component';
 
 export const routes: Routes = [
+  { path: 'planes', loadComponent: () => import('./features/saas/alta-saas.component').then((m) => m.AltaSaasComponent) },
+  { path: 'verificar-alta-saas', loadComponent: () => import('./features/saas/alta-saas.component').then((m) => m.AltaSaasComponent) },
+  { path: 'activar-cuenta-saas', loadComponent: () => import('./features/saas/alta-saas.component').then((m) => m.AltaSaasComponent) },
+  { path: 'pago/completado', loadComponent: () => import('./features/saas/alta-saas.component').then((m) => m.AltaSaasComponent) },
   { path: 'iniciar-sesion', component: InicioSesionComponent },
   { path: 'recuperar-clave', component: RecuperarClaveComponent },
   { path: 'restablecer-clave', component: RestablecerClaveComponent },
@@ -52,6 +56,7 @@ export const routes: Routes = [
       { path: 'roles', loadComponent: () => import('./features/roles/roles.component').then((m) => m.RolesComponent), canActivate: [rolesGuard] },
       { path: 'recursos', loadComponent: () => import('./features/recursos/recursos.component').then((m) => m.RecursosComponent), canActivate: [recursosGuard] },
       { path: 'espacios', loadComponent: () => import('./features/espacios/espacios.component').then((m) => m.EspaciosComponent), canActivate: [espaciosGuard] },
+
       {
         path: 'convocatorias',
         loadComponent: () => import('./features/convocatorias/convocatorias.component').then((m) => m.ConvocatoriasComponent),

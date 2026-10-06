@@ -12,6 +12,7 @@ export const autenticacionInterceptor: HttpInterceptorFn = (solicitud, siguiente
     '/autenticacion/recuperar-clave',
     '/autenticacion/solicitar-recuperacion-clave',
     '/autenticacion/restablecer-clave',
+    '/api/saas/',
   ].some((ruta) => solicitud.url.includes(ruta));
   const token = sesion.tokenAcceso();
   const headers: Record<string, string> = {};

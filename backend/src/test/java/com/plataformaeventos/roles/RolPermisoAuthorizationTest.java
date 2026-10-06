@@ -8,26 +8,36 @@ import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class RolPermisoAuthorizationTest {
 
     @Test
-    void endpointsGlobalesDeRolesSonSoloParaSaasAdministrador() {
-        assertThat(Arrays.stream(RolController.class.getDeclaredMethods())
+    void endpointsGlobalesDeRolesRespetanPermisosTenantOAdminSaas() {
+        Map<String, String> autorizaciones = Arrays.stream(RolController.class.getDeclaredMethods())
                 .filter(method -> method.isAnnotationPresent(PreAuthorize.class))
-                .map(method -> method.getAnnotation(PreAuthorize.class).value()))
-                .isNotEmpty()
-                .allMatch("hasAuthority('SAAS_ADMINISTRADOR')"::equals);
+                .collect(Collectors.toMap(Method::getName,
+                        method -> method.getAnnotation(PreAuthorize.class).value()));
+
+        assertThat(autorizaciones).containsExactlyInAnyOrderEntriesOf(Map.of(
+                "listarRoles", "hasAuthority('ROL_VER') or hasAuthority('SAAS_ADMINISTRADOR')",
+                "obtenerRol", "hasAuthority('ROL_VER') or hasAuthority('SAAS_ADMINISTRADOR')",
+                "crearRol", "hasAuthority('ROL_CREAR') or hasAuthority('SAAS_ADMINISTRADOR')",
+                "actualizarRol", "hasAuthority('ROL_EDITAR') or hasAuthority('SAAS_ADMINISTRADOR')",
+                "obtenerPermisos", "hasAuthority('PERMISO_VER') or hasAuthority('SAAS_ADMINISTRADOR')",
+                "asignarPermisos", "hasAuthority('PERMISO_ASIGNAR') or hasAuthority('SAAS_ADMINISTRADOR')"
+        ));
     }
 
     @Test
-    void endpointGlobalDePermisosEsSoloParaSaasAdministrador() throws NoSuchMethodException {
+    void endpointGlobalDePermisosPermitePermisoTenantOAdminSaas() throws NoSuchMethodException {
         Method listarPermisos = PermisoController.class.getDeclaredMethod("listarPermisos");
 
         assertThat(listarPermisos.getAnnotation(PreAuthorize.class).value())
-                .isEqualTo("hasAuthority('SAAS_ADMINISTRADOR')");
+                .isEqualTo("hasAuthority('PERMISO_VER') or hasAuthority('SAAS_ADMINISTRADOR')");
     }
 
     @Test

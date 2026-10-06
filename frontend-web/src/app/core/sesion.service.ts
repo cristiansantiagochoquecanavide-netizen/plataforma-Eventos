@@ -134,8 +134,9 @@ export class SesionService {
   puedeGestionarAsignacionesStaff() { return this.tienePermiso('ASIGNACION_STAFF_GESTIONAR'); }
   puedeVerBitacora() { return this.esAdministrador() || this.tienePermiso('BITACORA_VER'); }
   puedeGestionarMiembros() { return this.usuario()?.perfilOrganizacionActiva?.administrador ?? false; }
-  puedeVerParticipantes() { return this.esAdministrador() || this.tieneAlgunPermiso(['PARTICIPANTE_VER', 'USUARIO_VER']); }
+  puedeVerParticipantes() { return this.esAdministrador() || this.tieneAlgunPermiso(['PARTICIPANTE_VER', 'USUARIO_VER', 'INSCRIPCION_VER', 'INSCRIPCION_VER_TODAS']); }
   puedeGestionarParticipantes() { return this.esAdministrador() || this.tieneAlgunPermiso(['PARTICIPANTE_GESTIONAR', 'USUARIO_CAMBIAR_ESTADO']); }
+  tieneAccesoParticipantes() { return this.puedeVerParticipantes(); }
 
   puedeGestionarConvocatorias() {
     return this.tieneAlgunPermiso([
