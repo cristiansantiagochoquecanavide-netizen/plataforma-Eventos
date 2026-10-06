@@ -16,6 +16,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.beans.factory.ObjectProvider;
 import jakarta.validation.ConstraintViolationException;
 
@@ -115,6 +116,17 @@ public class ManejadorExcepciones {
                 "No fue posible enviar las instrucciones de recuperaci\u00f3n.",
                 solicitud
         );
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorRespuesta> manejarEstadoHttp(
+            ResponseStatusException excepcion,
+            HttpServletRequest solicitud
+    ) {
+        HttpStatus estado = HttpStatus.resolve(excepcion.getStatusCode().value());
+        if (estado == null) estado = HttpStatus.INTERNAL_SERVER_ERROR;
+        String mensaje = excepcion.getReason() == null ? estado.getReasonPhrase() : excepcion.getReason();
+        return crearRespuesta(estado, mensaje, solicitud);
     }
 
     @ExceptionHandler(Exception.class)

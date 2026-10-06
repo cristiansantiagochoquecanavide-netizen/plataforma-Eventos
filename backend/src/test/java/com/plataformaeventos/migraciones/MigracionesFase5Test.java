@@ -27,9 +27,9 @@ class MigracionesFase5Test {
                     .toList();
         }
 
-        assertThat(nombres).hasSize(30);
+        assertThat(nombres).hasSize(31);
         assertThat(nombres.stream().map(MigracionesFase5Test::version).toList())
-                .containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30);
+                .containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31);
         assertThat(version(nombres.get(13))).isEqualTo(14);
         assertThat(version(nombres.get(14))).isEqualTo(15);
         assertThat(version(nombres.get(15))).isEqualTo(16);
@@ -47,8 +47,10 @@ class MigracionesFase5Test {
         assertThat(version(nombres.get(27))).isEqualTo(28);
         assertThat(version(nombres.get(28))).isEqualTo(29);
         assertThat(version(nombres.get(29))).isEqualTo(30);
+        assertThat(version(nombres.get(30))).isEqualTo(31);
         assertThat(nombres.get(21)).isEqualTo("V22__distinguir_administrador_saas.sql");
         assertThat(nombres.get(29)).isEqualTo("V30__asignar_evento_ver_a_participante_y_staff.sql");
+        assertThat(nombres.get(30)).isEqualTo("V31__alta_saas_checkout_stripe.sql");
     }
 
     @Test

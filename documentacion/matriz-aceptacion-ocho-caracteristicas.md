@@ -7,6 +7,8 @@ Phase 1 actualiza la evidencia después de la implementación y verificación en
 Esta actualización prevalece sobre las cifras y los estados históricos posteriores mientras se sincronizan las filas detalladas:
 
 - Backend: `cd backend && .\mvnw.cmd clean test` → `BUILD SUCCESS`, 159 pruebas, 0 fallos/errores/omitidas. Angular: build de producción y 49 pruebas exitosas. Flutter: 16 pruebas exitosas y `flutter analyze` sin issues. Compose: `docker compose -f docker-compose.yml -f docker-compose.local.yml config --quiet` correcto.
+- Actualización posterior de la rama de onboarding SaaS: backend `cd backend && .\mvnw.cmd test` → `BUILD SUCCESS`, 164 pruebas aprobadas; Angular `npm run build` aprobado y `npx ng test --watch=false --browsers=ChromeHeadless --progress=false` → 49 pruebas aprobadas. Incluye V31, Checkout/webhook y portal público de planes. La migración V31 y el cobro no se han probado con PostgreSQL/Stripe en esta iteración.
+- La decisión previa de cobro manual queda supersedida para esta iteración: se confirma Stripe para el piloto, sujeto a validar disponibilidad comercial Bolivia/BOB antes de producción. Ver `documentacion/onboarding-saas-stripe.md`.
 - PostgreSQL 17 limpio: Flyway validó y aplicó las 30 migraciones; arrancó el contexto Spring y sembró dos tenants demo y suscripciones.
 - Prueba HTTP autenticada contra ese PostgreSQL: ambos tenants listaron un evento; consultar desde Sur un evento de Norte devolvió 404.
 - Ciclo SaaS HTTP local: usuario no SaaS recibe 403 al administrar; tenant suspendido y vencido reciben 403; al reactivar el plan, el tenant recupera sus eventos.

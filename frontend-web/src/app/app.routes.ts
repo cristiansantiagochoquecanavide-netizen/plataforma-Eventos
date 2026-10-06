@@ -23,6 +23,10 @@ import { PerfilComponent } from './features/perfil/perfil.component';
 import { AyudaComponent } from './features/ayuda/ayuda.component';
 
 export const routes: Routes = [
+  { path: 'planes', loadComponent: () => import('./features/saas/alta-saas.component').then((m) => m.AltaSaasComponent) },
+  { path: 'verificar-alta-saas', loadComponent: () => import('./features/saas/alta-saas.component').then((m) => m.AltaSaasComponent) },
+  { path: 'activar-cuenta-saas', loadComponent: () => import('./features/saas/alta-saas.component').then((m) => m.AltaSaasComponent) },
+  { path: 'pago/completado', loadComponent: () => import('./features/saas/alta-saas.component').then((m) => m.AltaSaasComponent) },
   { path: 'iniciar-sesion', component: InicioSesionComponent },
   { path: 'recuperar-clave', component: RecuperarClaveComponent },
   { path: 'restablecer-clave', component: RestablecerClaveComponent },
