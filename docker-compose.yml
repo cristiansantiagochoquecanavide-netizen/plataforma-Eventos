@@ -61,14 +61,10 @@ services:
       ADMIN_CORREO: ${ADMIN_CORREO:-AdminEventos@gmail.com}
       ADMIN_CLAVE: ${ADMIN_CLAVE:-Admin123}
       DEMO_SEED_ENABLED: ${DEMO_SEED_ENABLED:-false}
+      SERVICIO_IA_URL: ${SERVICIO_IA_URL:-http://servicio-ia:8000}
       CORS_ORIGENES: ${CORS_ORIGENES:-http://localhost:4200}
       URL_FRONTEND_WEB: ${URL_FRONTEND_WEB:-http://localhost:4200}
       URL_APLICACION_MOVIL: ${URL_APLICACION_MOVIL:-eventos://recuperar-clave}
-      STRIPE_ENABLED: ${STRIPE_ENABLED:-false}
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
-      STRIPE_SUCCESS_URL: ${STRIPE_SUCCESS_URL:-}
-      STRIPE_CANCEL_URL: ${STRIPE_CANCEL_URL:-}
       AUDIT_KMS_KEY_ID: ${AUDIT_KMS_KEY_ID:-alias/bitacora-payload-local}
       AUDIT_KMS_INDICE_KEY_ID: ${AUDIT_KMS_INDICE_KEY_ID:-alias/bitacora-hmac-local}
       AUDIT_DEVELOPER_KEY_BASE64: ${AUDIT_DEVELOPER_KEY_BASE64:-}
@@ -76,8 +72,8 @@ services:
       AUDIT_KMS_ENDPOINT: ${AUDIT_KMS_ENDPOINT:-http://kms-local:4566}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-local-only}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-local-only}
-      SMTP_HOST: ${SMTP_HOST:-mailpit}
-      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_HOST: ${SMTP_HOST:-smtp-relay.brevo.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-no-reply@eventos.local}
@@ -88,15 +84,22 @@ services:
       SMTP_CONNECTION_TIMEOUT_MS: ${SMTP_CONNECTION_TIMEOUT_MS:-10000}
       SMTP_TIMEOUT_MS: ${SMTP_TIMEOUT_MS:-10000}
       SMTP_WRITE_TIMEOUT_MS: ${SMTP_WRITE_TIMEOUT_MS:-10000}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      BREVO_FROM_EMAIL: ${BREVO_FROM_EMAIL:-}
+      BREVO_FROM_NAME: ${BREVO_FROM_NAME:-Plataforma de eventos}
       RECUPERACION_CLAVE_EXPIRACION_MINUTOS: ${RECUPERACION_CLAVE_EXPIRACION_MINUTOS:-30}
       RECUPERACION_CLAVE_INTERVALO_SOLICITUD_SEGUNDOS: ${RECUPERACION_CLAVE_INTERVALO_SOLICITUD_SEGUNDOS:-60}
+      STRIPE_ENABLED: ${STRIPE_ENABLED:-true}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-${STRIPE_API_KEY:-}}
+      STRIPE_API_KEY: ${STRIPE_API_KEY:-}
+      STRIPE_PUBLIC_KEY: ${STRIPE_PUBLIC_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_MONEDA: ${STRIPE_MONEDA:-bob}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     depends_on:
       base-datos:
         condition: service_healthy
-      mailpit:
-        condition: service_started
       kms-bootstrap:
         condition: service_completed_successfully
     healthcheck:
@@ -130,12 +133,6 @@ services:
       kms-local:
         condition: service_healthy
 
-  mailpit:
-    image: axllent/mailpit:v1.28
-    ports:
-      - "${MAILPIT_UI_PORT:-8025}:8025"
-    restart: unless-stopped
-
   frontend-web:
     build:
       context: ./frontend-web
@@ -154,6 +151,8 @@ services:
   servicio-ia:
     build:
       context: ./servicio-ia
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     ports:
       - "${SERVICIO_IA_PORT:-8000}:8000"
     healthcheck:

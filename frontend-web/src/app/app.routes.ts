@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import {
   eventosGuard,
+  consultaEventosGuard,
   autenticacionGuard,
   convocatoriasGuard,
   recursosGuard,
@@ -13,6 +14,7 @@ import {
   miembrosGuard,
   participantesGuard,
   administradorGuard,
+  reportesGuard,
 } from './core/guards';
 import { InicioSesionComponent } from './features/auth/inicio-sesion.component';
 import { RecuperarClaveComponent } from './features/auth/recuperar-clave.component';
@@ -21,8 +23,10 @@ import { ConsultaEventosComponent } from './features/eventos/consulta-eventos.co
 import { PanelComponent } from './features/panel/panel.component';
 import { PerfilComponent } from './features/perfil/perfil.component';
 import { AyudaComponent } from './features/ayuda/ayuda.component';
+import { SaasShellComponent } from './features/saas/saas-shell.component';
 
 export const routes: Routes = [
+  { path: '', pathMatch: 'full', loadComponent: () => import('./features/saas/alta-saas.component').then((m) => m.AltaSaasComponent) },
   { path: 'planes', loadComponent: () => import('./features/saas/alta-saas.component').then((m) => m.AltaSaasComponent) },
   { path: 'verificar-alta-saas', loadComponent: () => import('./features/saas/alta-saas.component').then((m) => m.AltaSaasComponent) },
   { path: 'activar-cuenta-saas', loadComponent: () => import('./features/saas/alta-saas.component').then((m) => m.AltaSaasComponent) },
@@ -31,20 +35,27 @@ export const routes: Routes = [
   { path: 'recuperar-clave', component: RecuperarClaveComponent },
   { path: 'restablecer-clave', component: RestablecerClaveComponent },
   {
+    path: 'saas',
+    component: SaasShellComponent,
+    canActivate: [rolesGuard],
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'organizaciones' },
+      { path: 'organizaciones', loadComponent: () => import('./features/saas/organizaciones-saas.component').then((m) => m.OrganizacionesSaasComponent) },
+      { path: 'roles', loadComponent: () => import('./features/roles/roles.component').then((m) => m.RolesComponent) },
+    ],
+  },
+  { path: 'roles', pathMatch: 'full', redirectTo: 'saas/roles' },
+  {
     path: '',
     component: PanelComponent,
     canActivate: [autenticacionGuard],
     children: [
       { path: 'perfil', component: PerfilComponent },
       { path: 'ayuda', component: AyudaComponent },
-      {
-        path: 'saas/suscripciones',
-        loadComponent: () => import('./features/saas/suscripciones.component').then((m) => m.SuscripcionesComponent),
-        canActivate: [rolesGuard],
-      },
-      { path: 'consulta-eventos', component: ConsultaEventosComponent },
+      { path: 'consulta-eventos', component: ConsultaEventosComponent, canActivate: [consultaEventosGuard] },
       { path: 'eventos', loadComponent: () => import('./features/eventos/eventos.component').then((m) => m.EventosComponent), canActivate: [eventosGuard] },
       { path: 'categorias', loadComponent: () => import('./features/categorias/categorias.component').then((m) => m.CategoriasComponent), canActivate: [eventosGuard] },
+      { path: 'reportes', loadComponent: () => import('./features/reportes/reportes.component').then((m) => m.ReportesComponent), canActivate: [reportesGuard] },
       { path: 'usuarios', loadComponent: () => import('./features/usuarios/usuarios.component').then((m) => m.UsuariosComponent), canActivate: [usuariosGuard] },
       { path: 'participantes', loadComponent: () => import('./features/participantes/participantes.component').then((m) => m.ParticipantesComponent), canActivate: [participantesGuard] },
       { path: 'grupos', loadComponent: () => import('./features/grupos/grupos.component').then((m) => m.GruposComponent), canActivate: [administradorGuard] },
@@ -53,7 +64,6 @@ export const routes: Routes = [
         loadComponent: () => import('./features/ui-privileges/privilegios-ui.component').then((m) => m.PrivilegiosUiComponent),
         canActivate: [administradorGuard],
       },
-      { path: 'roles', loadComponent: () => import('./features/roles/roles.component').then((m) => m.RolesComponent), canActivate: [rolesGuard] },
       { path: 'recursos', loadComponent: () => import('./features/recursos/recursos.component').then((m) => m.RecursosComponent), canActivate: [recursosGuard] },
       { path: 'espacios', loadComponent: () => import('./features/espacios/espacios.component').then((m) => m.EspaciosComponent), canActivate: [espaciosGuard] },
 

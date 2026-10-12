@@ -66,6 +66,8 @@ export const eventosGuard: CanActivateFn = () => {
   );
 };
 
+export const consultaEventosGuard = permisoGuard((s) => s.puedeVerEventos());
+
 export const espaciosGuard: CanActivateFn = () => {
   const sesion = inject(SesionService);
   const router = inject(Router);
@@ -99,7 +101,8 @@ function permisoGuard(autorizado: (sesion: SesionService) => boolean): CanActiva
 }
 
 export const postulacionesGuard = permisoGuard((s) => s.puedeCrearPostulacionesStaff() || s.puedeGestionarPostulacionesStaff());
-export const asignacionesGuard = permisoGuard((s) => s.puedeGestionarAsignacionesStaff() || !!s.usuario());
+export const asignacionesGuard = permisoGuard((s) => s.puedeVerAsignacionesStaff());
 export const bitacoraGuard = permisoGuard((s) => s.puedeVerBitacora());
 export const miembrosGuard = permisoGuard((s) => s.puedeGestionarMiembros());
 export const participantesGuard = permisoGuard((s) => s.puedeVerParticipantes());
+export const reportesGuard = permisoGuard((s) => s.tieneAccesoEventos() || s.puedeVerParticipantes() || s.esAdministrador());

@@ -33,10 +33,19 @@ describe('SesionService', () => {
   afterEach(() => localStorage.clear());
 
   it('keeps global SaaS roles separate from tenant member management', () => {
-    service.usuario.set(usuario({ roles: ['SAAS_ADMINISTRADOR'], perfilOrganizacionActiva: null }));
+    service.usuario.set(usuario({
+      roles: ['SAAS_ADMINISTRADOR'],
+      perfilOrganizacionActiva: {
+        idOrganizacion: 7,
+        roles: ['ADMINISTRADOR'],
+        permisos: [],
+        administrador: true,
+      },
+    }));
 
     expect(service.tieneAccesoRoles()).toBeTrue();
-    expect(service.puedeGestionarMiembros()).toBeFalse();
+    expect(service.puedeGestionarMiembros()).toBeTrue();
+    expect(service.rolParaCabecera()).toBe('ADMINISTRADOR SAAS · ADMINISTRADOR');
   });
 
   it('allows tenant administrators to manage members without global roles access', () => {
@@ -54,6 +63,7 @@ describe('SesionService', () => {
 
     expect(service.puedeGestionarMiembros()).toBeTrue();
     expect(service.tieneAccesoRoles()).toBeFalse();
+    expect(service.rolParaCabecera()).toBe('ADMINISTRADOR');
   });
 
   it('uses tenant permissions for feature visibility instead of global permissions', () => {
@@ -72,6 +82,23 @@ describe('SesionService', () => {
       }),
     );
     expect(service.tieneAccesoEventos()).toBeTrue();
+  });
+
+  it('shows staff assignments only to staff applicants or assignment managers', () => {
+    service.usuario.set(usuario({
+      perfilOrganizacionActiva: { idOrganizacion: 7, roles: ['PARTICIPANTE'], permisos: [], administrador: false },
+    }));
+    expect(service.puedeVerAsignacionesStaff()).toBeFalse();
+
+    service.usuario.set(usuario({
+      perfilOrganizacionActiva: { idOrganizacion: 7, roles: ['STAFF'], permisos: ['POSTULACION_STAFF_CREAR'], administrador: false },
+    }));
+    expect(service.puedeVerAsignacionesStaff()).toBeTrue();
+
+    service.usuario.set(usuario({
+      perfilOrganizacionActiva: { idOrganizacion: 7, roles: ['ORGANIZADOR'], permisos: ['ASIGNACION_STAFF_GESTIONAR'], administrador: false },
+    }));
+    expect(service.puedeVerAsignacionesStaff()).toBeTrue();
   });
 
   it('refreshes the current user profile when the active organization changes', () => {

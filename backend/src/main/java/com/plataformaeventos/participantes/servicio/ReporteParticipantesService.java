@@ -16,17 +16,23 @@ import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.MediaType;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.RestClient;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -37,15 +43,39 @@ public class ReporteParticipantesService {
     private final ParticipanteService participantes;
     private final JavaMailSender correo;
     private final String remitente;
+    private final String correoRemitenteBrevo;
+    private final String nombreRemitenteBrevo;
+    private final RestClient clienteBrevo;
 
     public ReporteParticipantesService(
             ParticipanteService participantes,
             JavaMailSender correo,
             @Value("${spring.mail.properties.mail.smtp.from:${SMTP_FROM:no-reply@eventos.local}}") String remitente
     ) {
+        this(participantes, correo, remitente, null, null, "Plataforma de eventos", RestClient.builder());
+    }
+
+    @Autowired
+    public ReporteParticipantesService(
+            ParticipanteService participantes,
+            JavaMailSender correo,
+            @Value("${spring.mail.properties.mail.smtp.from:${SMTP_FROM:no-reply@eventos.local}}") String remitente,
+            @Value("${brevo.api-key:}") String claveApiBrevo,
+            @Value("${brevo.from-email:}") String correoRemitenteBrevo,
+            @Value("${brevo.from-name:Plataforma de eventos}") String nombreRemitenteBrevo,
+            RestClient.Builder restClientBuilder
+    ) {
         this.participantes = participantes;
         this.correo = correo;
         this.remitente = remitente;
+        this.correoRemitenteBrevo = correoRemitenteBrevo;
+        this.nombreRemitenteBrevo = nombreRemitenteBrevo;
+        this.clienteBrevo = StringUtils.hasText(claveApiBrevo)
+                ? restClientBuilder.clone()
+                        .baseUrl("https://api.brevo.com/v3")
+                        .defaultHeader("api-key", claveApiBrevo)
+                        .build()
+                : null;
     }
 
     @Transactional(readOnly = true)
@@ -74,20 +104,60 @@ public class ReporteParticipantesService {
     @Transactional(readOnly = true)
     public void enviar(EnviarReporteParticipantesSolicitud solicitud, Organizacion organizacion) {
         ArchivoReporte archivo = exportar(solicitud.reporte(), solicitud.formato(), organizacion);
+        String asunto = "Reporte de participantes - " + organizacion.getNombre();
+        String texto = "Se adjunta el reporte de participantes de la organización "
+                + organizacion.getNombre() + ".\n\nEl archivo contiene datos personales; compártelo solo con personas autorizadas.";
+
+        if (clienteBrevo != null) {
+            enviarConBrevo(solicitud.correoDestino(), asunto, texto, archivo);
+            return;
+        }
+
         try {
             var mensaje = correo.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mensaje, true, StandardCharsets.UTF_8.name());
             helper.setFrom(remitente);
             helper.setTo(solicitud.correoDestino());
-            helper.setSubject("Reporte de participantes - " + organizacion.getNombre());
-            helper.setText("Se adjunta el reporte de participantes de la organización "
-                    + organizacion.getNombre() + ".\n\nEl archivo contiene datos personales; compártelo solo con personas autorizadas.");
+            helper.setSubject(asunto);
+            helper.setText(texto);
             helper.addAttachment(archivo.nombre(), new ByteArrayResource(archivo.contenido()), archivo.tipoContenido());
             correo.send(mensaje);
         } catch (Exception excepcion) {
             throw new IllegalStateException("No fue posible enviar el reporte por correo", excepcion);
         }
     }
+
+    private void enviarConBrevo(String destinatario, String asunto, String texto, ArchivoReporte archivo) {
+        if (!StringUtils.hasText(correoRemitenteBrevo)) {
+            throw new IllegalStateException("Configura BREVO_FROM_EMAIL con un remitente verificado en Brevo");
+        }
+        try {
+            String contenidoBase64 = Base64.getEncoder().encodeToString(archivo.contenido());
+            clienteBrevo.post()
+                    .uri("/smtp/email")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(new CorreoBrevoConAdjunto(
+                            new RemitenteBrevo(correoRemitenteBrevo, nombreRemitenteBrevo),
+                            List.of(new DestinatarioBrevo(destinatario)),
+                            asunto,
+                            texto,
+                            List.of(new AdjuntoBrevo(archivo.nombre(), contenidoBase64))
+                    ))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (HttpStatusCodeException exception) {
+            throw new IllegalStateException(
+                    "Brevo rechazó el correo transaccional (HTTP " + exception.getStatusCode().value() + ")", exception);
+        } catch (Exception exception) {
+            throw new IllegalStateException("No se pudo conectar con la API de correo Brevo", exception);
+        }
+    }
+
+    private record CorreoBrevoConAdjunto(RemitenteBrevo sender, List<DestinatarioBrevo> to,
+                                         String subject, String textContent, List<AdjuntoBrevo> attachment) { }
+    private record RemitenteBrevo(String email, String name) { }
+    private record DestinatarioBrevo(String email) { }
+    private record AdjuntoBrevo(String name, String content) { }
 
     private VistaPreviaReporteParticipantesRespuesta preparar(ReporteParticipantesSolicitud solicitud,
                                                                Organizacion organizacion) {

@@ -14,4 +14,11 @@ public class Organizacion {
     public Organizacion(String nombre, String slug) { this.nombre = nombre; this.slug = slug; }
     @PrePersist void fechas() { if (fechaCreacion == null) fechaCreacion = OffsetDateTime.now(); }
     public Long getId() { return id; } public String getNombre() { return nombre; } public String getSlug() { return slug; } public String getEstado() { return estado; }
+    public OffsetDateTime getFechaCreacion() { return fechaCreacion; }
+    public void actualizarEstado(String estado) {
+        if (!"ACTIVA".equals(estado) && !"INACTIVA".equals(estado)) {
+            throw new IllegalArgumentException("El estado de organizacion debe ser ACTIVA o INACTIVA");
+        }
+        this.estado = estado;
+    }
 }

@@ -47,6 +47,36 @@ class OrganizacionServiceTest {
     }
 
     @Test
+    void saaSAdminPuedeListarTodasLasOrganizacionesParaCambiarElContextoGlobal() {
+        Usuario saas = usuario(1L, "Prueba", EstadoUsuario.ACTIVO);
+        saas.asignarRoles(Set.of(new Rol("SAAS_ADMINISTRADOR", null, EstadoRol.ACTIVO)));
+        Organizacion casa = org(2L);
+        Organizacion club = org(3L);
+        when(usuarios.findByCorreoConRolesYPermisos("saas@test.local")).thenReturn(Optional.of(saas));
+        when(organizaciones.findAllByEstadoOrderByNombreAsc("ACTIVA")).thenReturn(java.util.List.of(casa, club));
+
+        var respuesta = servicio.listarMias("saas@test.local");
+
+        assertThat(respuesta).extracting("id").containsExactly(2L, 3L);
+        verify(membresias, never()).findByUsuarioCorreoAndActivoTrueOrderByOrganizacionNombre("saas@test.local");
+    }
+
+    @Test
+    void usuarioTenantSigueViendoSoloSusMembresias() {
+        Usuario usuario = usuario(8L, "Ana", EstadoUsuario.ACTIVO);
+        usuario.asignarRoles(Set.of(new Rol("ORGANIZADOR", null, EstadoRol.ACTIVO)));
+        Organizacion propia = org(1L);
+        when(usuarios.findByCorreoConRolesYPermisos("ana@test.local")).thenReturn(Optional.of(usuario));
+        when(membresias.findByUsuarioCorreoAndActivoTrueOrderByOrganizacionNombre("ana@test.local"))
+                .thenReturn(java.util.List.of(new MembresiaOrganizacion(usuario, propia)));
+
+        var respuesta = servicio.listarMias("ana@test.local");
+
+        assertThat(respuesta).extracting("id").containsExactly(1L);
+        verify(organizaciones, never()).findAllByEstadoOrderByNombreAsc("ACTIVA");
+    }
+
+    @Test
     void agregaMembresiaConRolSolicitado() {
         Organizacion activa = org(1L);
         Usuario usuario = new Usuario("Ana", "Lopez", "ana@test", "hash", EstadoUsuario.ACTIVO);

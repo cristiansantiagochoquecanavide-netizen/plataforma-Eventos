@@ -65,6 +65,14 @@ public class OrganizacionService {
 
     @Transactional(readOnly = true)
     public List<OrganizacionRespuesta> listarMias(String correo) {
+        boolean administradorSaas = usuarios.findByCorreoConRolesYPermisos(correo)
+                .map(usuario -> usuario.getRoles().stream()
+                        .anyMatch(rol -> rol.getEstado() == EstadoRol.ACTIVO && ROL_SAAS_ADMINISTRADOR.equals(rol.getNombre())))
+                .orElse(false);
+        if (administradorSaas) {
+            return organizaciones.findAllByEstadoOrderByNombreAsc("ACTIVA").stream()
+                    .map(OrganizacionRespuesta::desde).toList();
+        }
         return membresias.findByUsuarioCorreoAndActivoTrueOrderByOrganizacionNombre(correo)
                 .stream().map(MembresiaOrganizacion::getOrganizacion)
                 .map(OrganizacionRespuesta::desde).toList();

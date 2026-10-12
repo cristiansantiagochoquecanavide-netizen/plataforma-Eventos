@@ -32,6 +32,11 @@ spring:
           timeout: ${SMTP_TIMEOUT_MS:10000}
           writetimeout: ${SMTP_WRITE_TIMEOUT_MS:10000}
 
+brevo:
+  api-key: ${BREVO_API_KEY:}
+  from-email: ${BREVO_FROM_EMAIL:}
+  from-name: ${BREVO_FROM_NAME:Plataforma de eventos}
+
 server:
   port: ${PUERTO_BACKEND:8080}
 
@@ -56,6 +61,10 @@ springdoc:
 demo:
   seed:
     enabled: ${DEMO_SEED_ENABLED:false}
+
+servicio:
+  ia:
+    url: ${SERVICIO_IA_URL:http://servicio-ia:8000}
 
 saas:
   stripe:

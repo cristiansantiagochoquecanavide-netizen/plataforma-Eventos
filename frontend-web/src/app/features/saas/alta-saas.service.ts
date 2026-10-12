@@ -2,10 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 
-export type CodigoPlanSaas = 'BASICO' | 'PROFESIONAL' | 'EMPRESARIAL';
-
 export interface PlanSaas {
-  codigo: CodigoPlanSaas;
+  codigo: string;
   nombre: string;
   precioMensualBob: number;
   gratuito: boolean;
@@ -21,7 +19,7 @@ export interface CrearAltaSaas {
   nombresContacto: string;
   apellidosContacto: string;
   correoContacto: string;
-  plan: CodigoPlanSaas;
+  plan: string;
 }
 
 export interface AltaSaasIniciada {

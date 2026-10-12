@@ -41,9 +41,9 @@ export class InicioSesionComponent {
     this.enviando.set(true);
     const { correo, clave } = this.formulario.getRawValue();
     this.sesion.iniciar(correo, clave).subscribe({
-      next: () => {
+      next: (usuario) => {
         this.toast.exito('Inicio de sesion exitoso.');
-        this.router.navigateByUrl('/perfil');
+        this.router.navigateByUrl(usuario.roles.includes('SAAS_ADMINISTRADOR') ? '/saas/organizaciones' : '/perfil');
       },
       error: (error) => {
         const mensaje = obtenerMensajeError(error, 'No fue posible iniciar sesion');

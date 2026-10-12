@@ -15,7 +15,3 @@ services:
       SMTP_CONNECTION_TIMEOUT_MS: ${SMTP_CONNECTION_TIMEOUT_MS:-10000}
       SMTP_TIMEOUT_MS: ${SMTP_TIMEOUT_MS:-10000}
       SMTP_WRITE_TIMEOUT_MS: ${SMTP_WRITE_TIMEOUT_MS:-10000}
-
-  mailpit:
-    profiles:
-      - local-mail

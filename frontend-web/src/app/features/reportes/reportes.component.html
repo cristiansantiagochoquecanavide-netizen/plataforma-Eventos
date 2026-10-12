@@ -1,0 +1,733 @@
+<section class="page-heading">
+  <div class="heading-row">
+    <div>
+      <p class="eyebrow">Métricas, Análisis y Exportación</p>
+      <h1>Centro de Reportes y Estadísticas</h1>
+      <p>Generación de informes ejecutivos, descarga en múltiples formatos (Excel, PDF, CSV, HTML) y envíos directos.</p>
+    </div>
+  </div>
+</section>
+
+<!-- TARJETAS KPI RESUMEN -->
+<section class="kpi-grid">
+  <div class="kpi-card">
+    <div class="kpi-icon blue">👥</div>
+    <div class="kpi-info">
+      <span class="kpi-value">{{ totalParticipantes() }}</span>
+      <span class="kpi-label">Participantes Registrados</span>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-icon green">📅</div>
+    <div class="kpi-info">
+      <span class="kpi-value">{{ eventos().length }}</span>
+      <span class="kpi-label">Eventos en Organización</span>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-icon purple">📢</div>
+    <div class="kpi-info">
+      <span class="kpi-value">{{ convocatorias().length }}</span>
+      <span class="kpi-label">Convocatorias de Staff</span>
+    </div>
+  </div>
+</section>
+
+<!-- NAVEGACIÓN POR PESTAÑAS -->
+<nav class="report-tabs">
+  <button
+    type="button"
+    class="tab-btn"
+    [class.active]="pestanaActiva() === 'participantes'"
+    (click)="cambiarPestana('participantes')"
+  >
+    <span class="icon">👥</span>
+    <span>Reporte de Participantes e Inscripciones</span>
+  </button>
+  <button
+    type="button"
+    class="tab-btn"
+    [class.active]="pestanaActiva() === 'eventos'"
+    (click)="cambiarPestana('eventos')"
+  >
+    <span class="icon">📅</span>
+    <span>Resumen de Eventos y Capacidad</span>
+  </button>
+  <button
+    type="button"
+    class="tab-btn"
+    [class.active]="pestanaActiva() === 'convocatorias'"
+    (click)="cambiarPestana('convocatorias')"
+  >
+    <span class="icon">📢</span>
+    <span>Convocatorias y Personal</span>
+  </button>
+  <button
+    type="button"
+    class="tab-btn tab-ia"
+    [class.active]="pestanaActiva() === 'ia'"
+    (click)="cambiarPestana('ia')"
+  >
+    <span class="icon">✨</span>
+    <span>Reporte con Voz & Gemini IA</span>
+  </button>
+</nav>
+
+<!-- PESTAÑA 1: REPORTE CONFIGURABLE DE PARTICIPANTES -->
+@if (pestanaActiva() === 'participantes') {
+  <section class="card config-card" [attr.aria-busy]="procesandoReporte()">
+    <div class="card-header">
+      <div>
+        <h2>Configuración del Reporte de Participantes</h2>
+        <p class="text-muted">Personaliza filtros, columnas, ordenamiento y exporta en el formato que prefieras.</p>
+      </div>
+    </div>
+
+    <!-- Filtros de Datos -->
+    <div class="filters-row">
+      <div class="form-group flex-2">
+        <label for="rep-busqueda">Búsqueda rápida</label>
+        <input
+          id="rep-busqueda"
+          type="text"
+          [ngModel]="busqueda()"
+          (ngModelChange)="busqueda.set($event); vistaPreviaReporte.set(null)"
+          placeholder="Nombre, apellido o correo..."
+        />
+      </div>
+
+      <div class="form-group flex-1">
+        <label for="rep-evento">Evento</label>
+        <select
+          id="rep-evento"
+          [ngModel]="eventoFiltro()"
+          (ngModelChange)="eventoFiltro.set($event); vistaPreviaReporte.set(null)"
+        >
+          <option [ngValue]="null">Todos los eventos</option>
+          @for (evento of eventos(); track evento.id) {
+            <option [ngValue]="evento.id">{{ evento.nombre }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="form-group flex-1">
+        <label for="rep-estado">Estado del participante</label>
+        <select
+          id="rep-estado"
+          [ngModel]="estadoFiltro()"
+          (ngModelChange)="estadoFiltro.set($event); vistaPreviaReporte.set(null)"
+        >
+          <option value="TODOS">Todos</option>
+          <option value="ACTIVO">Activos</option>
+          <option value="INACTIVO">Inactivos</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Selector de Columnas -->
+    <div class="columns-selector-section">
+      <div class="columns-header">
+        <span class="columns-title">Columnas visibles ({{ columnasReporte().length }}/{{ columnasDisponibles.length }})</span>
+        <div class="columns-actions">
+          <button type="button" class="btn-link" (click)="seleccionarTodasColumnas()">Seleccionar todas</button>
+          <span class="divider">·</span>
+          <button type="button" class="btn-link" (click)="restablecerColumnas()">Restablecer</button>
+        </div>
+      </div>
+      <div class="checkbox-grid">
+        @for (col of columnasDisponibles; track col.id) {
+          <label class="custom-checkbox">
+            <input
+              type="checkbox"
+              [checked]="columnasReporte().includes(col.id)"
+              (change)="alternarColumnaReporte(col.id, $any($event.target).checked)"
+            />
+            <span>{{ col.nombre }}</span>
+          </label>
+        }
+      </div>
+    </div>
+
+    <!-- Opciones de Generación y Formato -->
+    <div class="generate-bar">
+      <div class="options-group">
+        <div class="form-group inline">
+          <label>Ordenar por</label>
+          <select [ngModel]="ordenarReporte()" (ngModelChange)="ordenarReporte.set($event); vistaPreviaReporte.set(null)">
+            @for (col of columnasDisponibles; track col.id) {
+              <option [ngValue]="col.id">{{ col.nombre }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="form-group inline">
+          <label>Dirección</label>
+          <select [ngModel]="ascendenteReporte()" (ngModelChange)="ascendenteReporte.set($event); vistaPreviaReporte.set(null)">
+            <option [ngValue]="true">Ascendente (A-Z)</option>
+            <option [ngValue]="false">Descendente (Z-A)</option>
+          </select>
+        </div>
+
+        <div class="form-group inline format-select">
+          <label>Formato</label>
+          <select [ngModel]="formatoReporte()" (ngModelChange)="formatoReporte.set($event)">
+            <option value="XLSX">📊 Excel (.xlsx)</option>
+            <option value="PDF">📑 Documento (.pdf)</option>
+            <option value="CSV">📄 Archivo (.csv)</option>
+            <option value="HTML">🌐 Página (.html)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="actions-group">
+        <button
+          type="button"
+          class="secondary-btn"
+          (click)="cargarVistaPreviaReporte()"
+          [disabled]="procesandoReporte() || !columnasReporte().length"
+        >
+          👁️ Actualizar Vista Previa
+        </button>
+        <button
+          type="button"
+          class="primary-btn"
+          (click)="descargarReporte()"
+          [disabled]="procesandoReporte() || !columnasReporte().length"
+        >
+          📥 {{ procesandoReporte() ? 'Generando...' : 'Descargar ' + formatoReporte() }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Enviar por correo -->
+    <div class="email-section">
+      <div class="email-input-wrap">
+        <span class="email-icon">✉️</span>
+        <input
+          type="email"
+          [ngModel]="correoReporte()"
+          (ngModelChange)="correoReporte.set($event)"
+          placeholder="Enviar copia adjunta a: ejemplo@empresa.com"
+        />
+        <button
+          type="button"
+          class="secondary-btn"
+          (click)="enviarReporte()"
+          [disabled]="procesandoReporte() || !correoReporte().trim() || !columnasReporte().length"
+        >
+          Enviar {{ formatoReporte() }}
+        </button>
+      </div>
+      <small class="text-muted">El archivo se enviará como adjunto al correo indicado a través del servicio de mensajería del sistema.</small>
+    </div>
+  </section>
+
+  <!-- VISTA PREVIA INTERACTIVA -->
+  @if (vistaPreviaReporte(); as preview) {
+    <section class="card preview-card">
+      <div class="preview-header">
+        <div>
+          <h3>Vista Previa del Reporte</h3>
+          <p class="text-muted">Mostrando las primeras {{ preview.filas.slice(0, 15).length }} de {{ preview.totalFilas }} filas totales.</p>
+        </div>
+        @if (preview.limiteAplicado) {
+          <span class="warning-badge">Límite de 5,000 filas alcanzado</span>
+        }
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              @for (col of preview.columnas; track col) {
+                <th>{{ col }}</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (fila of preview.filas.slice(0, 15); track $index) {
+              <tr>
+                @for (valor of fila; track $index) {
+                  <td>{{ valor }}</td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+}
+
+<!-- PESTAÑA 2: RESUMEN DE EVENTOS -->
+@if (pestanaActiva() === 'eventos') {
+  <section class="card">
+    <div class="table-header-row">
+      <div>
+        <h2>Eventos y Ocupación</h2>
+        <p class="text-muted">Consolidado general de los eventos registrados en la organización.</p>
+      </div>
+      <div class="table-actions">
+        <select [ngModel]="filtroEstadoEvento()" (ngModelChange)="filtroEstadoEvento.set($event)">
+          <option value="TODOS">Todos los estados</option>
+          <option value="PLANIFICADO">Planificado</option>
+          <option value="PUBLICADO">Publicado</option>
+          <option value="FINALIZADO">Finalizado</option>
+          <option value="CANCELADO">Cancelado</option>
+        </select>
+        <button type="button" class="secondary-btn" (click)="exportarCsvEventos()">
+          📥 Exportar Eventos CSV
+        </button>
+      </div>
+    </div>
+
+    @if (eventosFiltrados().length === 0) {
+      <div class="empty-state">
+        <p>No hay eventos que coincidan con el filtro.</p>
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Evento</th>
+              <th>Estado</th>
+              <th>Lugar</th>
+              <th>Fecha Inicio</th>
+              <th>Fecha Fin</th>
+              <th>Aforo Máximo</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (evento of eventosFiltrados(); track evento.id) {
+              <tr>
+                <td>#{{ evento.id }}</td>
+                <td><strong>{{ evento.nombre }}</strong></td>
+                <td>
+                  <span class="status-chip">{{ evento.estado }}</span>
+                </td>
+                <td>{{ evento.lugarPrincipal || 'No especificado' }}</td>
+                <td>{{ evento.fechaInicio | date:'short' }}</td>
+                <td>{{ evento.fechaFin | date:'short' }}</td>
+                <td>{{ evento.aforoMaximo ?? 'Ilimitado' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+}
+
+<!-- PESTAÑA 3: CONVOCATORIAS Y STAFF -->
+@if (pestanaActiva() === 'convocatorias') {
+  <section class="card">
+    <div class="table-header-row">
+      <div>
+        <h2>Convocatorias y Personal Staff</h2>
+        <p class="text-muted">Seguimiento de convocatorias para voluntariado y personal de apoyo.</p>
+      </div>
+      <div class="table-actions">
+        <select [ngModel]="filtroEstadoConvocatoria()" (ngModelChange)="filtroEstadoConvocatoria.set($event)">
+          <option value="TODOS">Todos los estados</option>
+          <option value="ABIERTA">Abierta</option>
+          <option value="CERRADA">Cerrada</option>
+          <option value="CANCELADA">Cancelada</option>
+        </select>
+        <button type="button" class="secondary-btn" (click)="exportarCsvConvocatorias()">
+          📥 Exportar Convocatorias CSV
+        </button>
+      </div>
+    </div>
+
+    @if (convocatoriasFiltradas().length === 0) {
+      <div class="empty-state">
+        <p>No hay convocatorias que coincidan con el filtro.</p>
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Evento</th>
+              <th>Tipo Personal</th>
+              <th>Estado</th>
+              <th>Requeridos</th>
+              <th>Fecha Límite</th>
+              <th>Descripción</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (convocatoria of convocatoriasFiltradas(); track convocatoria.id) {
+              <tr>
+                <td>#{{ convocatoria.id }}</td>
+                <td><strong>{{ convocatoria.nombreEvento }}</strong></td>
+                <td>{{ convocatoria.tipoPersonal }}</td>
+                <td>
+                  <span class="status-chip" [class.inactive]="convocatoria.estado !== 'ABIERTA'">
+                    {{ convocatoria.estado }}
+                  </span>
+                </td>
+                <td><strong>{{ convocatoria.cantidadRequerida }}</strong></td>
+                <td>{{ convocatoria.fechaLimite | date:'short' }}</td>
+                <td>{{ convocatoria.descripcion }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+}
+
+<!-- PESTAÑA 4: REPORTE PERSONALIZADO CON VOZ & GEMINI IA -->
+@if (pestanaActiva() === 'ia') {
+  <section class="ia-panel-wrapper">
+    <!-- Barra Inteligente de Voz y Texto -->
+    <div class="ia-input-card">
+      <div class="input-row">
+        <!-- Botón de Micrófono -->
+        <button
+          type="button"
+          class="mic-btn"
+          [class.active]="vozService.escuchando()"
+          (click)="toggleMicrofono()"
+          [title]="vozService.escuchando() ? 'Detener y procesar audio' : 'Presiona para dictar tu consulta'"
+        >
+          <span class="mic-icon" [class.pulse]="vozService.escuchando()">🎤</span>
+          <span class="mic-label">
+            {{ vozService.escuchando() ? 'Escuchando...' : 'Dictar' }}
+          </span>
+        </button>
+
+        <!-- Input de Texto Libre -->
+        <div class="input-wrapper">
+          <input
+            type="text"
+            [(ngModel)]="consultaTextoIa"
+            (keyup.enter)="procesarConsultaIa()"
+            placeholder="Escribe o dicta: 'Muéstrame los eventos del último mes con alta ocupación'..."
+          />
+        </div>
+
+        <!-- Botón Consultar -->
+        <button class="btn-primary" (click)="procesarConsultaIa()" [disabled]="procesandoIa() || !consultaTextoIa.trim()">
+          @if (procesandoIa()) {
+            <span class="spinner"></span> Interpretando...
+          } @else {
+            <span>Consultar IA</span>
+          }
+        </button>
+      </div>
+
+      <!-- Alerta de Micrófono / Reconocimiento de Voz -->
+      @if (vozService.error()) {
+        <div class="ia-error-box" role="alert">
+          <span class="error-badge">⚠️ Micrófono:</span>
+          <span class="error-text">{{ vozService.error() }}</span>
+        </div>
+      }
+
+      <!-- Sugerencias Rápidas -->
+      <div class="sugerencias-row">
+        <span class="sugerencias-tag">Sugerencias:</span>
+        @for (sug of consultasSugeridas; track sug) {
+          <button type="button" class="chip-sug" (click)="seleccionarSugerenciaIa(sug)">
+            {{ sug }}
+          </button>
+        }
+      </div>
+
+      <!-- Feedback de la IA -->
+      @if (interpretacionIa()) {
+        <div class="ia-feedback-box">
+          <div class="feedback-badge">✨ Gemini IA</div>
+          <p class="feedback-text">{{ interpretacionIa()?.mensaje_asistente }}</p>
+        </div>
+      }
+    </div>
+
+    <!-- Filtros Estructurados Rápidos -->
+    <div class="filtros-card">
+      <div class="filtros-grid">
+        <div class="filtro-item">
+          <label>Período de tiempo</label>
+          <select [ngModel]="rangoDiasIa()" (ngModelChange)="rangoDiasIa.set($event); cargarMetricasIa()">
+            <option [ngValue]="null">Histórico completo</option>
+            <option [ngValue]="7">Últimos 7 días</option>
+            <option [ngValue]="30">Últimos 30 días</option>
+            <option [ngValue]="90">Últimos 90 días</option>
+            <option [ngValue]="365">Último año</option>
+          </select>
+        </div>
+
+        <div class="filtro-item">
+          <label>Estado del Evento</label>
+          <select [ngModel]="estadoIa()" (ngModelChange)="estadoIa.set($event); cargarMetricasIa()">
+            <option value="">Todos los estados</option>
+            <option value="PUBLICADO">Publicado</option>
+            <option value="EN_CURSO">En Curso</option>
+            <option value="FINALIZADO">Finalizado</option>
+            <option value="BORRADOR">Borrador</option>
+            <option value="CANCELADO">Cancelado</option>
+          </select>
+        </div>
+
+        <div class="filtro-item">
+          <label>Categoría</label>
+          <input
+            type="text"
+            [ngModel]="categoriaIa()"
+            (ngModelChange)="categoriaIa.set($event)"
+            (keyup.enter)="cargarMetricasIa()"
+            placeholder="Filtrar categoría..."
+          />
+        </div>
+
+        <div class="filtro-acciones">
+          <button class="btn-outline" (click)="cargarMetricasIa()">Aplicar Filtros</button>
+          <button class="btn-text" (click)="limpiarFiltrosIa()">Restablecer</button>
+          <button class="btn-secondary" (click)="exportarReporteIaCsv()" [disabled]="!metricasIa()?.detalleEventos?.length">
+            📥 Exportar CSV
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Insights Ejecutivos de Gemini -->
+    @if (insightsIa()) {
+      <div class="insights-banner">
+        <div class="insights-header">
+          <div class="insights-title">
+            <span class="icon-sparkle">💡</span>
+            <h3>Análisis Estratégico & Recomendaciones (Gemini)</h3>
+          </div>
+        </div>
+        <p class="resumen-text">{{ insightsIa()?.resumen_ejecutivo }}</p>
+
+        <div class="insights-columns">
+          <div class="col-insights">
+            <h4>Puntos Clave</h4>
+            <ul>
+              @for (p of insightsIa()?.puntos_clave; track p) {
+                <li>{{ p }}</li>
+              }
+            </ul>
+          </div>
+          <div class="col-insights">
+            <h4>Recomendaciones</h4>
+            <ul>
+              @for (rec of insightsIa()?.recomendaciones; track rec) {
+                <li>{{ rec }}</li>
+              }
+            </ul>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Visualización y Métricas -->
+    @if (metricasIa(); as m) {
+      <div class="kpi-grid-ia">
+        <div class="kpi-card-ia">
+          <span class="kpi-label-ia">Total Eventos</span>
+          <span class="kpi-val-ia">{{ m.totalEventos }}</span>
+          <span class="kpi-sub-ia">{{ m.eventosPublicados }} publicados · {{ m.eventosFinalizados }} finalizados</span>
+        </div>
+
+        <div class="kpi-card-ia">
+          <span class="kpi-label-ia">Inscripciones</span>
+          <span class="kpi-val-ia highlight">{{ m.totalInscripciones }}</span>
+          <span class="kpi-sub-ia">{{ m.inscripcionesConfirmadas }} confirmadas</span>
+        </div>
+
+        <div class="kpi-card-ia">
+          <span class="kpi-label-ia">Capacidad de Espacios</span>
+          <span class="kpi-val-ia">{{ m.capacidadTotalEspacios }}</span>
+          <span class="kpi-sub-ia">Aforo acumulado</span>
+        </div>
+
+        <div class="kpi-card-ia">
+          <span class="kpi-label-ia">Tasa Ocupación</span>
+          <span class="kpi-val-ia accent">{{ m.tasaOcupacionPromedio }}%</span>
+          <span class="kpi-sub-ia">Eficiencia promedio</span>
+        </div>
+      </div>
+
+      <!-- SECCIÓN DE GRÁFICOS VISUALES PROFESIONALES -->
+      <div class="visual-grid-ia">
+        <!-- Gráfico 1: Columnas de Asistencia por Evento -->
+        <div class="card-ia chart-box">
+          <div class="card-header-ia">
+            <div>
+              <h3>Inscritos por Evento</h3>
+              <span class="chart-subtitle">Volumen de participantes confirmados</span>
+            </div>
+            <span class="chart-tag">Barras</span>
+          </div>
+
+          @if (datosGraficoBarras().length === 0) {
+            <div class="empty-chart">
+              <span>📊</span>
+              <p>No hay eventos disponibles para graficar.</p>
+            </div>
+          } @else {
+            <div class="svg-bar-chart-container">
+              <div class="svg-bars-wrapper">
+                @for (item of datosGraficoBarras(); track item.idEvento) {
+                  <div class="bar-col-item" [title]="item.nombre + ': ' + item.inscritos + ' inscritos (' + item.porcentajeLlenado + '% ocupación)'">
+                    <span class="bar-col-val">{{ item.inscritos }}</span>
+                    <div class="bar-col-track">
+                      <div
+                        class="bar-col-fill"
+                        [style.height.%]="item.alturaPct"
+                        [class.col-high]="item.porcentajeLlenado >= 80"
+                        [class.col-medium]="item.porcentajeLlenado >= 40 && item.porcentajeLlenado < 80"
+                      ></div>
+                    </div>
+                    <span class="bar-col-label" [title]="item.nombre">{{ item.nombre }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Gráfico 2: Donut Chart de Distribución por Categoría -->
+        <div class="card-ia chart-box">
+          <div class="card-header-ia">
+            <div>
+              <h3>Distribución por Categoría</h3>
+              <span class="chart-subtitle">Proporción de oferta temática</span>
+            </div>
+            <span class="chart-tag">Dona</span>
+          </div>
+
+          @if (datosDonutCategorias().length === 0) {
+            <div class="empty-chart">
+              <span>🍩</span>
+              <p>Sin categorías registradas.</p>
+            </div>
+          } @else {
+            <div class="donut-chart-container">
+              <svg viewBox="0 0 200 200" class="donut-svg" role="img" aria-label="Gráfico de distribución por categoría">
+                <circle cx="100" cy="100" r="70" class="donut-bg-ring"></circle>
+                @for (d of datosDonutCategorias(); track d.categoria) {
+                  <circle
+                    cx="100"
+                    cy="100"
+                    r="70"
+                    class="donut-segment"
+                    [attr.stroke]="d.color"
+                    [attr.stroke-dasharray]="d.dasharray"
+                    [attr.stroke-dashoffset]="d.dashoffset"
+                  ></circle>
+                }
+                <!-- Centro de la Dona -->
+                <text x="100" y="94" text-anchor="middle" class="donut-center-num">{{ m.totalEventos }}</text>
+                <text x="100" y="112" text-anchor="middle" class="donut-center-lbl">Eventos</text>
+              </svg>
+
+              <!-- Leyenda Inteligente -->
+              <div class="donut-legend">
+                @for (d of datosDonutCategorias(); track d.categoria) {
+                  <div class="legend-item" [title]="d.cantidad + ' eventos (' + d.porcentaje + '%)'">
+                    <span class="legend-dot" [style.background-color]="d.color"></span>
+                    <span class="legend-text">{{ d.categoria }}</span>
+                    <strong class="legend-pct">{{ d.porcentaje }}%</strong>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Gráfico 3: Curva de Tendencia y Ocupación Acumulada -->
+      <div class="card-ia chart-box tendencia-card">
+        <div class="card-header-ia">
+          <div>
+            <h3>Evolución y Ritmo de Inscripciones</h3>
+            <span class="chart-subtitle">Historial mensual consolidado</span>
+          </div>
+          <span class="chart-tag">Tendencia Temporal</span>
+        </div>
+
+        @if (!datosGraficoTendencia().puntos) {
+          <div class="empty-chart">
+            <span>📈</span>
+            <p>Se consolidarán los datos temporales conforme se registren eventos en distintos meses.</p>
+          </div>
+        } @else {
+          <div class="trend-chart-wrapper">
+            <svg viewBox="0 0 500 160" class="trend-svg" preserveAspectRatio="none">
+              <!-- Rejilla de Fondo -->
+              <line x1="30" y1="30" x2="470" y2="30" class="grid-line" />
+              <line x1="30" y1="80" x2="470" y2="80" class="grid-line" />
+              <line x1="30" y1="130" x2="470" y2="130" class="grid-line" />
+
+              <!-- Polilínea del Gráfico -->
+              <polyline
+                fill="none"
+                stroke="#6366f1"
+                stroke-width="3.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                [attr.points]="datosGraficoTendencia().puntos"
+              />
+
+              <!-- Puntos de datos y etiquetas -->
+              @for (pt of datosGraficoTendencia().marcas; track pt.mes) {
+                <circle [attr.cx]="pt.x" [attr.cy]="pt.y" r="5" class="trend-point"></circle>
+                <text [attr.x]="pt.x" [attr.y]="pt.y - 10" text-anchor="middle" class="trend-val-label">{{ pt.valor }}</text>
+                <text [attr.x]="pt.x" y="152" text-anchor="middle" class="trend-axis-label">{{ pt.mes }}</text>
+              }
+            </svg>
+          </div>
+        }
+      </div>
+
+      <div class="card-ia table-card-ia">
+        <div class="card-header-ia">
+          <h3>Detalle de Eventos y Métricas</h3>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Evento</th>
+                <th>Categoría</th>
+                <th>Fecha Inicio</th>
+                <th>Estado</th>
+                <th>Aforo</th>
+                <th>Inscritos</th>
+                <th>Ocupación</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of m.detalleEventos; track item.idEvento) {
+                <tr>
+                  <td><strong>{{ item.nombre }}</strong></td>
+                  <td>{{ item.categoria }}</td>
+                  <td>{{ item.fechaInicio }}</td>
+                  <td>
+                    <span class="status-chip" [class.inactive]="item.estado !== 'PUBLICADO'">
+                      {{ item.estado }}
+                    </span>
+                  </td>
+                  <td>{{ item.aforoMaximo || 'N/A' }}</td>
+                  <td>{{ item.inscritos }}</td>
+                  <td><strong>{{ item.porcentajeLlenado }}%</strong></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+  </section>
+}
+
+

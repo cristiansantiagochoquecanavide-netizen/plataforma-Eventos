@@ -165,7 +165,7 @@ public class AutenticacionService {
         String correoNormalizado = normalizarCorreo(correo);
         Usuario usuario = usuarioRepository.findByCorreoConRolesYPermisos(correoNormalizado)
                 .orElseThrow(() -> new ExcepcionNoAutorizado("Usuario no encontrado"));
-        return convertirUsuario(usuario, resolverPerfilOrganizacionActiva(correoNormalizado, idOrganizacionActiva));
+        return convertirUsuario(usuario, resolverPerfilOrganizacionActiva(usuario, idOrganizacionActiva));
     }
 
     private SesionRespuesta crearSesion(Usuario usuario) {
@@ -193,11 +193,27 @@ public class AutenticacionService {
         );
     }
 
-    private PerfilOrganizacionActivaRespuesta resolverPerfilOrganizacionActiva(String correo, Long idOrganizacionActiva) {
+    private PerfilOrganizacionActivaRespuesta resolverPerfilOrganizacionActiva(Usuario usuario, Long idOrganizacionActiva) {
         if (idOrganizacionActiva == null) return null;
-        return membresiaOrganizacionRepository.findByUsuarioCorreoAndOrganizacionIdAndActivoTrueConRolesYPermisos(correo, idOrganizacionActiva)
+        return membresiaOrganizacionRepository.findByUsuarioCorreoAndOrganizacionIdAndActivoTrueConRolesYPermisos(usuario.getCorreo(), idOrganizacionActiva)
                 .map(this::convertirPerfilOrganizacionActiva)
-                .orElse(null);
+                .orElseGet(() -> perfilAdministradorSaasEnOrganizacion(usuario, idOrganizacionActiva));
+    }
+
+    private PerfilOrganizacionActivaRespuesta perfilAdministradorSaasEnOrganizacion(Usuario usuario, Long idOrganizacionActiva) {
+        boolean administradorSaas = usuario.getRoles().stream()
+                .anyMatch(rol -> rol.getEstado() == EstadoRol.ACTIVO && ROL_SAAS_ADMINISTRADOR.equals(rol.getNombre()));
+        if (!administradorSaas) return null;
+
+        Rol administradorTenant = rolRepository.findByNombre("ADMINISTRADOR")
+                .filter(rol -> rol.getEstado() == EstadoRol.ACTIVO)
+                .orElseThrow(() -> new IllegalStateException("No existe el rol ADMINISTRADOR activo"));
+        List<String> permisos = administradorTenant.getPermisos().stream()
+                .map(Permiso::getNombre)
+                .distinct()
+                .sorted()
+                .toList();
+        return new PerfilOrganizacionActivaRespuesta(idOrganizacionActiva, List.of("ADMINISTRADOR"), permisos, true);
     }
 
     private PerfilOrganizacionActivaRespuesta convertirPerfilOrganizacionActiva(MembresiaOrganizacion membresia) {

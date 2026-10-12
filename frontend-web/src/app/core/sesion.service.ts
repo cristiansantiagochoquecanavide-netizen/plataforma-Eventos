@@ -65,6 +65,18 @@ export class SesionService {
     return this.usuario()?.roles.includes('SAAS_ADMINISTRADOR') ?? false;
   }
 
+  rolParaCabecera(): string {
+    const usuario = this.usuario();
+    if (!usuario) return 'Sin rol';
+
+    const rolesTenant = usuario.perfilOrganizacionActiva?.roles ?? [];
+    if (usuario.roles.includes('SAAS_ADMINISTRADOR')) {
+      return ['ADMINISTRADOR SAAS', ...rolesTenant].join(' · ');
+    }
+
+    return rolesTenant.length > 0 ? rolesTenant.join(' · ') : usuario.roles.join(' · ') || 'Sin rol';
+  }
+
   tieneAccesoUsuarios() {
     return this.tieneAlgunPermiso([
       'USUARIO_VER',
@@ -132,6 +144,7 @@ export class SesionService {
   puedeCrearPostulacionesStaff() { return this.tienePermiso('POSTULACION_STAFF_CREAR'); }
   puedeGestionarPostulacionesStaff() { return this.tienePermiso('POSTULACION_STAFF_GESTIONAR'); }
   puedeGestionarAsignacionesStaff() { return this.tienePermiso('ASIGNACION_STAFF_GESTIONAR'); }
+  puedeVerAsignacionesStaff() { return this.puedeGestionarAsignacionesStaff() || this.puedeCrearPostulacionesStaff(); }
   puedeVerBitacora() { return this.esAdministrador() || this.tienePermiso('BITACORA_VER'); }
   puedeGestionarMiembros() { return this.usuario()?.perfilOrganizacionActiva?.administrador ?? false; }
   puedeVerParticipantes() { return this.esAdministrador() || this.tieneAlgunPermiso(['PARTICIPANTE_VER', 'USUARIO_VER', 'INSCRIPCION_VER', 'INSCRIPCION_VER_TODAS']); }

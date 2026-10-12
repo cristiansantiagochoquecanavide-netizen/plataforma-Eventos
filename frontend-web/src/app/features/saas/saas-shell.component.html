@@ -1,0 +1,35 @@
+<div class="saas-console">
+  <aside class="saas-rail">
+    <a class="saas-brand" routerLink="/saas/organizaciones" aria-label="Consola Eventos SaaS">eventos<span>.</span></a>
+    <div class="rail-caption">CENTRO DE PLATAFORMA</div>
+    <nav aria-label="Administración SaaS">
+      <a routerLink="/saas/organizaciones" routerLinkActive="active">
+        <span class="nav-icon" aria-hidden="true">▦</span>
+        Organizaciones
+      </a>
+      <a routerLink="/saas/roles" routerLinkActive="active">
+        <span class="nav-icon" aria-hidden="true">◇</span>
+        Roles globales
+      </a>
+    </nav>
+    <div class="rail-foot">
+      <span class="global-mark" aria-hidden="true">S</span>
+      <div><strong>Acceso global</strong><small>Administrador SaaS</small></div>
+    </div>
+    <button class="logout" type="button" (click)="cerrarSesion()">Cerrar sesión</button>
+  </aside>
+
+  <main class="saas-workspace">
+    <header class="saas-topbar">
+      <div>
+        <p class="eyebrow">Consola de plataforma</p>
+        <strong>{{ sesion.usuario()?.nombres }} {{ sesion.usuario()?.apellidos }}</strong>
+      </div>
+      <div class="topbar-actions">
+        <a class="public-link" routerLink="/planes" target="_blank" rel="noopener">Ver página pública <span aria-hidden="true">↗</span></a>
+        <span class="role-chip">{{ sesion.rolParaCabecera() }}</span>
+      </div>
+    </header>
+    <router-outlet />
+  </main>
+</div>

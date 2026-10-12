@@ -1,0 +1,98 @@
+<section class="org-console">
+  <div class="page-intro">
+    <div>
+      <p class="eyebrow">Administración de plataforma</p>
+      <h1>Empresas y organizaciones</h1>
+      <p class="intro-copy">Una vista global de los espacios de trabajo, su acceso y el estado de su suscripción.</p>
+    </div>
+    <div class="portfolio-mark" aria-label="Organizaciones registradas"><span>{{ pagina()?.totalElementos ?? '—' }}</span><small>RED<br />SAAS</small></div>
+  </div>
+
+  @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
+
+  <section class="portfolio-stats" aria-label="Resumen de organizaciones">
+    <article class="stat-card stat-total"><span class="stat-kicker">CARTERA</span><strong>{{ pagina()?.totalElementos ?? '—' }}</strong><span>organizaciones registradas</span></article>
+    <article class="stat-card"><span class="stat-kicker">EN ESTA PÁGINA</span><strong>{{ resumenActivasPagina }}</strong><span>organizaciones activas</span></article>
+    <article class="stat-card stat-attention"><span class="stat-kicker">REVISAR</span><strong>{{ resumenAtencionPagina }}</strong><span>sin suscripción vigente en esta página</span></article>
+  </section>
+
+  <section class="directory-panel" aria-labelledby="directory-title">
+    <div class="directory-heading">
+      <div><p class="eyebrow">Directorio global</p><h2 id="directory-title">Organizaciones</h2></div>
+      <span class="page-total">{{ pagina()?.totalElementos ?? 0 }} registros</span>
+    </div>
+
+    <form class="filters" (ngSubmit)="buscar()">
+      <label class="search-field">
+        <span>Buscar organización</span>
+        <input
+          type="search"
+          [ngModel]="busqueda()"
+          (ngModelChange)="busqueda.set($event)"
+          name="busqueda"
+          placeholder="Nombre o identificador"
+        />
+      </label>
+      <label class="state-filter">
+        <span>Estado</span>
+        <select [ngModel]="estado()" (ngModelChange)="cambiarEstadoFiltro($event)" name="estado">
+          <option value="TODAS">Todos los estados</option>
+          <option value="ACTIVA">Activas</option>
+          <option value="INACTIVA">Inactivas</option>
+        </select>
+      </label>
+      <button class="search-button" type="submit">Buscar <span aria-hidden="true">↗</span></button>
+    </form>
+
+    <div class="table-wrap" [attr.aria-busy]="cargando()">
+      @if (cargando()) { <div class="loading-line" role="status">Actualizando directorio…</div> }
+      <table>
+        <thead><tr><th>Organización</th><th>Miembros</th><th>Plan</th><th>Suscripción</th><th>Estado de acceso</th><th>Acciones</th></tr></thead>
+        <tbody>
+          @for (organizacion of pagina()?.organizaciones ?? []; track trackOrganizacion($index, organizacion)) {
+            <tr>
+              <td>
+                <div class="org-name"><span class="org-monogram">{{ organizacion.nombre.slice(0, 1) }}</span><div><strong>{{ organizacion.nombre }}</strong><small>{{ organizacion.slug }}</small></div></div>
+              </td>
+              <td><span class="member-count">{{ organizacion.miembrosActivos }}</span><small>activos</small></td>
+              <td><span class="plan-name">{{ organizacion.plan ?? 'Sin plan' }}</span><small>{{ organizacion.estadoSuscripcion ?? 'Sin suscripción' }}</small></td>
+              <td>
+                <span class="subscription-pill" [class.good]="organizacion.suscripcionVigente" [class.warning]="!organizacion.suscripcionVigente">
+                  <i aria-hidden="true"></i>{{ organizacion.suscripcionVigente ? 'Vigente' : 'Revisar' }}
+                </span>
+                <small>{{ organizacion.fechaFin ? ('Hasta ' + (organizacion.fechaFin | date:'dd MMM y')) : 'Sin fecha de fin' }}</small>
+              </td>
+              <td><span class="organization-state" [class.inactive]="organizacion.estado !== 'ACTIVA'">{{ organizacion.estado === 'ACTIVA' ? 'ACTIVA' : 'INACTIVA' }}</span></td>
+              <td>
+                <div class="row-actions">
+                  <button class="open-button" type="button" [disabled]="organizacion.estado !== 'ACTIVA'" (click)="abrirOrganizacion(organizacion)">Abrir <span aria-hidden="true">→</span></button>
+                  <button class="state-button" type="button" [disabled]="organizacion.slug === principalSlug" [title]="organizacion.slug === principalSlug ? 'Organización protegida de la plataforma' : ''" (click)="confirmarCambioEstado(organizacion)">{{ organizacion.estado === 'ACTIVA' ? 'Desactivar' : 'Reactivar' }}</button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            @if (!cargando()) { <tr><td colspan="6" class="empty-row">No hay organizaciones que coincidan con estos filtros.</td></tr> }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="directory-footer">
+      <small>Mostrando {{ pagina()?.organizaciones?.length ?? 0 }} de {{ pagina()?.totalElementos ?? 0 }} organizaciones · Página {{ (pagina()?.pagina ?? 0) + 1 }} de {{ totalPaginas || 1 }}</small>
+      <div class="pagination"><button type="button" aria-label="Página anterior" [disabled]="paginaActual() === 0 || cargando()" (click)="cambiarPagina(-1)">←</button><button type="button" aria-label="Página siguiente" [disabled]="paginaActual() + 1 >= totalPaginas || cargando()" (click)="cambiarPagina(1)">→</button></div>
+    </footer>
+  </section>
+
+  <p class="billing-note"><span aria-hidden="true">↗</span> Las suscripciones se consultan aquí; los cambios de cobro y plan los confirma Stripe mediante webhook.</p>
+</section>
+
+@if (organizacionPendiente(); as organizacion) {
+  <div class="dialog-backdrop" role="presentation">
+    <section class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <p class="eyebrow">Acceso de organización</p>
+      <h2 id="confirm-title">{{ organizacion.estado === 'ACTIVA' ? 'Desactivar organización' : 'Reactivar organización' }}</h2>
+      <p><strong>{{ organizacion.nombre }}</strong> {{ organizacion.estado === 'ACTIVA' ? 'dejará de permitir el acceso a su espacio de trabajo. El estado de cobro Stripe no se modifica.' : 'volverá a permitir el acceso cuando su suscripción también esté vigente.' }}</p>
+      <div class="dialog-actions"><button type="button" (click)="cancelarCambioEstado()">Cancelar</button><button class="confirm-button" type="button" [disabled]="actualizandoId() !== null" (click)="guardarCambioEstado()">{{ actualizandoId() === organizacion.id ? 'Guardando…' : organizacion.estado === 'ACTIVA' ? 'Desactivar organización' : 'Reactivar organización' }}</button></div>
+    </section>
+  </div>
+}

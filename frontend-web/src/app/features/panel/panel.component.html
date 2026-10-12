@@ -5,7 +5,7 @@
       <p class="nav-label">Gestion de Usuarios, Seguridad y Auditoria</p>
       <a routerLink="/ayuda" routerLinkActive="active">Ayuda y guías</a>
       @if (sesion.esAdministradorSaas()) {
-        <a routerLink="/saas/suscripciones" routerLinkActive="active">Suscripciones SaaS</a>
+        <a class="saas-return" routerLink="/saas/organizaciones">← Volver a consola SaaS</a>
       }
       <a routerLink="/perfil" routerLinkActive="active" [appUiPrivilegeVisible]="'profile.menu'">Mi perfil</a>
       @if (sesion.tieneAccesoUsuarios()) {
@@ -14,23 +14,27 @@
       @if (sesion.puedeVerParticipantes()) {
         <a routerLink="/participantes" routerLinkActive="active" [appUiPrivilegeVisible]="'participants.menu'">Participantes</a>
       }
-      @if (sesion.tieneAccesoRoles()) {
-        <a routerLink="/roles" routerLinkActive="active" [appUiPrivilegeVisible]="'roles.menu'">Roles y permisos</a>
-      }
       @if (sesion.puedeGestionarMiembros()) {
         <a routerLink="/miembros-organizacion" routerLinkActive="active" [appUiPrivilegeVisible]="'members.menu'">Miembros de organización</a>
       }
-      <a routerLink="/grupos" routerLinkActive="active" [appUiPrivilegeVisible]="'groups.menu'">Grupos</a>
-      <a routerLink="/privilegios-ui" routerLinkActive="active" [appUiPrivilegeVisible]="'ui-privileges.menu'">Privilegios UI</a>
+      @if (sesion.esAdministrador()) {
+        <a routerLink="/grupos" routerLinkActive="active" [appUiPrivilegeVisible]="'groups.menu'">Grupos</a>
+        <a routerLink="/privilegios-ui" routerLinkActive="active" [appUiPrivilegeVisible]="'ui-privileges.menu'">Privilegios UI</a>
+      }
       @if (sesion.puedeVerBitacora()) {
         <a routerLink="/bitacora" routerLinkActive="active" [appUiPrivilegeVisible]="'audit.menu'">Bitácora</a>
       }
 
       <p class="nav-label">Gestion de Eventos, Programacion y Recursos</p>
-      <a routerLink="/consulta-eventos" routerLinkActive="active" [appUiPrivilegeVisible]="'events.search.menu'">Consultar eventos</a>
+      @if (sesion.puedeVerEventos()) {
+        <a routerLink="/consulta-eventos" routerLinkActive="active" [appUiPrivilegeVisible]="'events.search.menu'">Consultar eventos</a>
+      }
       @if (sesion.tieneAccesoEventos()) {
         <a routerLink="/eventos" routerLinkActive="active" [appUiPrivilegeVisible]="'events.menu'">Eventos</a>
         <a routerLink="/categorias" routerLinkActive="active" [appUiPrivilegeVisible]="'categories.menu'">Categorias</a>
+      }
+      @if (sesion.tieneAccesoEventos() || sesion.puedeVerParticipantes() || sesion.esAdministrador()) {
+        <a routerLink="/reportes" routerLinkActive="active">Reportes y estadísticas</a>
       }
       @if (sesion.tieneAccesoRecursos()) {
         <a routerLink="/recursos" routerLinkActive="active" [appUiPrivilegeVisible]="'resources.menu'">Recursos</a>
@@ -46,7 +50,7 @@
         <p class="nav-label">Postulación y asignación</p>
         <a routerLink="/postulaciones" routerLinkActive="active" [appUiPrivilegeVisible]="'staff-applications.menu'">Postulaciones de staff</a>
       }
-      @if (sesion.puedeGestionarAsignacionesStaff() || sesion.usuario()) {
+      @if (sesion.puedeVerAsignacionesStaff()) {
         <a routerLink="/asignaciones" routerLinkActive="active" [appUiPrivilegeVisible]="'staff-assignments.menu'">Asignaciones de staff</a>
       }
     </nav>
@@ -72,7 +76,9 @@
           </select>
         </label>
       }
-      <span class="role-chip">{{ sesion.usuario()?.roles?.join(' · ') }}</span>
+      <span class="role-chip">
+        {{ sesion.rolParaCabecera() }}
+      </span>
     </header>
     <router-outlet />
   </main>

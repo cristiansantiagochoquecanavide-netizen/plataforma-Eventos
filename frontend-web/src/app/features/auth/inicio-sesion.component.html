@@ -46,7 +46,10 @@
             <small class="field-error">{{ mensajeClave() }}</small>
           }
         </label>
-        <a class="auth-link" routerLink="/recuperar-clave">&iquest;Olvidaste tu contrase&ntilde;a?</a>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+          <a class="auth-link" routerLink="/recuperar-clave">&iquest;Olvidaste tu contrase&ntilde;a?</a>
+          <a class="auth-link" routerLink="/planes" style="font-weight: 600;">Ver planes y registro SaaS &rarr;</a>
+        </div>
         @if (error()) {
           <p class="form-error">{{ error() }}</p>
         }

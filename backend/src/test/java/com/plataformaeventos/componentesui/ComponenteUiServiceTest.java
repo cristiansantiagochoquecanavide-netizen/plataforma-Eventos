@@ -145,18 +145,20 @@ class ComponenteUiServiceTest {
     }
 
     @Test
-    void privilegiosEfectivosCombinanGrantsActivosPorUnionAditiva() {
+    void privilegiosEfectivosAplicanLosGrantsDeGrupoComoRestriccionSobrePermisosDeNegocio() {
         when(privilegios.findActivosPorUsuarioYOrganizacion("ana@test.com", 1L)).thenReturn(List.of(
                 grant("events.menu", EstadoPrivilegioUi.VISIBLE),
                 grant("event.submit", EstadoPrivilegioUi.VISIBLE),
                 grant("event.submit", EstadoPrivilegioUi.HABILITADO)
         ));
 
-        var respuesta = servicio.privilegiosEfectivos(org, "ana@test.com", false);
+        var respuesta = servicio.privilegiosEfectivos(org, "ana@test.com", false,
+                Set.of("EVENTO_VER", "EVENTO_CREAR"), Set.of());
 
         assertThat(respuesta.componentes().get("events.menu").estadosPermitidos()).containsExactly(EstadoPrivilegioUi.VISIBLE);
         assertThat(respuesta.componentes().get("event.submit").estadosPermitidos())
                 .containsExactlyInAnyOrder(EstadoPrivilegioUi.VISIBLE, EstadoPrivilegioUi.HABILITADO);
+        assertThat(respuesta.componentes().get("events.list").permitido(EstadoPrivilegioUi.VISIBLE)).isTrue();
     }
 
     @Test
@@ -167,6 +169,92 @@ class ComponenteUiServiceTest {
 
         assertThat(respuesta.componentes().get("events.menu").permitido(EstadoPrivilegioUi.VISIBLE)).isFalse();
         assertThat(respuesta.componentes()).doesNotContainKey("inventado.desde.cliente");
+    }
+
+    @Test
+    void permisosDelRolGeneranVisibilidadBaseSinNecesidadDeGruposUi() {
+        when(privilegios.findActivosPorUsuarioYOrganizacion("participante@test.com", 1L)).thenReturn(List.of());
+
+        var respuesta = servicio.privilegiosEfectivos(org, "participante@test.com", false,
+                Set.of("EVENTO_VER", "INSCRIPCION_CREAR", "INSCRIPCION_VER_PROPIAS", "PERFIL_VER"),
+                Set.of("PARTICIPANTE"));
+
+        assertThat(respuesta.componentes().get("profile.menu").permitido(EstadoPrivilegioUi.VISIBLE)).isTrue();
+        assertThat(respuesta.componentes().get("events.search.menu").permitido(EstadoPrivilegioUi.VISIBLE)).isTrue();
+        assertThat(respuesta.componentes().get("event.registration.create").permitido(EstadoPrivilegioUi.HABILITADO)).isTrue();
+        assertThat(respuesta.componentes().get("inscriptions.list").permitido(EstadoPrivilegioUi.VISIBLE)).isTrue();
+        assertThat(respuesta.componentes().get("users.menu").permitido(EstadoPrivilegioUi.VISIBLE)).isFalse();
+        assertThat(respuesta.componentes().get("roles.menu").permitido(EstadoPrivilegioUi.VISIBLE)).isFalse();
+        assertThat(respuesta.componentes().get("events.create").permitido(EstadoPrivilegioUi.HABILITADO)).isFalse();
+    }
+
+    @Test
+    void rolesGlobalesSaasNoSeInfierenDePermisosTenantConElMismoNombre() {
+        when(privilegios.findActivosPorUsuarioYOrganizacion("tenant-admin@test.com", 1L)).thenReturn(List.of());
+        when(privilegios.findActivosPorUsuarioYOrganizacion("saas-admin@test.com", 1L)).thenReturn(List.of());
+
+        var tenant = servicio.privilegiosEfectivos(org, "tenant-admin@test.com", true,
+                Set.of("ROL_VER", "ROL_CREAR", "PERMISO_ASIGNAR"), Set.of("ADMINISTRADOR"));
+        var saas = servicio.privilegiosEfectivos(org, "saas-admin@test.com", true,
+                Set.of(), Set.of("SAAS_ADMINISTRADOR"));
+
+        assertThat(tenant.componentes().get("roles.menu").permitido(EstadoPrivilegioUi.VISIBLE)).isFalse();
+        assertThat(tenant.componentes().get("roles.create").permitido(EstadoPrivilegioUi.HABILITADO)).isFalse();
+        assertThat(saas.componentes().get("roles.menu").permitido(EstadoPrivilegioUi.VISIBLE)).isTrue();
+        assertThat(saas.componentes().get("roles.create").permitido(EstadoPrivilegioUi.HABILITADO)).isTrue();
+    }
+
+    @Test
+    void menusDeGestionSiguenLasMismasCapacidadesQueLasRutasYNoMezclanAdministracionDeMiembros() {
+        when(privilegios.findActivosPorUsuarioYOrganizacion("organizador@test.com", 1L)).thenReturn(List.of());
+
+        var respuesta = servicio.privilegiosEfectivos(org, "organizador@test.com", false,
+                Set.of("EVENTO_CREAR", "RECURSO_CREAR", "ESPACIO_CREAR", "ORGANIZACION_GESTIONAR"),
+                Set.of("ORGANIZADOR"));
+
+        assertThat(respuesta.componentes().get("events.menu").permitido(EstadoPrivilegioUi.VISIBLE)).isTrue();
+        assertThat(respuesta.componentes().get("categories.menu").permitido(EstadoPrivilegioUi.VISIBLE)).isTrue();
+        assertThat(respuesta.componentes().get("resources.menu").permitido(EstadoPrivilegioUi.VISIBLE)).isTrue();
+        assertThat(respuesta.componentes().get("spaces.menu").permitido(EstadoPrivilegioUi.VISIBLE)).isTrue();
+        assertThat(respuesta.componentes().get("members.menu").permitido(EstadoPrivilegioUi.VISIBLE)).isFalse();
+        assertThat(respuesta.componentes().get("roles.menu").permitido(EstadoPrivilegioUi.VISIBLE)).isFalse();
+    }
+
+    @Test
+    void todosLosComponentesRegistradosTienenUnaPoliticaBaseExplicita() {
+        var registry = new ComponenteUiRegistry();
+
+        assertThat(registry.listar()).allSatisfy(definicion ->
+                assertThat(registry.permisosBase(definicion.clave()))
+                        .as("politica de " + definicion.clave())
+                        .doesNotContain("__SIN_POLITICA__"));
+    }
+
+    @Test
+    void unaConcesionUiNoPuedeAmpliarPermisosDeNegocio() {
+        when(privilegios.findActivosPorUsuarioYOrganizacion("participante@test.com", 1L)).thenReturn(List.of(
+                grant("events.create", EstadoPrivilegioUi.VISIBLE),
+                grant("events.create", EstadoPrivilegioUi.HABILITADO)
+        ));
+
+        var respuesta = servicio.privilegiosEfectivos(org, "participante@test.com", false,
+                Set.of("EVENTO_VER"), Set.of("PARTICIPANTE"));
+
+        assertThat(respuesta.componentes().get("events.create").permitido(EstadoPrivilegioUi.VISIBLE)).isFalse();
+        assertThat(respuesta.componentes().get("events.create").permitido(EstadoPrivilegioUi.HABILITADO)).isFalse();
+    }
+
+    @Test
+    void unaConcesionDeGrupoPuedeDejarUnComponenteEnSoloLectura() {
+        when(privilegios.findActivosPorUsuarioYOrganizacion("gestor@test.com", 1L)).thenReturn(List.of(
+                grant("event.form", EstadoPrivilegioUi.VISIBLE)
+        ));
+
+        var respuesta = servicio.privilegiosEfectivos(org, "gestor@test.com", false,
+                Set.of("EVENTO_EDITAR"), Set.of("ORGANIZADOR"));
+
+        assertThat(respuesta.componentes().get("event.form").permitido(EstadoPrivilegioUi.VISIBLE)).isTrue();
+        assertThat(respuesta.componentes().get("event.form").permitido(EstadoPrivilegioUi.EDITABLE)).isFalse();
     }
 
     @Test

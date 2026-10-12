@@ -1,5 +1,6 @@
 package com.plataformaeventos.componentesui.controlador;
 
+import com.plataformaeventos.autenticacion.servicio.AutenticacionService;
 import com.plataformaeventos.componentesui.dto.DefinicionComponenteUiRespuesta;
 import com.plataformaeventos.componentesui.dto.GuardarPrivilegiosGrupoSolicitud;
 import com.plataformaeventos.componentesui.dto.PrivilegiosEfectivosRespuesta;
@@ -20,16 +21,20 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/componentes-ui")
 public class ComponenteUiController {
     private final ComponenteUiService servicio;
     private final ContextoOrganizacion contexto;
+    private final AutenticacionService autenticacion;
 
-    public ComponenteUiController(ComponenteUiService servicio, ContextoOrganizacion contexto) {
+    public ComponenteUiController(ComponenteUiService servicio, ContextoOrganizacion contexto,
+                                  AutenticacionService autenticacion) {
         this.servicio = servicio;
         this.contexto = contexto;
+        this.autenticacion = autenticacion;
     }
 
     @GetMapping("/catalogo")
@@ -60,7 +65,11 @@ public class ComponenteUiController {
                                                                                   HttpServletRequest request) {
         Organizacion organizacion = organizacionActiva(authentication, request);
         boolean administradorTenant = contexto.esAdministrador(authentication, request);
-        return ResponseEntity.ok(servicio.privilegiosEfectivos(organizacion, authentication.getName(), administradorTenant));
+        var usuario = autenticacion.obtenerUsuarioActual(authentication.getName(), organizacion.getId());
+        var perfil = usuario.perfilOrganizacionActiva();
+        Set<String> permisos = perfil == null ? Set.copyOf(usuario.permisos()) : Set.copyOf(perfil.permisos());
+        return ResponseEntity.ok(servicio.privilegiosEfectivos(organizacion, authentication.getName(),
+                administradorTenant, permisos, Set.copyOf(usuario.roles())));
     }
 
     private Organizacion organizacionActiva(Authentication authentication, HttpServletRequest request) {

@@ -8,33 +8,23 @@ Parameters:
     Type: String
   IaImage:
     Type: String
-  DatabasePassword:
-    Type: String
-    NoEcho: true
-  JwtSecret:
-    Type: String
-    NoEcho: true
+  ProxyAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
   AdminEmail:
     Type: String
-  AdminPassword:
+  ApplicationSecretsArn:
     Type: String
-    NoEcho: true
-  SmtpUser:
-    Type: String
-    NoEcho: true
-  SmtpPassword:
-    Type: String
-    NoEcho: true
+    Description: ARN de Secrets Manager con jwt-secret, admin-password, smtp-user y smtp-password
   SesFrom:
     Type: String
   DeveloperAuditKeySecretArn:
     Type: String
   DeveloperAuditSecretKmsKeyArn:
     Type: String
-  TlsCertificateArn:
-    Type: String
   PublicDomainName:
     Type: String
+    Description: Subdominio DuckDNS usado por Caddy para HTTPS
   EnableLegacyAuditPayloadDecrypt:
     Type: String
     Default: 'false'
@@ -112,10 +102,10 @@ Resources:
       RouteTableId: !Ref PublicRouteTable
       SubnetId: !Ref PublicSubnetB
 
-  LoadBalancerSecurityGroup:
+  ProxySecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Acceso publico al Application Load Balancer
+      GroupDescription: HTTPS ingress for the DuckDNS reverse proxy
       VpcId: !Ref Vpc
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -126,6 +116,20 @@ Resources:
           FromPort: 443
           ToPort: 443
           CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ALB accepts HTTP only from the reverse proxy Elastic IP
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Sub '${ProxyElasticIp}/32'
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
@@ -180,14 +184,14 @@ Resources:
     UpdateReplacePolicy: Snapshot
     Properties:
       AllocatedStorage: 20
-      BackupRetentionPeriod: 7
+      BackupRetentionPeriod: 1
       DBInstanceClass: db.t3.micro
       DBName: eventos
       DBSubnetGroupName: !Ref DatabaseSubnetGroup
       DeletionProtection: true
       Engine: postgres
       MasterUsername: eventos_app
-      MasterUserPassword: !Ref DatabasePassword
+      ManageMasterUserPassword: true
       MultiAZ: false
       PubliclyAccessible: false
       PreferredBackupWindow: '03:00-04:00'
@@ -221,7 +225,10 @@ Resources:
             Statement:
               - Effect: Allow
                 Action: secretsmanager:GetSecretValue
-                Resource: !Ref DeveloperAuditKeySecretArn
+                Resource:
+                  - !Ref DeveloperAuditKeySecretArn
+                  - !Ref ApplicationSecretsArn
+                  - !GetAtt Database.MasterUserSecret.SecretArn
         - PolicyName: decrypt-developer-owned-audit-secret
           PolicyDocument:
             Version: '2012-10-17'
@@ -321,6 +328,54 @@ Resources:
         - !Ref PublicSubnetB
       Type: application
 
+  ProxyElasticIp:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: plataforma-eventos-duckdns-proxy
+
+  ProxyInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref ProxyAmiId
+      InstanceType: t3.micro
+      NetworkInterfaces:
+        - DeviceIndex: '0'
+          SubnetId: !Ref PublicSubnetA
+          AssociatePublicIpAddress: true
+          GroupSet:
+            - !Ref ProxySecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euo pipefail
+          dnf install -y docker bind-utils
+          systemctl enable --now docker
+          DOMAIN='${PublicDomainName}'
+          ALB='${LoadBalancer.DNSName}'
+          PUBLIC_IP='${ProxyElasticIp}'
+          mkdir -p /opt/plataforma-eventos/caddy
+          cat > /opt/plataforma-eventos/caddy/Caddyfile <<EOF
+          ${PublicDomainName} {
+            reverse_proxy http://${LoadBalancer.DNSName}
+          }
+          EOF
+          until getent ahostsv4 "$DOMAIN" | awk '{print $1}' | grep -Fxq "$PUBLIC_IP"; do
+            sleep 30
+          done
+          docker run -d --name caddy --restart unless-stopped \
+            -p 80:80 -p 443:443 -p 443:443/udp \
+            -v /opt/plataforma-eventos/caddy/Caddyfile:/etc/caddy/Caddyfile:ro \
+            -v caddy-data:/data -v caddy-config:/config caddy:2-alpine
+
+  ProxyElasticIpAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt ProxyElasticIp.AllocationId
+      InstanceId: !Ref ProxyInstance
+
   FrontendTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
@@ -358,27 +413,11 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       DefaultActions:
-        - Type: redirect
-          RedirectConfig:
-            Protocol: HTTPS
-            Port: '443'
-            StatusCode: HTTP_301
-      LoadBalancerArn: !Ref LoadBalancer
-      Port: 80
-      Protocol: HTTP
-
-  HttpsListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      Certificates:
-        - CertificateArn: !Ref TlsCertificateArn
-      SslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
-      DefaultActions:
         - Type: forward
           TargetGroupArn: !Ref FrontendTargetGroup
       LoadBalancerArn: !Ref LoadBalancer
-      Port: 443
-      Protocol: HTTPS
+      Port: 80
+      Protocol: HTTP
 
   BackendListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
@@ -390,7 +429,7 @@ Resources:
         - Field: path-pattern
           Values:
             - /api/*
-      ListenerArn: !Ref HttpsListener
+      ListenerArn: !Ref HttpListener
       Priority: 10
 
   IaListenerRule:
@@ -403,8 +442,24 @@ Resources:
         - Field: path-pattern
           Values:
             - /api/salud
-      ListenerArn: !Ref HttpsListener
+      ListenerArn: !Ref HttpListener
       Priority: 5
+
+  WebSocketListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref BackendTargetGroup
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - /ws
+            - /ws/*
+            - /ws-puro
+            - /ws-puro/*
+      ListenerArn: !Ref HttpListener
+      Priority: 8
 
   BackendTaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -431,14 +486,8 @@ Resources:
               Value: eventos
             - Name: POSTGRES_USER
               Value: eventos_app
-            - Name: POSTGRES_PASSWORD
-              Value: !Ref DatabasePassword
-            - Name: JWT_SECRET
-              Value: !Ref JwtSecret
             - Name: ADMIN_CORREO
               Value: !Ref AdminEmail
-            - Name: ADMIN_CLAVE
-              Value: !Ref AdminPassword
             - Name: CORS_ORIGENES
               Value: !Sub https://${PublicDomainName}
             - Name: URL_FRONTEND_WEB
@@ -457,10 +506,6 @@ Resources:
               Value: 'true'
             - Name: SMTP_SSL_ENABLE
               Value: 'false'
-            - Name: SMTP_USER
-              Value: !Ref SmtpUser
-            - Name: SMTP_PASSWORD
-              Value: !Ref SmtpPassword
             - Name: SMTP_FROM
               Value: !Ref SesFrom
             - Name: RECUPERACION_CLAVE_EXPIRACION_MINUTOS
@@ -474,6 +519,16 @@ Resources:
             - Name: AUDIT_KMS_REGION
               Value: !Ref AWS::Region
           Secrets:
+            - Name: POSTGRES_PASSWORD
+              ValueFrom: !Sub '${Database.MasterUserSecret.SecretArn}:password::'
+            - Name: JWT_SECRET
+              ValueFrom: !Sub '${ApplicationSecretsArn}:jwt-secret::'
+            - Name: ADMIN_CLAVE
+              ValueFrom: !Sub '${ApplicationSecretsArn}:admin-password::'
+            - Name: SMTP_USER
+              ValueFrom: !Sub '${ApplicationSecretsArn}:smtp-user::'
+            - Name: SMTP_PASSWORD
+              ValueFrom: !Sub '${ApplicationSecretsArn}:smtp-password::'
             - Name: AUDIT_DEVELOPER_KEY_BASE64
               ValueFrom: !Ref DeveloperAuditKeySecretArn
           LogConfiguration:
@@ -487,9 +542,11 @@ Resources:
     Type: AWS::ECS::Service
     DependsOn:
       - BackendListenerRule
+      - WebSocketListenerRule
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
+      HealthCheckGracePeriodSeconds: 240
       LaunchType: FARGATE
       TaskDefinition: !Ref BackendTaskDefinition
       NetworkConfiguration:
@@ -596,6 +653,9 @@ Resources:
 Outputs:
   ApplicationUrl:
     Value: !Sub https://${PublicDomainName}
+  ProxyElasticIp:
+    Description: Set this IPv4 address in the DuckDNS A record; leave IPv6 empty.
+    Value: !Ref ProxyElasticIp
   ApiUrl:
     Value: !Sub https://${PublicDomainName}/api
   IaHealthUrl:
@@ -604,6 +664,8 @@ Outputs:
     Value: !Ref EcsCluster
   DatabaseEndpoint:
     Value: !GetAtt Database.Endpoint.Address
+  DatabaseCredentialsSecretArn:
+    Value: !GetAtt Database.MasterUserSecret.SecretArn
   AuditPayloadKmsKeyArn:
     Value: !GetAtt AuditPayloadKmsKey.Arn
   AuditIndexKmsKeyArn:

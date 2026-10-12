@@ -124,6 +124,114 @@ public class ComponenteUiRegistry {
         return Optional.ofNullable(definiciones.get(clave));
     }
 
+    public Set<String> permisosBase(String clave) {
+        if ("profile.menu".equals(clave)) return Set.of();
+        if (clave.startsWith("users.")) {
+            return switch (clave) {
+                case "users.menu" -> Set.of("USUARIO_VER", "USUARIO_CREAR", "USUARIO_EDITAR", "USUARIO_CAMBIAR_ESTADO");
+                case "users.create" -> Set.of("USUARIO_CREAR");
+                case "users.edit", "users.save" -> Set.of("USUARIO_CREAR", "USUARIO_EDITAR");
+                case "users.activate", "users.deactivate" -> Set.of("USUARIO_CAMBIAR_ESTADO");
+                default -> Set.of("USUARIO_VER");
+            };
+        }
+        if (clave.startsWith("participants.")) {
+            return switch (clave) {
+                case "participants.menu" -> Set.of("PARTICIPANTE_VER", "PARTICIPANTE_GESTIONAR", "USUARIO_VER", "USUARIO_CAMBIAR_ESTADO", "INSCRIPCION_VER", "INSCRIPCION_VER_TODAS");
+                case "participants.status.toggle" -> Set.of("PARTICIPANTE_GESTIONAR", "USUARIO_CAMBIAR_ESTADO");
+                default -> Set.of("PARTICIPANTE_VER", "USUARIO_VER", "INSCRIPCION_VER_TODAS");
+            };
+        }
+        if (clave.startsWith("roles.")) {
+            return Set.of("SAAS_ADMINISTRADOR");
+        }
+        if (clave.startsWith("members.")) return Set.of("__ADMINISTRADOR_TENANT__");
+        if (clave.startsWith("groups.") || clave.startsWith("ui-privileges.")) return Set.of("__ADMINISTRADOR_TENANT__");
+        if (clave.startsWith("audit.")) return Set.of("BITACORA_VER");
+        if (clave.startsWith("events.")) {
+            return switch (clave) {
+                case "events.create" -> Set.of("EVENTO_CREAR");
+                case "events.edit" -> Set.of("EVENTO_EDITAR");
+                case "events.menu" -> Set.of("EVENTO_VER", "EVENTO_CREAR", "EVENTO_EDITAR", "EVENTO_ASIGNAR_RESPONSABLE");
+                default -> Set.of("EVENTO_VER");
+            };
+        }
+        if (clave.startsWith("event.")) {
+            return switch (clave) {
+                case "event.registration.create" -> Set.of("INSCRIPCION_CREAR");
+                case "event.responsibles.assign" -> Set.of("EVENTO_ASIGNAR_RESPONSABLE");
+                case "event.form", "event.submit", "event.capacity" -> Set.of("EVENTO_CREAR", "EVENTO_EDITAR");
+                default -> Set.of("EVENTO_VER");
+            };
+        }
+        if (clave.startsWith("categories.")) {
+            return switch (clave) {
+                case "categories.menu" -> Set.of("EVENTO_VER", "EVENTO_CREAR", "EVENTO_EDITAR", "EVENTO_ELIMINAR");
+                case "categories.create" -> Set.of("EVENTO_CREAR");
+                case "categories.edit" -> Set.of("EVENTO_EDITAR");
+                case "categories.delete" -> Set.of("EVENTO_ELIMINAR");
+                default -> Set.of("EVENTO_VER");
+            };
+        }
+        if (clave.startsWith("resources.")) {
+            return switch (clave) {
+                case "resources.menu" -> Set.of("RECURSO_VER", "RECURSO_CREAR", "RECURSO_EDITAR", "RECURSO_CAMBIAR_ESTADO");
+                case "resources.create" -> Set.of("RECURSO_CREAR");
+                case "resources.edit" -> Set.of("RECURSO_EDITAR");
+                case "resources.change-state" -> Set.of("RECURSO_CAMBIAR_ESTADO");
+                case "resources.assign" -> Set.of("ASIGNACION_RECURSO_CREAR");
+                default -> Set.of("RECURSO_VER");
+            };
+        }
+        if (clave.startsWith("resource-assignments.")) {
+            return switch (clave) {
+                case "resource-assignments.create" -> Set.of("ASIGNACION_RECURSO_CREAR");
+                case "resource-assignments.release" -> Set.of("ASIGNACION_RECURSO_LIBERAR");
+                default -> Set.of("ASIGNACION_RECURSO_VER", "RECURSO_VER");
+            };
+        }
+        if (clave.startsWith("spaces.")) {
+            return switch (clave) {
+                case "spaces.menu" -> Set.of("ESPACIO_VER", "ESPACIO_CREAR", "ESPACIO_EDITAR", "PROGRAMACION_VERIFICAR");
+                case "spaces.create" -> Set.of("ESPACIO_CREAR");
+                case "spaces.edit" -> Set.of("ESPACIO_EDITAR");
+                default -> Set.of("ESPACIO_VER");
+            };
+        }
+        if (clave.startsWith("convocations.")) {
+            return switch (clave) {
+                case "convocations.create" -> Set.of("CONVOCATORIA_CREAR");
+                case "convocations.close" -> Set.of("CONVOCATORIA_CERRAR");
+                case "convocations.cancel" -> Set.of("CONVOCATORIA_CANCELAR");
+                default -> Set.of("CONVOCATORIA_VER");
+            };
+        }
+        if (clave.startsWith("staff-applications.")) {
+            return switch (clave) {
+                case "staff-applications.create", "staff-applications.form" -> Set.of("POSTULACION_STAFF_CREAR");
+                case "staff-applications.accept", "staff-applications.reject", "staff-applications.manage" -> Set.of("POSTULACION_STAFF_GESTIONAR");
+                default -> Set.of("POSTULACION_STAFF_CREAR", "POSTULACION_STAFF_GESTIONAR");
+            };
+        }
+        if (clave.startsWith("staff-assignments.")) {
+            return switch (clave) {
+                case "staff-assignments.menu" -> Set.of("ASIGNACION_STAFF_GESTIONAR", "POSTULACION_STAFF_CREAR");
+                default -> Set.of("ASIGNACION_STAFF_GESTIONAR");
+            };
+        }
+        if (clave.startsWith("inscriptions.")) {
+            return switch (clave) {
+                case "inscriptions.cancel" -> Set.of("INSCRIPCION_CANCELAR");
+                default -> Set.of("INSCRIPCION_VER_PROPIAS", "INSCRIPCION_VER_TODAS");
+            };
+        }
+        if (clave.startsWith("profile.")) {
+            return "profile.save".equals(clave) || "profile.edit".equals(clave)
+                    ? Set.of("PERFIL_EDITAR") : Set.of("PERFIL_VER");
+        }
+        return Set.of("__SIN_POLITICA__");
+    }
+
     private void registrar(Map<String, DefinicionComponenteUi> destino, String clave, TipoComponenteUi tipo,
                            String descripcion, Set<EstadoPrivilegioUi> estados, boolean recuperacion) {
         destino.put(clave, new DefinicionComponenteUi(clave, tipo, descripcion, Set.copyOf(estados), recuperacion));

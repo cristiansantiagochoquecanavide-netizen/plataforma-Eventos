@@ -5,15 +5,20 @@ import { SesionService } from './sesion.service';
 
 export const autenticacionInterceptor: HttpInterceptorFn = (solicitud, siguiente) => {
   const sesion = inject(SesionService);
+  const ruta = new URL(solicitud.url, globalThis.location?.origin ?? 'http://localhost').pathname;
   const esPublica = [
-    '/autenticacion/registro',
-    '/autenticacion/iniciar-sesion',
-    '/autenticacion/refrescar',
-    '/autenticacion/recuperar-clave',
-    '/autenticacion/solicitar-recuperacion-clave',
-    '/autenticacion/restablecer-clave',
-    '/api/saas/',
-  ].some((ruta) => solicitud.url.includes(ruta));
+    '/api/autenticacion/registro',
+    '/api/autenticacion/iniciar-sesion',
+    '/api/autenticacion/refrescar',
+    '/api/autenticacion/recuperar-clave',
+    '/api/autenticacion/solicitar-recuperacion-clave',
+    '/api/autenticacion/restablecer-clave',
+    '/api/saas/planes',
+    '/api/saas/altas',
+    '/api/saas/altas/verificar-email',
+    '/api/saas/altas/activar',
+    '/api/saas/stripe/webhook',
+  ].includes(ruta);
   const token = sesion.tokenAcceso();
   const headers: Record<string, string> = {};
   if (token && !esPublica) headers['Authorization'] = `Bearer ${token}`;

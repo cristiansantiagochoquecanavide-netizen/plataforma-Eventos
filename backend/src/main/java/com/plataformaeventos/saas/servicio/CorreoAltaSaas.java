@@ -2,25 +2,47 @@ package com.plataformaeventos.saas.servicio;
 
 import com.plataformaeventos.saas.modelo.SolicitudAltaSaas;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
+
+import java.util.List;
 
 @Component
 public class CorreoAltaSaas {
     private final JavaMailSender correoSender;
     private final String urlFrontend;
     private final String correoRemitente;
+    private final String correoRemitenteBrevo;
+    private final String nombreRemitenteBrevo;
+    private final RestClient clienteBrevo;
 
     public CorreoAltaSaas(
             JavaMailSender correoSender,
             @Value("${seguridad.recuperacion.url-frontend-web}") String urlFrontend,
-            @Value("${seguridad.recuperacion.correo-remitente}") String correoRemitente
+            @Value("${seguridad.recuperacion.correo-remitente}") String correoRemitente,
+            @Value("${brevo.api-key:}") String claveApiBrevo,
+            @Value("${brevo.from-email:}") String correoRemitenteBrevo,
+            @Value("${brevo.from-name:Plataforma de eventos}") String nombreRemitenteBrevo,
+            RestClient.Builder restClientBuilder
     ) {
         this.correoSender = correoSender;
         this.urlFrontend = quitarBarraFinal(urlFrontend);
         this.correoRemitente = correoRemitente;
+        this.correoRemitenteBrevo = correoRemitenteBrevo;
+        this.nombreRemitenteBrevo = nombreRemitenteBrevo;
+        this.clienteBrevo = StringUtils.hasText(claveApiBrevo)
+                ? restClientBuilder.clone()
+                        .baseUrl("https://api.brevo.com/v3")
+                        .defaultHeader("api-key", claveApiBrevo)
+                        .build()
+                : null;
     }
 
     public void enviarVerificacion(SolicitudAltaSaas alta, String token) {
@@ -61,6 +83,10 @@ public class CorreoAltaSaas {
     }
 
     private void enviar(String destinatario, String asunto, String texto) {
+        if (clienteBrevo != null) {
+            enviarConBrevo(destinatario, asunto, texto);
+            return;
+        }
         SimpleMailMessage mensaje = new SimpleMailMessage();
         mensaje.setFrom(correoRemitente);
         mensaje.setTo(destinatario);
@@ -68,6 +94,32 @@ public class CorreoAltaSaas {
         mensaje.setText(texto);
         correoSender.send(mensaje);
     }
+
+    private void enviarConBrevo(String destinatario, String asunto, String texto) {
+        if (!StringUtils.hasText(correoRemitenteBrevo)) {
+            throw new IllegalStateException("Configura BREVO_FROM_EMAIL con un remitente verificado en Brevo");
+        }
+        try {
+            clienteBrevo.post()
+                    .uri("/smtp/email")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(new CorreoBrevo(
+                            new RemitenteBrevo(correoRemitenteBrevo, nombreRemitenteBrevo),
+                            List.of(new DestinatarioBrevo(destinatario)), asunto, texto))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException exception) {
+            throw new IllegalStateException(
+                    "Brevo rechazó el correo transaccional (HTTP " + exception.getStatusCode().value() + ")", exception);
+        } catch (RestClientException exception) {
+            throw new IllegalStateException("No se pudo conectar con la API de correo Brevo", exception);
+        }
+    }
+
+    private record CorreoBrevo(RemitenteBrevo sender, List<DestinatarioBrevo> to,
+                               String subject, String textContent) { }
+    private record RemitenteBrevo(String email, String name) { }
+    private record DestinatarioBrevo(String email) { }
 
     private String quitarBarraFinal(String url) {
         String normalizada = url == null ? "" : url.trim();

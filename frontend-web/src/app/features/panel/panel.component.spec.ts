@@ -8,7 +8,12 @@ import { PanelComponent } from './panel.component';
 
 class SesionServiceStub {
   private activeOrganizationId: number | null = 2;
-  readonly usuario = () => ({ nombres: 'Ada', apellidos: 'Lovelace', roles: ['ADMIN'] });
+  readonly usuario = () => ({
+    nombres: 'Ada',
+    apellidos: 'Lovelace',
+    roles: ['SAAS_ADMINISTRADOR'],
+    perfilOrganizacionActiva: { roles: ['ORGANIZADOR'] },
+  });
 
   organizacionActivaId = Object.assign(() => this.activeOrganizationId, {
     set: (id: number | null) => {
@@ -25,11 +30,13 @@ class SesionServiceStub {
 
   esAdministrador = jasmine.createSpy('esAdministrador').and.returnValue(true);
   esAdministradorSaas = jasmine.createSpy('esAdministradorSaas').and.returnValue(false);
+  rolParaCabecera = jasmine.createSpy('rolParaCabecera').and.returnValue('ADMINISTRADOR SAAS · ORGANIZADOR');
   tieneAccesoUsuarios = jasmine.createSpy('tieneAccesoUsuarios').and.returnValue(false);
   puedeVerParticipantes = jasmine.createSpy('puedeVerParticipantes').and.returnValue(false);
   tieneAccesoRoles = jasmine.createSpy('tieneAccesoRoles').and.returnValue(false);
   puedeGestionarMiembros = jasmine.createSpy('puedeGestionarMiembros').and.returnValue(false);
   puedeVerBitacora = jasmine.createSpy('puedeVerBitacora').and.returnValue(false);
+  puedeVerEventos = jasmine.createSpy('puedeVerEventos').and.returnValue(false);
   tieneAccesoEventos = jasmine.createSpy('tieneAccesoEventos').and.returnValue(false);
   tieneAccesoRecursos = jasmine.createSpy('tieneAccesoRecursos').and.returnValue(false);
   tieneAccesoEspacios = jasmine.createSpy('tieneAccesoEspacios').and.returnValue(false);
@@ -37,6 +44,7 @@ class SesionServiceStub {
   puedeCrearPostulacionesStaff = jasmine.createSpy('puedeCrearPostulacionesStaff').and.returnValue(false);
   puedeGestionarPostulacionesStaff = jasmine.createSpy('puedeGestionarPostulacionesStaff').and.returnValue(false);
   puedeGestionarAsignacionesStaff = jasmine.createSpy('puedeGestionarAsignacionesStaff').and.returnValue(false);
+  puedeVerAsignacionesStaff = jasmine.createSpy('puedeVerAsignacionesStaff').and.returnValue(false);
   cerrar = jasmine.createSpy('cerrar');
 }
 
@@ -118,20 +126,77 @@ describe('PanelComponent tenant policy integration', () => {
     expect(events).toEqual(['clear', 'select:1', 'load:1']);
   });
 
-  it('renders the groups navigation link from server UI policy even when the local user is not administrator', () => {
+  it('hides administrator-only links when UI policy grants them to a non-administrator', () => {
     sesion.esAdministrador.and.returnValue(false);
     uiPrivileges.allows.and.callFake((key, state) => key === 'groups.menu' && state === 'VISIBLE');
 
     fixture.detectChanges();
 
     const nativeElement = fixture.nativeElement as HTMLElement;
-    const groupsLink = Array.from(nativeElement.querySelectorAll('a')).find(
-      (link): link is HTMLAnchorElement => link.textContent?.trim() === 'Grupos',
+    const adminLinks = Array.from(nativeElement.querySelectorAll('a')).filter((link) =>
+      ['Grupos', 'Privilegios UI'].includes(link.textContent?.trim() ?? ''),
     );
-    expect(groupsLink).toBeDefined();
-    expect(groupsLink?.hidden).toBeFalse();
-    expect(groupsLink?.getAttribute('routerLink')).toBe('/grupos');
-    expect(sesion.esAdministrador).not.toHaveBeenCalled();
+    expect(adminLinks.length).toBe(0);
+  });
+
+  it('shows administrator-only links only when both role and UI policy allow them', () => {
+    sesion.esAdministrador.and.returnValue(true);
+    uiPrivileges.allows.and.callFake((key, state) =>
+      ['groups.menu', 'ui-privileges.menu'].includes(key) && state === 'VISIBLE',
+    );
+
+    fixture.detectChanges();
+
+    const nativeElement = fixture.nativeElement as HTMLElement;
+    const adminLinks = Array.from(nativeElement.querySelectorAll('a')).filter((link) =>
+      ['Grupos', 'Privilegios UI'].includes(link.textContent?.trim() ?? ''),
+    );
+    expect(adminLinks.length).toBe(2);
+    expect(adminLinks.every((link) => !link.hidden)).toBeTrue();
+  });
+
+  it('keeps global role administration out of the tenant sidebar', () => {
+    sesion.tieneAccesoRoles.and.returnValue(true);
+
+    fixture.detectChanges();
+
+    const roleLink = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('a'))
+      .find((link) => link.textContent?.trim() === 'Roles y permisos globales');
+    expect(roleLink).toBeUndefined();
+  });
+
+  it('offers a return to the SaaS console only while a global admin is managing a tenant', () => {
+    sesion.esAdministradorSaas.and.returnValue(true);
+
+    fixture.detectChanges();
+
+    const link = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('a'))
+      .find((anchor) => anchor.textContent?.includes('Volver a consola SaaS'));
+    expect(link).toBeDefined();
+    expect(link?.getAttribute('href')).toBe('/saas/organizaciones');
+  });
+
+  it('hides staff assignments when the active user has no staff assignment access', () => {
+    fixture.detectChanges();
+
+    const links = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('a'));
+    expect(links.some((link) => link.textContent?.trim() === 'Asignaciones de staff')).toBeFalse();
+    expect(sesion.puedeVerAsignacionesStaff).toHaveBeenCalled();
+  });
+
+  it('hides event search when the active user cannot view events', () => {
+    fixture.detectChanges();
+
+    const links = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('a'));
+    expect(links.some((link) => link.textContent?.trim() === 'Consultar eventos')).toBeFalse();
+  });
+
+  it('keeps the global SaaS role visible alongside the active tenant role in the session header', () => {
+    fixture.detectChanges();
+
+    const role = (fixture.nativeElement as HTMLElement).querySelector('.role-chip');
+    expect(role?.textContent).toContain('ADMINISTRADOR SAAS');
+    expect(role?.textContent).toContain('ORGANIZADOR');
   });
 
   it('keeps deny-by-default policy when tenant selection fails', () => {

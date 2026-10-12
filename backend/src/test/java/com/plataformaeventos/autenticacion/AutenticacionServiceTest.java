@@ -94,15 +94,33 @@ class AutenticacionServiceTest {
     }
 
     @Test
-    void usuarioActualNoInventaPerfilSiNoHayMembresiaActiva() {
+    void saasAdminRecibeCapacidadesAdministrativasEnCualquierOrganizacionSeleccionada() {
         Usuario usuario = usuario("admin@eventos.local", rol("SAAS_ADMINISTRADOR", permiso("ROL_VER")));
+        Rol adminTenant = rol("ADMINISTRADOR", permiso("EVENTO_VER"), permiso("USUARIO_VER"));
         when(usuarios.findByCorreoConRolesYPermisos("admin@eventos.local")).thenReturn(Optional.of(usuario));
         when(membresias.findByUsuarioCorreoAndOrganizacionIdAndActivoTrueConRolesYPermisos("admin@eventos.local", 99L))
                 .thenReturn(Optional.empty());
+        when(roles.findByNombre("ADMINISTRADOR")).thenReturn(Optional.of(adminTenant));
 
         UsuarioActualRespuesta respuesta = servicio.obtenerUsuarioActual("admin@eventos.local", 99L);
 
         assertThat(respuesta.roles()).containsExactly("SAAS_ADMINISTRADOR");
+        assertThat(respuesta.perfilOrganizacionActiva()).isNotNull();
+        assertThat(respuesta.perfilOrganizacionActiva().idOrganizacion()).isEqualTo(99L);
+        assertThat(respuesta.perfilOrganizacionActiva().roles()).containsExactly("ADMINISTRADOR");
+        assertThat(respuesta.perfilOrganizacionActiva().permisos()).containsExactly("EVENTO_VER", "USUARIO_VER");
+        assertThat(respuesta.perfilOrganizacionActiva().administrador()).isTrue();
+    }
+
+    @Test
+    void usuarioSinMembresiaYQueNoEsSaasNoRecibePerfilTenantInventado() {
+        Usuario usuario = usuario("persona@eventos.local", rol("PARTICIPANTE", permiso("PERFIL_VER")));
+        when(usuarios.findByCorreoConRolesYPermisos("persona@eventos.local")).thenReturn(Optional.of(usuario));
+        when(membresias.findByUsuarioCorreoAndOrganizacionIdAndActivoTrueConRolesYPermisos("persona@eventos.local", 99L))
+                .thenReturn(Optional.empty());
+
+        UsuarioActualRespuesta respuesta = servicio.obtenerUsuarioActual("persona@eventos.local", 99L);
+
         assertThat(respuesta.perfilOrganizacionActiva()).isNull();
     }
 

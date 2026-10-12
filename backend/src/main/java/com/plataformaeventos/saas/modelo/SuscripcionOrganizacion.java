@@ -96,15 +96,6 @@ public class SuscripcionOrganizacion {
         this.fechaActualizacion = OffsetDateTime.now();
     }
 
-    public void actualizar(PlanSuscripcion plan, EstadoSuscripcion estado,
-                           OffsetDateTime fechaInicio, OffsetDateTime fechaFin) {
-        this.plan = plan;
-        this.estado = estado;
-        this.fechaInicio = fechaInicio;
-        this.fechaFin = fechaFin;
-        this.fechaActualizacion = OffsetDateTime.now();
-    }
-
     public Long getIdOrganizacion() {
         return idOrganizacion != null ? idOrganizacion : organizacion == null ? null : organizacion.getId();
     }

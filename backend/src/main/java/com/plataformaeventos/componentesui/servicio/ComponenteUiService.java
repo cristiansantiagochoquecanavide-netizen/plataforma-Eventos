@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -70,22 +71,40 @@ public class ComponenteUiService {
 
     @Transactional(readOnly = true)
     public PrivilegiosEfectivosRespuesta privilegiosEfectivos(Organizacion organizacion, String correo, boolean administradorTenant) {
+        return privilegiosEfectivos(organizacion, correo, administradorTenant, Set.of(), Set.of());
+    }
+
+    @Transactional(readOnly = true)
+    public PrivilegiosEfectivosRespuesta privilegiosEfectivos(Organizacion organizacion, String correo,
+                                                               boolean administradorTenant, Set<String> permisos,
+                                                               Set<String> rolesGlobales) {
+        Set<String> autoridades = new HashSet<>(permisos == null ? Set.of() : permisos);
+        autoridades.addAll(rolesGlobales == null ? Set.of() : rolesGlobales);
         Map<String, EnumSet<EstadoPrivilegioUi>> efectivos = new LinkedHashMap<>();
         registry.listar().stream()
                 .sorted(Comparator.comparing(DefinicionComponenteUi::clave))
-                .forEach(definicion -> efectivos.put(definicion.clave(), EnumSet.noneOf(EstadoPrivilegioUi.class)));
+                .forEach(definicion -> {
+                    EnumSet<EstadoPrivilegioUi> estados = EnumSet.noneOf(EstadoPrivilegioUi.class);
+                    Set<String> requeridos = registry.permisosBase(definicion.clave());
+                    boolean perfilAutenticado = "profile.menu".equals(definicion.clave());
+                    boolean accesoBase = perfilAutenticado
+                            || (administradorTenant && definicion.controlRecuperacion())
+                            || (requeridos.contains("__ADMINISTRADOR_TENANT__") && administradorTenant)
+                            || requeridos.stream().anyMatch(autoridades::contains);
+                    if (accesoBase) estados.addAll(definicion.estadosSoportados());
+                    efectivos.put(definicion.clave(), estados);
+                });
 
+        Map<String, EnumSet<EstadoPrivilegioUi>> configurados = new LinkedHashMap<>();
         for (GrupoComponenteUiPrivilegio grant : privilegios.findActivosPorUsuarioYOrganizacion(correo, organizacion.getId())) {
             registry.buscar(grant.getClaveComponente())
                     .filter(definicion -> definicion.estadosSoportados().contains(grant.getEstado()))
-                    .ifPresent(definicion -> efectivos.get(definicion.clave()).add(grant.getEstado()));
+                    .ifPresent(definicion -> configurados
+                            .computeIfAbsent(definicion.clave(), ignorado -> EnumSet.noneOf(EstadoPrivilegioUi.class))
+                            .add(grant.getEstado()));
         }
 
-        if (administradorTenant) {
-            registry.listar().stream()
-                    .filter(DefinicionComponenteUi::controlRecuperacion)
-                    .forEach(definicion -> efectivos.get(definicion.clave()).addAll(definicion.estadosSoportados()));
-        }
+        configurados.forEach((clave, estadosConfigurados) -> efectivos.get(clave).retainAll(estadosConfigurados));
 
         Map<String, EstadoComponenteEfectivoRespuesta> respuesta = new LinkedHashMap<>();
         efectivos.forEach((clave, estados) -> respuesta.put(clave, new EstadoComponenteEfectivoRespuesta(Set.copyOf(estados))));
