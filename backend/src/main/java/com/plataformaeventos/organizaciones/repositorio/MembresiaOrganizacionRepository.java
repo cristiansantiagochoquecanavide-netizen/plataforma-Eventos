@@ -7,6 +7,8 @@ import java.util.Optional;
 public interface MembresiaOrganizacionRepository extends JpaRepository<MembresiaOrganizacion, MembresiaOrganizacion.Clave> {
     boolean existsByUsuarioCorreoAndOrganizacionIdAndActivoTrue(String correo, Long idOrganizacion);
     boolean existsByUsuarioIdAndOrganizacionIdAndActivoTrue(Long usuario, Long organizacion);
+    @org.springframework.data.jpa.repository.Query("select count(m) > 0 from MembresiaOrganizacion m join m.roles r where m.usuario.correo = :correo and m.organizacion.id = :organizacion and m.activo = true and r.estado = com.plataformaeventos.roles.modelo.EstadoRol.ACTIVO and r.nombre = :rol")
+    boolean tieneRolActivo(@org.springframework.data.repository.query.Param("correo") String correo, @org.springframework.data.repository.query.Param("organizacion") Long organizacion, @org.springframework.data.repository.query.Param("rol") String rol);
     List<MembresiaOrganizacion> findByUsuarioCorreoAndActivoTrueOrderByOrganizacionNombre(String correo);
     Optional<MembresiaOrganizacion> findByUsuarioCorreoAndOrganizacionId(String correo, Long idOrganizacion);
     @org.springframework.data.jpa.repository.Query("select distinct m from MembresiaOrganizacion m left join fetch m.roles r left join fetch r.permisos where m.usuario.correo = :correo and m.organizacion.id = :organizacion and m.activo = true")

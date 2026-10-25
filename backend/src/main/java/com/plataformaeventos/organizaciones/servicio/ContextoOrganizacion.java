@@ -44,6 +44,12 @@ public class ContextoOrganizacion {
         try { return auth != null && (esSaas(auth) || membresias.esAdministradorActivo(auth.getName(), resolver(auth, request).getId())); }
         catch (RuntimeException ex) { return false; }
     }
+    public boolean tieneRolActivo(Authentication auth, HttpServletRequest request, String rol) {
+        try {
+            Organizacion organizacion = resolver(auth, request);
+            return auth != null && rol != null && membresias.tieneRolActivo(auth.getName(), organizacion.getId(), rol);
+        } catch (RuntimeException ex) { return false; }
+    }
     public boolean esSaas(Authentication auth) { return auth != null && auth.getAuthorities().stream().map(GrantedAuthority::getAuthority).anyMatch("SAAS_ADMINISTRADOR"::equals); }
     private Long parsear(String value) { try { return Long.valueOf(value); } catch (NumberFormatException e) { throw new ExcepcionNoAutorizado("X-Organization-Id invalido"); } }
 }

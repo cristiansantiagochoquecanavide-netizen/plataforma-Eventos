@@ -799,7 +799,7 @@ class _HomeShellState extends State<HomeShell> {
           ));
         }
         if (privileges.visible('inscriptions.list')) {
-          destinations.add((
+          if (widget.session.puedeConsultarHistorialParticipacion) destinations.add((
             destination: const NavigationDestination(
               icon: Icon(Icons.confirmation_number_outlined),
               selectedIcon: Icon(Icons.confirmation_number_rounded),
@@ -2992,6 +2992,7 @@ class SessionController extends ChangeNotifier {
   bool organizationsLoaded = false;
   int organizationVersion = 0;
   bool get puedeRegistrarAsistencia => user?.permissions.contains('ASISTENCIA_REGISTRAR') ?? false;
+  bool get puedeConsultarHistorialParticipacion => user?.roles.contains('PARTICIPANTE') ?? false;
 
   Future<AttendanceModel> registrarAsistencia(int idInscripcion) => _authorized(
     (tokens, organizationId) => _api.registrarAsistencia(tokens, idInscripcion, organizationId: organizationId),

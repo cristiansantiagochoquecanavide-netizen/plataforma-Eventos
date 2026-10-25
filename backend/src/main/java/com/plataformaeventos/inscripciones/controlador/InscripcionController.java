@@ -63,7 +63,7 @@ public class InscripcionController {
     }
 
     @GetMapping("/mi-historial")
-    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'INSCRIPCION_VER_PROPIAS')")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'INSCRIPCION_VER_PROPIAS') and @contextoOrganizacion.tieneRolActivo(authentication, #request, 'PARTICIPANTE')")
     @Operation(summary = "Consultar historial de participación y eventos asistidos (CU27)")
     @ApiResponse(responseCode = "200", description = "Historial propio de eventos e inscripciones consultado")
     public ResponseEntity<List<HistorialParticipacionRespuesta>> listarMiHistorial(
