@@ -2,3 +2,5 @@ services:
   backend:
     environment:
       DEMO_SEED_ENABLED: "true"
+      # Llave de desarrollo únicamente para cifrar la bitácora local.
+      AUDIT_DEVELOPER_KEY_BASE64: "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE="
