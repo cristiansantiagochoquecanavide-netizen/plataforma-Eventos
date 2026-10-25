@@ -139,6 +139,10 @@ public class DemoDatosInicializador {
                 organizaciones, usuarios, membresias, categorias, espacios, eventos, convocatorias,
                 postulaciones, asignaciones, inscripciones, codificadorClave, administrador, organizador, staff, participante);
 
+        // Datos visibles desde la organizacion principal para probar el CU23 con StaffEventos.
+        sembrarAsistenciasPendientesPrincipal(organizaciones, usuarios, membresias, categorias, espacios,
+                eventos, convocatorias, postulaciones, asignaciones, inscripciones, staff, participante);
+
         sembrarTenantDemo(new TenantDemo(
                         "Centro Cultural Sur Demo",
                         "demo-centro-cultural-sur",
@@ -163,6 +167,113 @@ public class DemoDatosInicializador {
         }
 
         LOGGER.info("Datos demo multi-tenant sincronizados");
+    }
+
+    private void sembrarAsistenciasPendientesPrincipal(
+            OrganizacionRepository organizaciones,
+            UsuarioRepository usuarios,
+            MembresiaOrganizacionRepository membresias,
+            CategoriaRepository categorias,
+            EspacioRepository espacios,
+            EventoRepository eventos,
+            ConvocatoriaRepository convocatorias,
+            PostulacionStaffRepository postulaciones,
+            AsignacionStaffRepository asignaciones,
+            InscripcionRepository inscripciones,
+            Rol rolStaff,
+            Rol rolParticipante
+    ) {
+        organizaciones.findBySlug("principal").ifPresent(organizacion ->
+                usuarios.findByCorreo("staffeventos@gmail.com").ifPresent(usuarioStaff ->
+                        usuarios.findByCorreo("participanteevento@gmail.com").ifPresent(usuarioParticipante -> {
+                            asegurarMembresia(membresias, usuarioStaff, organizacion, Set.of(rolStaff));
+                            asegurarMembresia(membresias, usuarioParticipante, organizacion, Set.of(rolParticipante));
+
+                            Categoria categoria = categorias.findFirstByNombreIgnoreCaseAndOrganizacionId(
+                                            "CU23 Demo", organizacion.getId())
+                                    .orElseGet(() -> categorias.save(new Categoria(
+                                            "CU23 Demo", "Eventos para probar el registro de asistencia", organizacion)));
+                            Espacio espacio = espacios.findFirstByNombreIgnoreCaseAndOrganizacionId(
+                                            "Sala CU23 Demo", organizacion.getId())
+                                    .orElseGet(() -> {
+                                        Espacio nuevo = new Espacio("Sala CU23 Demo", "Edificio principal", 100);
+                                        nuevo.asignarOrganizacion(organizacion);
+                                        return espacios.save(nuevo);
+                                    });
+
+                            for (int indice = 1; indice <= 3; indice++) {
+                                sembrarEventoPendienteAsistencia(
+                                        indice, organizacion, usuarioStaff, usuarioParticipante, categoria, espacio,
+                                        eventos, convocatorias, postulaciones, asignaciones, inscripciones);
+                            }
+                        })));
+    }
+
+    private void sembrarEventoPendienteAsistencia(
+            int indice,
+            Organizacion organizacion,
+            Usuario usuarioStaff,
+            Usuario usuarioParticipante,
+            Categoria categoria,
+            Espacio espacio,
+            EventoRepository eventos,
+            ConvocatoriaRepository convocatorias,
+            PostulacionStaffRepository postulaciones,
+            AsignacionStaffRepository asignaciones,
+            InscripcionRepository inscripciones
+    ) {
+        String nombreEvento = "CU23 Demo - Evento " + indice;
+        OffsetDateTime inicio = OffsetDateTime.now(ZoneOffset.UTC)
+                .plusDays(indice + 1)
+                .withHour(10 + indice)
+                .withMinute(0)
+                .withSecond(0)
+                .withNano(0);
+        OffsetDateTime fin = inicio.plusHours(3);
+        Evento evento = eventos.findFirstByNombreIgnoreCaseAndOrganizacionId(nombreEvento, organizacion.getId())
+                .orElseGet(() -> {
+                    Evento nuevo = new Evento(nombreEvento,
+                            "Evento de prueba para confirmar asistencia desde la Web.",
+                            inicio, fin, espacio.getNombre(), EstadoEvento.PUBLICADO, categoria, espacio, 100);
+                    nuevo.asignarOrganizacion(organizacion);
+                    nuevo.asignarResponsables(Set.of(usuarioStaff));
+                    return eventos.save(nuevo);
+                });
+
+        Convocatoria convocatoria = convocatorias.findFirstByEventoIdAndOrganizacionIdAndTipoPersonal(
+                        evento.getId(), organizacion.getId(), TipoPersonal.STAFF)
+                .orElseGet(() -> {
+                    Convocatoria nueva = new Convocatoria(evento, TipoPersonal.STAFF,
+                            "Staff asignado para controlar el acceso del evento " + indice,
+                            1, LocalDate.now().plusDays(indice));
+                    nueva.asignarOrganizacion(organizacion);
+                    return convocatorias.save(nueva);
+                });
+
+        PostulacionStaff postulacion = postulaciones.findByConvocatoriaIdAndUsuarioIdAndOrganizacionId(
+                        convocatoria.getId(), usuarioStaff.getId(), organizacion.getId())
+                .orElseGet(() -> {
+                    PostulacionStaff nueva = new PostulacionStaff(convocatoria, usuarioStaff, organizacion,
+                            "Asignacion demo para probar CU23");
+                    nueva.aceptar();
+                    return postulaciones.save(nueva);
+                });
+
+        if (!asignaciones.existsByPostulacionIdAndOrganizacionIdAndEstado(
+                postulacion.getId(), organizacion.getId(), EstadoAsignacionStaff.ASIGNADA)) {
+            asignaciones.save(new AsignacionStaff(postulacion, organizacion,
+                    "Control de acceso CU23", inicio.minusHours(1), inicio.plusHours(1),
+                    "Pendiente de registrar asistencia"));
+        }
+
+        inscripciones.findByEventoIdAndParticipanteIdAndOrganizacionId(
+                        evento.getId(), usuarioParticipante.getId(), organizacion.getId())
+                .orElseGet(() -> {
+                    Inscripcion nueva = new Inscripcion(evento, usuarioParticipante,
+                            codigoQr("principal-cu23-" + indice, usuarioParticipante));
+                    nueva.asignarOrganizacion(organizacion);
+                    return inscripciones.save(nueva);
+                });
     }
 
     private void sembrarTenantDemo(
