@@ -5,11 +5,9 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
-
 import 'core/theme/app_theme.dart';
-import 'convocatorias/convocatorias_home.dart';
-import 'convocatorias/models/convocatoria_model.dart';
-import 'convocatorias/models/postulacion_staff_model.dart';
+import 'core/ui_privileges/ui_privilege_service.dart';
+import 'core/ui_privileges/ui_privilege_widgets.dart';
 
 const _apiUrl = String.fromEnvironment(
   'API_URL',
@@ -147,7 +145,7 @@ class _SessionGateState extends State<SessionGate> {
             }
             return widget.session.user == null
                 ? LoginPage(session: widget.session)
-                : ConvocatoriasHome(session: widget.session);
+                : HomeShell(session: widget.session);
           },
         );
       },
@@ -759,6 +757,1661 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
+class HomeShell extends StatefulWidget {
+  const HomeShell({required this.session, super.key});
+
+  final SessionController session;
+
+  @override
+  State<HomeShell> createState() => _HomeShellState();
+}
+
+class _HomeShellState extends State<HomeShell> {
+  int _currentIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.session.organizationsLoaded &&
+        widget.session.organizations.isEmpty) {
+      return OrganizationRequiredPage(session: widget.session);
+    }
+    return AnimatedBuilder(
+      animation: widget.session.uiPrivileges,
+      builder: (context, _) {
+        final privileges = widget.session.uiPrivileges;
+        final destinations = <({NavigationDestination destination, Widget page})>[];
+        if (privileges.visible('events.search.menu')) {
+          destinations.add((
+            destination: const NavigationDestination(
+              icon: Icon(Icons.event_outlined),
+              selectedIcon: Icon(Icons.event_rounded),
+              label: 'Eventos',
+            ),
+            page: EventsPage(
+              session: widget.session,
+              onGoToInscriptions: () {
+                final index = destinations.indexWhere(
+                  (item) => item.page is MyInscriptionsPage,
+                );
+                if (index >= 0) setState(() => _currentIndex = index);
+              },
+            ),
+          ));
+        }
+        if (privileges.visible('inscriptions.list')) {
+          destinations.add((
+            destination: const NavigationDestination(
+              icon: Icon(Icons.confirmation_number_outlined),
+              selectedIcon: Icon(Icons.confirmation_number_rounded),
+              label: 'Inscripciones',
+            ),
+            page: MyInscriptionsPage(session: widget.session),
+          ));
+        }
+        if (privileges.visible('staff-applications.menu') ||
+            privileges.visible('staff-assignments.menu')) {
+          destinations.add((
+            destination: const NavigationDestination(
+              icon: Icon(Icons.assignment_ind_outlined),
+              selectedIcon: Icon(Icons.assignment_ind_rounded),
+              label: 'Staff',
+            ),
+            page: StaffPage(session: widget.session),
+          ));
+        }
+        if (privileges.visible('profile.menu')) {
+          destinations.add((
+            destination: const NavigationDestination(
+              icon: Icon(Icons.person_outline_rounded),
+              selectedIcon: Icon(Icons.person_rounded),
+              label: 'Mi Perfil',
+            ),
+            page: ProfilePage(session: widget.session),
+          ));
+        }
+        destinations.add((
+          destination: const NavigationDestination(
+            icon: Icon(Icons.help_outline_rounded),
+            selectedIcon: Icon(Icons.help_rounded),
+            label: 'Ayuda',
+          ),
+          page: MobileHelpPage(session: widget.session),
+        ));
+
+        final selectedIndex = destinations.isEmpty
+            ? 0
+            : _currentIndex.clamp(0, destinations.length - 1);
+        if (selectedIndex != _currentIndex) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _currentIndex = selectedIndex);
+          });
+        }
+
+        return Scaffold(
+          body: Column(
+            children: [
+              OrganizationSwitcher(session: widget.session),
+              if (privileges.isLoading) const LinearProgressIndicator(minHeight: 2),
+              Expanded(
+                child: destinations.isEmpty
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text(
+                            'No tienes privilegios de interfaz para esta organización.',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      )
+                    : IndexedStack(
+                        index: selectedIndex,
+                        children: destinations.map((item) => item.page).toList(),
+                      ),
+              ),
+            ],
+          ),
+          bottomNavigationBar: destinations.length < 2
+              ? null
+              : NavigationBar(
+                  selectedIndex: selectedIndex,
+                  onDestinationSelected: (index) => setState(() => _currentIndex = index),
+                  destinations: destinations.map((item) => item.destination).toList(),
+                ),
+        );
+      },
+    );
+  }
+}
+
+class MobileHelpPage extends StatelessWidget {
+  const MobileHelpPage({required this.session, super.key});
+
+  final SessionController session;
+
+  @override
+  Widget build(BuildContext context) {
+    const guias = <({String titulo, String descripcion, List<String> pasos})>[
+      (
+        titulo: 'Organización activa',
+        descripcion: 'La organización elegida limita los eventos, inscripciones y permisos que puedes consultar.',
+        pasos: ['Elige la organización desde el selector superior.', 'Si no aparece información, comprueba filtros y membresía activa.'],
+      ),
+      (
+        titulo: 'Eventos e inscripciones',
+        descripcion: 'Busca eventos publicados y revisa el estado de tus inscripciones.',
+        pasos: ['Actualiza la lista si acabas de cambiar de organización.', 'Abre un evento para revisar sus detalles y opciones disponibles.'],
+      ),
+      (
+        titulo: 'Postulaciones de staff',
+        descripcion: 'Envía postulaciones y revisa asignaciones de trabajo desde la sección Staff.',
+        pasos: ['Selecciona una convocatoria abierta.', 'Completa la motivación y envía.', 'Consulta cambios de estado desde la misma sección.'],
+      ),
+      (
+        titulo: 'Perfil y permisos',
+        descripcion: 'La aplicación muestra solo acciones habilitadas para tu grupo en la organización activa.',
+        pasos: ['Si una opción no aparece, solicita acceso al administrador.', 'La ayuda no cambia los permisos de la cuenta.'],
+      ),
+    ];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Ayuda y guías'),
+        actions: [
+          IconButton(
+            onPressed: session.logout,
+            tooltip: 'Cerrar sesión',
+            icon: const Icon(Icons.logout_rounded),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text(
+            'Respuestas rápidas para usar la plataforma',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          const Text('Tus datos y permisos corresponden a la organización seleccionada.'),
+          const SizedBox(height: 12),
+          for (final guia in guias)
+            Card(
+              child: ExpansionTile(
+                leading: const Icon(Icons.info_outline_rounded),
+                title: Text(guia.titulo),
+                subtitle: Text(guia.descripcion),
+                children: [
+                  for (final paso in guia.pasos)
+                    ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.check_circle_outline, size: 18),
+                      title: Text(paso),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class StaffPage extends StatefulWidget {
+  const StaffPage({required this.session, super.key});
+
+  final SessionController session;
+
+  @override
+  State<StaffPage> createState() => _StaffPageState();
+}
+
+class _StaffPageState extends State<StaffPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _convocatoriaId = TextEditingController();
+  final _motivacion = TextEditingController();
+  List<PostulacionStaffModel> _postulaciones = [];
+  List<AsignacionStaffModel> _asignaciones = [];
+  bool _loading = true;
+  bool _sending = false;
+  String? _error;
+  int _organizationVersion = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _organizationVersion = widget.session.organizationVersion;
+    widget.session.addListener(_onOrganizationChanged);
+    _loadStaff();
+  }
+
+  @override
+  void dispose() {
+    widget.session.removeListener(_onOrganizationChanged);
+    _convocatoriaId.dispose();
+    _motivacion.dispose();
+    super.dispose();
+  }
+
+  void _onOrganizationChanged() {
+    if (!mounted ||
+        _organizationVersion == widget.session.organizationVersion) {
+      return;
+    }
+    _organizationVersion = widget.session.organizationVersion;
+    setState(() {
+      _postulaciones = [];
+      _asignaciones = [];
+    });
+    if (widget.session.activeOrganization != null) _loadStaff();
+  }
+
+  Future<void> _loadStaff() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final result = await Future.wait([
+        widget.session.listarMisPostulaciones(),
+        widget.session.listarMisAsignaciones(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _postulaciones = result[0] as List<PostulacionStaffModel>;
+        _asignaciones = result[1] as List<AsignacionStaffModel>;
+        _loading = false;
+      });
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() {
+          _error = error.message;
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _sendApplication() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+    try {
+      await widget.session.crearPostulacionStaff(
+        int.parse(_convocatoriaId.text.trim()),
+        _motivacion.text.trim(),
+      );
+      if (!mounted) return;
+      _motivacion.clear();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Postulacion enviada.')));
+      await _loadStaff();
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'Sin turno definido';
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Staff'),
+        actions: [
+          IconButton(
+            onPressed: _loading ? null : _loadStaff,
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Actualizar staff',
+          ),
+        ],
+      ),
+      body: RefreshIndicator(onRefresh: _loadStaff, child: _buildBody()),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null && _postulaciones.isEmpty && _asignaciones.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            size: 48,
+            color: AppColors.danger,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _error!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppColors.danger),
+          ),
+          const SizedBox(height: 16),
+          FilledButton(onPressed: _loadStaff, child: const Text('Reintentar')),
+        ],
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      children: [
+        if (widget.session.uiPrivileges.visible('staff-applications.menu')) ...[
+          _buildApplicationForm(),
+          const SizedBox(height: 24),
+          _buildApplicationsSection(),
+          const SizedBox(height: 24),
+        ],
+        UiVisible(
+          service: widget.session.uiPrivileges,
+          privilege: 'staff-assignments.menu',
+          child: _buildAssignmentsSection(),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 16),
+          Text(_error!, style: const TextStyle(color: AppColors.danger)),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildApplicationForm() => UiEditableBuilder(
+    service: widget.session.uiPrivileges,
+    privilege: 'staff-applications.form',
+    builder: (context, readOnly) => Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Aplicar a convocatoria',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Ingresa el ID de la convocatoria para enviar tu postulación.',
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _convocatoriaId,
+                readOnly: readOnly,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'ID de convocatoria',
+                ),
+                validator: (value) {
+                  final error = _required(value);
+                  if (error != null) return error;
+                  return int.tryParse(value!.trim()) != null &&
+                          int.parse(value.trim()) > 0
+                      ? null
+                      : 'Ingresa un ID valido';
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _motivacion,
+                readOnly: readOnly,
+                maxLength: 1000,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Motivacion (opcional)',
+                ),
+              ),
+              const SizedBox(height: 8),
+              UiEnabledBuilder(
+                service: widget.session.uiPrivileges,
+                privilege: 'staff-applications.create',
+                businessDisabled: readOnly || _sending,
+                builder: (context, enabled) => SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: enabled ? _sendApplication : null,
+                    icon: _sending
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.send_rounded),
+                    label: Text(_sending ? 'Enviando...' : 'Enviar postulación'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+
+  Widget _buildApplicationsSection() => _section(
+    'Mis postulaciones',
+    _postulaciones.isEmpty
+        ? const Text('Aun no tienes postulaciones.')
+        : Column(
+            children: _postulaciones
+                .map(
+                  (item) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.assignment_outlined),
+                    title: Text('Convocatoria #${item.idConvocatoria}'),
+                    subtitle: Text(
+                      item.motivacion?.isNotEmpty == true
+                          ? item.motivacion!
+                          : 'Sin motivacion',
+                    ),
+                    trailing: _status(item.estado),
+                  ),
+                )
+                .toList(),
+          ),
+  );
+
+  Widget _buildAssignmentsSection() => _section(
+    'Mis asignaciones',
+    _asignaciones.isEmpty
+        ? const Text('Aun no tienes asignaciones.')
+        : Column(
+            children: _asignaciones
+                .map(
+                  (item) => Card(
+                    margin: const EdgeInsets.only(top: 10),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.all(8),
+                      leading: const Icon(Icons.work_outline_rounded),
+                      title: Text(item.tarea),
+                      subtitle: Text(
+                        'Turno: ${_formatDate(item.turnoInicio)} - ${item.turnoFin == null ? 'sin fin' : _formatDate(item.turnoFin)}',
+                      ),
+                      trailing: _status(item.estado),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+  );
+
+  Widget _section(String title, Widget child) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          child,
+        ],
+      ),
+    ),
+  );
+
+  Widget _status(String value) => Chip(label: Text(value));
+}
+
+class OrganizationSwitcher extends StatelessWidget {
+  const OrganizationSwitcher({required this.session, super.key});
+
+  final SessionController session;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: session,
+    builder: (context, _) {
+      if (!session.organizationsLoaded) {
+        return const LinearProgressIndicator(minHeight: 2);
+      }
+      final active = session.activeOrganization;
+      return Material(
+        color: AppColors.canvas,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+          child: Row(
+            children: [
+              const Icon(Icons.business_outlined, size: 20),
+              const SizedBox(width: 8),
+              const Text('Organizacion activa:'),
+              const SizedBox(width: 8),
+              Expanded(
+                child: DropdownButton<int>(
+                  isExpanded: true,
+                  value: active?.id,
+                  underline: const SizedBox.shrink(),
+                  items: session.organizations
+                      .map(
+                        (organization) => DropdownMenuItem<int>(
+                          value: organization.id,
+                          child: Text(organization.name),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (id) {
+                    if (id != null) session.selectOrganization(id);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class OrganizationRequiredPage extends StatelessWidget {
+  const OrganizationRequiredPage({required this.session, super.key});
+
+  final SessionController session;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('Organizacion requerida'),
+      actions: [
+        IconButton(
+          onPressed: session.logout,
+          icon: const Icon(Icons.logout_rounded),
+          tooltip: 'Cerrar sesion',
+        ),
+      ],
+    ),
+    body: const Center(
+      child: Padding(
+        padding: EdgeInsets.all(24),
+        child: Text(
+          'Tu usuario no pertenece a ninguna organizacion activa. Solicita una membresia para continuar.',
+          textAlign: TextAlign.center,
+        ),
+      ),
+    ),
+  );
+}
+
+// Pantalla del CU7: consulta eventos, busca por nombre, filtra por categoria y abre el detalle (CU11).
+class EventsPage extends StatefulWidget {
+  const EventsPage({required this.session, this.onGoToInscriptions, super.key});
+
+  final SessionController session;
+  final VoidCallback? onGoToInscriptions;
+
+  @override
+  State<EventsPage> createState() => _EventsPageState();
+}
+
+class _EventsPageState extends State<EventsPage> {
+  final _search = TextEditingController();
+  List<EventModel> _events = [];
+  List<String> _categories = [];
+  String _category = '';
+  bool _loading = true;
+  bool _searched = false;
+  String? _error;
+  int _organizationVersion = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loading = false;
+    _organizationVersion = widget.session.organizationVersion;
+    widget.session.addListener(_onOrganizationChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.session.removeListener(_onOrganizationChanged);
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _onOrganizationChanged() {
+    if (!mounted ||
+        _organizationVersion == widget.session.organizationVersion) {
+      return;
+    }
+    _organizationVersion = widget.session.organizationVersion;
+    setState(() {
+      _events = [];
+      _categories = [];
+      _searched = false;
+    });
+    if (widget.session.activeOrganization != null) _loadEvents();
+  }
+
+  Future<void> _loadEvents() async {
+    setState(() => _searched = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final events = await widget.session.listEvents(_search.text, _category);
+      if (!mounted) return;
+      setState(() {
+        _events = events;
+        _categories = events.map((event) => event.category).toSet().toList()
+          ..sort();
+        _loading = false;
+      });
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() {
+          _error = error.message;
+          _events = [];
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  void _clearFilters() {
+    _search.clear();
+    setState(() {
+      _category = '';
+      _events = [];
+      _searched = false;
+    });
+  }
+
+  void _showDetail(EventModel event) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => EventDetailModal(
+        event: event,
+        session: widget.session,
+        onInscribed: () {
+          _loadEvents();
+          widget.onGoToInscriptions?.call();
+        },
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) =>
+      '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Eventos disponibles'),
+        actions: [
+          if (widget.session.uiPrivileges.visible('inscriptions.list'))
+            IconButton(
+              onPressed: () {
+                if (widget.onGoToInscriptions != null) {
+                  widget.onGoToInscriptions!();
+                } else {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => MyInscriptionsPage(session: widget.session),
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.confirmation_number_outlined),
+              tooltip: 'Mis inscripciones',
+            ),
+          if (widget.session.uiPrivileges.visible('profile.menu'))
+            IconButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ProfilePage(session: widget.session),
+                ),
+              ),
+              icon: const Icon(Icons.person_outline_rounded),
+              tooltip: 'Mi perfil',
+            ),
+          IconButton(
+            onPressed: () => widget.session.logout(),
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Cerrar sesion',
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadEvents,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
+          children: [
+            const Text(
+              'Consulta y busqueda de eventos',
+              style: TextStyle(color: AppColors.muted),
+            ),
+            const SizedBox(height: 16),
+            UiEditableBuilder(
+              service: widget.session.uiPrivileges,
+              privilege: 'events.filters',
+              builder: (context, readOnly) => Column(
+                children: [
+                  TextField(
+                    controller: _search,
+                    readOnly: readOnly,
+                    onSubmitted: readOnly ? null : (_) => _loadEvents(),
+                    decoration: InputDecoration(
+                      labelText: 'Buscar por titulo o nombre',
+                      prefixIcon: const Icon(Icons.search_rounded),
+                      suffixIcon: IconButton(
+                        onPressed: readOnly ? null : _loadEvents,
+                        icon: const Icon(Icons.arrow_forward_rounded),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: _category.isEmpty ? null : _category,
+                    decoration: const InputDecoration(
+                      labelText: 'Filtrar por categoria',
+                      prefixIcon: Icon(Icons.category_outlined),
+                    ),
+                    items: [
+                      const DropdownMenuItem(
+                        value: '',
+                        child: Text('Todas las categorias'),
+                      ),
+                      ..._categories.map(
+                        (category) => DropdownMenuItem(
+                          value: category,
+                          child: Text(category),
+                        ),
+                      ),
+                    ],
+                    onChanged: readOnly
+                        ? null
+                        : (value) {
+                            setState(() => _category = value ?? '');
+                            _loadEvents();
+                          },
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: readOnly ? null : _clearFilters,
+                      child: const Text('Limpiar filtros'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (_error != null)
+              Text(_error!, style: const TextStyle(color: AppColors.danger)),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.all(30),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            if (!_loading && _searched && _events.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(30),
+                child: Center(
+                  child: Text(
+                    'No se encontraron eventos con los criterios seleccionados.',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            if (widget.session.uiPrivileges.visible('events.list'))
+              ..._events.map(
+              (event) => Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(18),
+                  onTap: () => _showDetail(event),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                event.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 17,
+                                ),
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right_rounded),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          children: [
+                            Chip(label: Text(event.category)),
+                            Text(
+                              _formatDate(event.start),
+                              style: const TextStyle(color: AppColors.muted),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          event.place.isEmpty
+                              ? 'Sin lugar asignado'
+                              : event.place,
+                          style: const TextStyle(color: AppColors.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Modal interactivo de Detalle de Evento con Aforo y Botón de Inscripción (CU11)
+class EventDetailModal extends StatefulWidget {
+  const EventDetailModal({
+    required this.event,
+    required this.session,
+    this.onInscribed,
+    super.key,
+  });
+
+  final EventModel event;
+  final SessionController session;
+  final VoidCallback? onInscribed;
+
+  @override
+  State<EventDetailModal> createState() => _EventDetailModalState();
+}
+
+class _EventDetailModalState extends State<EventDetailModal> {
+  DisponibilidadModel? _disponibilidad;
+  bool _loading = true;
+  bool _inscribiendo = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDisponibilidad();
+  }
+
+  Future<void> _loadDisponibilidad() async {
+    try {
+      final disp = await widget.session.obtenerDisponibilidad(widget.event.id);
+      if (mounted) {
+        setState(() {
+          _disponibilidad = disp;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _inscribir() async {
+    setState(() {
+      _inscribiendo = true;
+      _error = null;
+    });
+    try {
+      final ins = await widget.session.inscribirAEvento(widget.event.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('¡Inscrito con éxito! Código: ${ins.codigoQr}'),
+          backgroundColor: AppColors.forest,
+        ),
+      );
+      await _loadDisponibilidad();
+      widget.onInscribed?.call();
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() => _error = e.message);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: AppColors.danger),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _inscribiendo = false);
+    }
+  }
+
+  String _formatDate(DateTime date) =>
+      '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    final event = widget.event;
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 22,
+        right: 22,
+        top: 4,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 26,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    event.name,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Chip(label: Text(event.category)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            UiVisible(
+              service: widget.session.uiPrivileges,
+              privilege: 'event.summary',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    event.description.isEmpty
+                        ? 'Sin descripción'
+                        : event.description,
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(),
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.calendar_today_rounded),
+                    title: Text(_formatDate(event.start)),
+                    subtitle: const Text('Fecha de inicio'),
+                  ),
+                  if (event.end != null)
+                    ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.event_available_rounded),
+                      title: Text(_formatDate(event.end!)),
+                      subtitle: const Text('Fecha de finalización'),
+                    ),
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.place_outlined),
+                    title: Text(
+                      event.place.isEmpty ? 'Sin lugar asignado' : event.place,
+                    ),
+                    subtitle: const Text('Lugar'),
+                  ),
+                  const Divider(),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            // Sección CU11: Aforo y Control de Cupos
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              )
+            else if (_disponibilidad != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.canvas,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.people_alt_outlined,
+                          color: AppColors.forest,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _disponibilidad!.aforoMaximo != null
+                              ? 'Cupos: ${_disponibilidad!.cuposOcupados} / ${_disponibilidad!.aforoMaximo}'
+                              : 'Ocupados: ${_disponibilidad!.cuposOcupados} (sin límite)',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                    if (_disponibilidad!.cuposDisponibles != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _disponibilidad!.tieneCupo
+                              ? Colors.green.shade100
+                              : Colors.red.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${_disponibilidad!.cuposDisponibles} disp.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: _disponibilidad!.tieneCupo
+                                ? Colors.green.shade900
+                                : Colors.red.shade900,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(
+                      color: AppColors.danger,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 12),
+              if (_disponibilidad!.estaInscrito)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 16,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    border: Border.all(color: Colors.green.shade400),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.check_circle_rounded, color: Colors.green),
+                      SizedBox(width: 8),
+                      Text(
+                        'Ya estás inscrito a este evento',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                UiEnabledBuilder(
+                  service: widget.session.uiPrivileges,
+                  privilege: 'event.registration.create',
+                  businessDisabled: !_disponibilidad!.tieneCupo || _inscribiendo,
+                  builder: (context, enabled) => SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: enabled ? _inscribir : null,
+                      icon: _inscribiendo
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.how_to_reg_rounded),
+                      label: Text(
+                        _inscribiendo
+                            ? 'Inscribiendo...'
+                            : (_disponibilidad!.tieneCupo
+                                  ? 'Inscribirme al evento'
+                                  : 'Cupos agotados'),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Pantalla de Consulta de Estado de Inscripciones (CU12) y Cancelación (CU13)
+class MyInscriptionsPage extends StatefulWidget {
+  const MyInscriptionsPage({required this.session, super.key});
+
+  final SessionController session;
+
+  @override
+  State<MyInscriptionsPage> createState() => _MyInscriptionsPageState();
+}
+
+class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
+  List<InscripcionModel> _inscriptions = [];
+  String _selectedFilter = 'CONFIRMADA';
+  bool _loading = true;
+  String? _error;
+  int _organizationVersion = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _organizationVersion = widget.session.organizationVersion;
+    widget.session.addListener(_onOrganizationChanged);
+    _loadInscriptions();
+  }
+
+  @override
+  void dispose() {
+    widget.session.removeListener(_onOrganizationChanged);
+    super.dispose();
+  }
+
+  void _onOrganizationChanged() {
+    if (!mounted ||
+        _organizationVersion == widget.session.organizationVersion) {
+      return;
+    }
+    _organizationVersion = widget.session.organizationVersion;
+    setState(() => _inscriptions = []);
+    if (widget.session.activeOrganization != null) _loadInscriptions();
+  }
+
+  Future<void> _loadInscriptions() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final list = await widget.session.listarMisInscripciones();
+      if (!mounted) return;
+      setState(() {
+        _inscriptions = list;
+        _loading = false;
+      });
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.message;
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _cancelarInscripcion(InscripcionModel inscripcion) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Cancelar inscripción?'),
+        content: Text(
+          'Se cancelará tu inscripción al evento "${inscripcion.nombreEvento}" y se liberará el cupo para otros participantes.\n\n¿Estás seguro de continuar?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('No, mantener'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sí, cancelar inscripción'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true || !mounted) return;
+
+    try {
+      await widget.session.cancelarInscripcion(inscripcion.idInscripcion);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tu inscripción ha sido cancelada exitosamente.'),
+          backgroundColor: AppColors.forest,
+        ),
+      );
+      await _loadInscriptions();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message), backgroundColor: AppColors.danger),
+      );
+    }
+  }
+
+  String _formatDate(DateTime date) =>
+      '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Mis inscripciones'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Actualizar lista',
+            onPressed: _loadInscriptions,
+          ),
+        ],
+      ),
+      body: RefreshIndicator(onRefresh: _loadInscriptions, child: _buildBody()),
+    );
+  }
+
+  Widget _buildBody() {
+    if (!widget.session.uiPrivileges.visible('inscriptions.list')) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text('No tienes privilegios para ver tus inscripciones.'),
+        ),
+      );
+    }
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          Center(
+            child: Column(
+              children: [
+                const Icon(
+                  Icons.error_outline_rounded,
+                  size: 48,
+                  color: AppColors.danger,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _error!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.danger),
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: _loadInscriptions,
+                  child: const Text('Reintentar'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (_inscriptions.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.all(32),
+        children: [
+          Center(
+            child: Column(
+              children: [
+                const SizedBox(height: 40),
+                Icon(
+                  Icons.confirmation_number_outlined,
+                  size: 64,
+                  color: AppColors.muted.withValues(alpha: 0.5),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Aún no tienes inscripciones',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Explora los eventos disponibles e inscríbete para ver tus confirmaciones y credenciales aquí.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.muted),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    final activasCount = _inscriptions
+        .where((i) => i.estado == 'CONFIRMADA')
+        .length;
+    final canceladasCount = _inscriptions
+        .where((i) => i.estado == 'CANCELADA')
+        .length;
+
+    final filtered = _inscriptions.where((ins) {
+      if (_selectedFilter == 'CONFIRMADA') return ins.estado == 'CONFIRMADA';
+      if (_selectedFilter == 'CANCELADA') return ins.estado == 'CANCELADA';
+      return true;
+    }).toList();
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<String>(
+              showSelectedIcon: false,
+              segments: [
+                ButtonSegment(
+                  value: 'CONFIRMADA',
+                  label: Text('Activas ($activasCount)'),
+                  icon: const Icon(Icons.check_circle_outline, size: 16),
+                ),
+                ButtonSegment(
+                  value: 'CANCELADA',
+                  label: Text('Canceladas ($canceladasCount)'),
+                  icon: const Icon(Icons.cancel_outlined, size: 16),
+                ),
+                ButtonSegment(
+                  value: 'TODAS',
+                  label: Text('Todas (${_inscriptions.length})'),
+                ),
+              ],
+              selected: {_selectedFilter},
+              onSelectionChanged: (set) =>
+                  setState(() => _selectedFilter = set.first),
+            ),
+          ),
+        ),
+        Expanded(
+          child: filtered.isEmpty
+              ? ListView(
+                  padding: const EdgeInsets.all(32),
+                  children: [
+                    Center(
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 30),
+                          Icon(
+                            _selectedFilter == 'CONFIRMADA'
+                                ? Icons.event_available_outlined
+                                : Icons.history_rounded,
+                            size: 48,
+                            color: AppColors.muted.withValues(alpha: 0.5),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            _selectedFilter == 'CONFIRMADA'
+                                ? 'No tienes entradas activas'
+                                : 'No hay inscripciones canceladas',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _selectedFilter == 'CONFIRMADA'
+                                ? 'Inscríbete a un evento en la pestaña "Eventos" para ver tu entrada y QR aquí.'
+                                : 'Cuando canceles una inscripción, quedará registrada en esta sección.',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    final ins = filtered[index];
+                    final isConfirmada = ins.estado == 'CONFIRMADA';
+
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      color: isConfirmada ? null : Colors.grey.shade50,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    ins.nombreEvento,
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w800,
+                                      color: isConfirmada
+                                          ? null
+                                          : Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isConfirmada
+                                        ? Colors.green.shade50
+                                        : Colors.grey.shade200,
+                                    border: Border.all(
+                                      color: isConfirmada
+                                          ? Colors.green.shade400
+                                          : Colors.grey.shade400,
+                                    ),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        isConfirmada
+                                            ? Icons.check_circle_outline
+                                            : Icons.cancel_outlined,
+                                        size: 14,
+                                        color: isConfirmada
+                                            ? Colors.green.shade800
+                                            : Colors.grey.shade700,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        ins.estado,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: isConfirmada
+                                              ? Colors.green.shade800
+                                              : Colors.grey.shade700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 4,
+                              children: [
+                                Chip(label: Text(ins.categoriaEvento)),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.calendar_today_rounded,
+                                      size: 14,
+                                      color: AppColors.muted,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      _formatDate(ins.fechaInicioEvento),
+                                      style: const TextStyle(
+                                        color: AppColors.muted,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.place_outlined,
+                                  size: 16,
+                                  color: AppColors.muted,
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    ins.lugarEvento,
+                                    style: const TextStyle(
+                                      color: AppColors.muted,
+                                      fontSize: 13,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Código QR / Hash (CU12)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isConfirmada
+                                    ? AppColors.canvas
+                                    : Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    isConfirmada
+                                        ? Icons.qr_code_2_rounded
+                                        : Icons.qr_code_scanner_rounded,
+                                    size: 20,
+                                    color: isConfirmada
+                                        ? AppColors.forest
+                                        : Colors.grey.shade600,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      ins.codigoQr,
+                                      style: TextStyle(
+                                        fontFamily: 'monospace',
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                        color: isConfirmada
+                                            ? null
+                                            : Colors.grey.shade600,
+                                        decoration: isConfirmada
+                                            ? null
+                                            : TextDecoration.lineThrough,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (!isConfirmada)
+                                    Text(
+                                      'ANULADO',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.red.shade400,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Inscrito el: ${_formatDate(ins.fechaInscripcion)}',
+                              style: const TextStyle(
+                                color: AppColors.muted,
+                                fontSize: 11,
+                              ),
+                            ),
+                            if (isConfirmada) ...[
+                              const SizedBox(height: 12),
+                              UiEnabledBuilder(
+                                service: widget.session.uiPrivileges,
+                                privilege: 'inscriptions.cancel',
+                                builder: (context, enabled) => Align(
+                                  alignment: Alignment.centerRight,
+                                  child: OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.danger,
+                                      side: const BorderSide(
+                                        color: AppColors.danger,
+                                      ),
+                                    ),
+                                    onPressed: enabled
+                                        ? () => _cancelarInscripcion(ins)
+                                        : null,
+                                    icon: const Icon(
+                                      Icons.cancel_outlined,
+                                      size: 16,
+                                    ),
+                                    label: const Text('Cancelar inscripción'),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+}
+
 class _ProfilePageState extends State<ProfilePage> {
   late final TextEditingController _names;
   late final TextEditingController _lastNames;
@@ -996,47 +2649,61 @@ class _ProfilePageState extends State<ProfilePage> {
               style: TextStyle(color: AppColors.muted),
             ),
             const SizedBox(height: 16),
-            Card(
-              elevation: 0,
-              color: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _names,
-                      decoration: const InputDecoration(
-                        labelText: 'Nombres',
-                        prefixIcon: Icon(Icons.person_outline_rounded),
+            UiEditableBuilder(
+              service: widget.session.uiPrivileges,
+              privilege: 'profile.edit',
+              builder: (context, readOnly) => Card(
+                elevation: 0,
+                color: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: _names,
+                        readOnly: readOnly,
+                        decoration: const InputDecoration(
+                          labelText: 'Nombres',
+                          prefixIcon: Icon(Icons.person_outline_rounded),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _lastNames,
-                      decoration: const InputDecoration(
-                        labelText: 'Apellidos',
-                        prefixIcon: Icon(Icons.badge_outlined),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _lastNames,
+                        readOnly: readOnly,
+                        decoration: const InputDecoration(
+                          labelText: 'Apellidos',
+                          prefixIcon: Icon(Icons.badge_outlined),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _email,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Correo',
-                        prefixIcon: Icon(Icons.alternate_email_rounded),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _email,
+                        readOnly: readOnly,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Correo',
+                          prefixIcon: Icon(Icons.alternate_email_rounded),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 18),
-                    FilledButton.icon(
-                      onPressed: _saving ? null : _save,
-                      icon: const Icon(Icons.save_rounded),
-                      label: Text(_saving ? 'Guardando...' : 'Guardar cambios'),
-                    ),
-                  ],
+                      const SizedBox(height: 18),
+                      UiEnabledBuilder(
+                        service: widget.session.uiPrivileges,
+                        privilege: 'profile.save',
+                        businessDisabled: readOnly || _saving,
+                        builder: (context, enabled) => FilledButton.icon(
+                          onPressed: enabled ? _save : null,
+                          icon: const Icon(Icons.save_rounded),
+                          label: Text(
+                            _saving ? 'Guardando...' : 'Guardar cambios',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1104,6 +2771,28 @@ class UserProfile {
   );
 }
 
+class OrganizationModel {
+  const OrganizationModel({
+    required this.id,
+    required this.name,
+    required this.slug,
+    required this.status,
+  });
+
+  final int id;
+  final String name;
+  final String slug;
+  final String status;
+
+  factory OrganizationModel.fromJson(Map<String, dynamic> json) =>
+      OrganizationModel(
+        id: (json['id'] as num).toInt(),
+        name: json['nombre'] as String? ?? 'Organizacion',
+        slug: json['slug'] as String? ?? '',
+        status: json['estado'] as String? ?? 'ACTIVA',
+      );
+}
+
 class SessionTokens {
   const SessionTokens({required this.accessToken, required this.refreshToken});
   final String accessToken;
@@ -1119,119 +2808,101 @@ class SessionTokens {
 }
 
 class SessionController extends ChangeNotifier {
-  SessionController(this._api);
+  SessionController(this._api, {FlutterSecureStorage? storage})
+    : _storage = storage ?? const FlutterSecureStorage();
 
   final ApiClient _api;
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  final FlutterSecureStorage _storage;
+  final UiPrivilegeService uiPrivileges = UiPrivilegeService();
   UserProfile? user;
   SessionTokens? _tokens;
-  Future<SessionTokens>? _refreshing;
-
-  Future<List<ConvocatoriaModel>> listarConvocatorias() =>
-      _authorized(_api.listarConvocatorias);
-
-  Future<ConvocatoriaModel> obtenerConvocatoria(int id) =>
-      _authorized((tokens) => _api.obtenerConvocatoria(tokens, id));
-
-  Future<PostulacionStaffModel> postularse(int id) =>
-      _authorized((tokens) => _api.postularse(tokens, id));
-
-  Future<PostulacionStaffModel?> consultarPostulacion(int id) =>
-      _authorized((tokens) => _api.consultarPostulacion(tokens, id));
-
-  Future<List<PostulacionStaffModel>> listarMisPostulaciones() =>
-      _authorized(_api.listarMisPostulaciones);
-
-  Future<PostulacionStaffModel> retirarPostulacion(int id) =>
-      _authorized((tokens) => _api.retirarPostulacion(tokens, id));
-
-  Future<T> _authorized<T>(Future<T> Function(SessionTokens) action) async {
-    const expired = ApiException(
-      'Tu sesion vencio. Inicia sesion nuevamente.',
-      401,
-    );
-    final original = _tokens;
-    final originalUser = user;
-    if (original == null) throw expired;
-    try {
-      return await action(original);
-    } on ApiException catch (error) {
-      if (error.status != 401) rethrow;
-      if (!identical(user, originalUser)) throw expired;
-      // Todas las peticiones comparten una renovacion: el backend rota el token.
-      if (identical(_tokens, original)) {
-        final pending = _refreshing ??= _renewSession(original);
-        try {
-          await pending;
-        } finally {
-          if (identical(_refreshing, pending)) _refreshing = null;
-        }
-      }
-      final renewed = _tokens;
-      if (renewed == null) throw expired;
-      // Un rechazo de negocio tras renovar el JWT no invalida la sesion.
-      try {
-        return await action(renewed);
-      } on ApiException catch (retryError) {
-        if (retryError.status == 401 && identical(_tokens, renewed)) {
-          await _clear();
-          notifyListeners();
-          throw expired;
-        }
-        rethrow;
-      }
-    }
-  }
-
-  Future<SessionTokens> _renewSession(SessionTokens original) async {
-    try {
-      final renewed = await _api
-          .refresh(original.refreshToken)
-          .timeout(const Duration(seconds: 20));
-      // No restaurar una sesion que el usuario cerro durante la peticion.
-      if (!identical(_tokens, original)) {
-        throw const ApiException('La sesion ya no esta disponible', 401);
-      }
-      _tokens = renewed;
-      await _persist();
-      return renewed;
-    } on ApiException catch (error) {
-      if ([400, 401, 403].contains(error.status) &&
-          identical(_tokens, original)) {
-        await _clear();
-        notifyListeners();
-        throw const ApiException(
-          'Tu sesion vencio. Inicia sesion nuevamente.',
-          401,
-        );
-      }
-      rethrow;
-    } on TimeoutException {
-      throw const ApiException(
-        'El servidor tarda en responder. Intenta nuevamente.',
-      );
-    } on http.ClientException {
-      throw const ApiException(
-        'No se pudo renovar la sesion. Revisa tu conexion.',
-      );
-    }
-  }
+  List<OrganizationModel> organizations = const [];
+  OrganizationModel? activeOrganization;
+  bool organizationsLoaded = false;
+  int organizationVersion = 0;
 
   Future<void> restore() async {
     final raw = await _storage.read(key: 'sesion');
     if (raw == null) return;
     try {
       _tokens = SessionTokens.fromJson(jsonDecode(raw) as Map<String, dynamic>);
-      user = await _api.currentUser(_tokens!);
+      await _restoreOrganizations();
+      user = await _api.currentUser(
+        _tokens!,
+        organizationId: activeOrganization?.id,
+      );
+      await _loadUiPrivileges();
+      notifyListeners();
     } catch (_) {
       await _clear();
     }
   }
 
   Future<void> login(String email, String password) async {
-    _tokens = await _api.login(email, password);
-    await _persist();
-    user = await _api.currentUser(_tokens!);
+    try {
+      _tokens = await _api.login(email, password);
+      await _persist();
+      await _restoreOrganizations();
+      user = await _api.currentUser(
+        _tokens!,
+        organizationId: activeOrganization?.id,
+      );
+      await _loadUiPrivileges();
+      notifyListeners();
+    } catch (_) {
+      await _clear();
+      rethrow;
+    }
+  }
+
+  Future<void> _restoreOrganizations() async {
+    organizations = await _authorizedOrganizations();
+    organizationsLoaded = true;
+    final saved = int.tryParse(
+      await _storage.read(key: 'organizacion-activa') ?? '',
+    );
+    final matches = organizations.where(
+      (organization) => organization.id == saved,
+    );
+    activeOrganization = matches.isEmpty
+        ? (organizations.isEmpty ? null : organizations.first)
+        : matches.first;
+    if (activeOrganization == null) {
+      await _storage.delete(key: 'organizacion-activa');
+    } else {
+      await _storage.write(
+        key: 'organizacion-activa',
+        value: '${activeOrganization!.id}',
+      );
+    }
+    organizationVersion++;
+  }
+
+  Future<List<OrganizationModel>> _authorizedOrganizations() async {
+    if (_tokens == null) {
+      throw const ApiException('La sesion ya no esta disponible');
+    }
+    try {
+      return await _api.listOrganizations(_tokens!);
+    } on ApiException catch (error) {
+      if (error.status != 401) rethrow;
+      _tokens = await _api.refresh(_tokens!.refreshToken);
+      await _persist();
+      return _api.listOrganizations(_tokens!);
+    }
+  }
+
+  Future<void> selectOrganization(int id) async {
+    final matches = organizations.where(
+      (organization) => organization.id == id,
+    );
+    if (matches.isEmpty || activeOrganization?.id == id) return;
+    uiPrivileges.clear();
+    activeOrganization = matches.first;
+    await _storage.write(key: 'organizacion-activa', value: '$id');
+    organizationVersion++;
+    notifyListeners();
+    await _loadUiPrivileges();
     notifyListeners();
   }
 
@@ -1254,17 +2925,128 @@ class SessionController extends ChangeNotifier {
     String email,
   ) async {
     user = await _authorized(
-      (tokens) => _api.updateProfile(tokens, names, lastNames, email),
+      (tokens, organizationId) => _api.updateProfile(
+        tokens,
+        names,
+        lastNames,
+        email,
+        organizationId: organizationId,
+      ),
     );
     notifyListeners();
   }
 
-  Future<void> changePassword(String current, String next) =>
-      _authorized((tokens) => _api.changePassword(tokens, current, next));
+  Future<void> changePassword(String current, String next) => _authorized(
+    (tokens, organizationId) => _api.changePassword(
+      tokens,
+      current,
+      next,
+      organizationId: organizationId,
+    ),
+  );
+
+  Future<List<EventModel>> listEvents(String term, String category) =>
+      _authorized(
+        (tokens, organizationId) => _api.listEvents(
+          tokens,
+          term,
+          category,
+          organizationId: organizationId,
+        ),
+      );
+
+  Future<InscripcionModel> inscribirAEvento(int idEvento) => _authorized(
+    (tokens, organizationId) =>
+        _api.inscribirAEvento(tokens, idEvento, organizationId: organizationId),
+  );
+
+  Future<List<InscripcionModel>> listarMisInscripciones() => _authorized(
+    (tokens, organizationId) =>
+        _api.listarMisInscripciones(tokens, organizationId: organizationId),
+  );
+
+  Future<InscripcionModel> cancelarInscripcion(int idInscripcion) =>
+      _authorized(
+        (tokens, organizationId) => _api.cancelarInscripcion(
+          tokens,
+          idInscripcion,
+          organizationId: organizationId,
+        ),
+      );
+
+  Future<DisponibilidadModel> obtenerDisponibilidad(int idEvento) =>
+      _authorized(
+        (tokens, organizationId) => _api.obtenerDisponibilidad(
+          tokens,
+          idEvento,
+          organizationId: organizationId,
+        ),
+      );
+
+  Future<List<PostulacionStaffModel>> listarMisPostulaciones() => _authorized(
+    (tokens, organizationId) =>
+        _api.listarMisPostulaciones(tokens, organizationId: organizationId),
+  );
+
+  Future<PostulacionStaffModel> crearPostulacionStaff(
+    int idConvocatoria,
+    String motivacion,
+  ) => _authorized(
+    (tokens, organizationId) => _api.crearPostulacionStaff(
+      tokens,
+      idConvocatoria,
+      motivacion,
+      organizationId: organizationId,
+    ),
+  );
+
+  Future<List<AsignacionStaffModel>> listarMisAsignaciones() => _authorized(
+    (tokens, organizationId) =>
+        _api.listarMisAsignaciones(tokens, organizationId: organizationId),
+  );
+
+  Future<T> _authorized<T>(
+    Future<T> Function(SessionTokens, int) action,
+  ) async {
+    if (_tokens == null) {
+      throw const ApiException('La sesion ya no esta disponible');
+    }
+    if (activeOrganization == null) {
+      throw const ApiException('Selecciona una organizacion para continuar');
+    }
+    try {
+      return await action(_tokens!, activeOrganization!.id);
+    } on ApiException catch (error) {
+      if (error.status != 401) rethrow;
+      try {
+        _tokens = await _api.refresh(_tokens!.refreshToken);
+        await _persist();
+        return await action(_tokens!, activeOrganization!.id);
+      } catch (_) {
+        await _clear();
+        rethrow;
+      }
+    }
+  }
 
   Future<void> logout() async {
     await _clear();
     notifyListeners();
+  }
+
+  Future<void> _loadUiPrivileges() async {
+    if (_tokens == null || activeOrganization == null) {
+      uiPrivileges.clear();
+      return;
+    }
+    await uiPrivileges.load(
+      () => _authorized(
+        (tokens, organizationId) => _api.uiPrivileges(
+          tokens,
+          organizationId: organizationId,
+        ),
+      ),
+    );
   }
 
   Future<void> _persist() =>
@@ -1272,110 +3054,19 @@ class SessionController extends ChangeNotifier {
   Future<void> _clear() async {
     _tokens = null;
     user = null;
+    organizations = const [];
+    activeOrganization = null;
+    organizationsLoaded = false;
+    uiPrivileges.clear();
+    organizationVersion++;
     await _storage.delete(key: 'sesion');
+    await _storage.delete(key: 'organizacion-activa');
   }
 }
 
 class ApiClient {
   ApiClient(this.baseUrl);
   final String baseUrl;
-
-  Future<List<ConvocatoriaModel>> listarConvocatorias(
-    SessionTokens tokens,
-  ) async {
-    final data = await _convocatoriasData(
-      _get('/convocatorias?estado=ABIERTA', tokens),
-    );
-    return (data as List)
-        .map((item) => ConvocatoriaModel.fromJson(item as Map<String, dynamic>))
-        .toList();
-  }
-
-  Future<ConvocatoriaModel> obtenerConvocatoria(
-    SessionTokens tokens,
-    int id,
-  ) async => ConvocatoriaModel.fromJson(
-    await _convocatoriasData(_get('/convocatorias/$id', tokens))
-        as Map<String, dynamic>,
-  );
-
-  Future<PostulacionStaffModel> postularse(
-    SessionTokens tokens,
-    int id,
-  ) async => PostulacionStaffModel.fromJson(
-    await _convocatoriasData(
-          _send('POST', '/convocatorias/$id/postulaciones', tokens, {}),
-        )
-        as Map<String, dynamic>,
-  );
-
-  Future<PostulacionStaffModel?> consultarPostulacion(
-    SessionTokens tokens,
-    int id,
-  ) async {
-    final data = await _convocatoriasData(
-      _get('/convocatorias/$id/postulacion', tokens),
-    );
-    return data == null
-        ? null
-        : PostulacionStaffModel.fromJson(data as Map<String, dynamic>);
-  }
-
-  Future<List<PostulacionStaffModel>> listarMisPostulaciones(
-    SessionTokens tokens,
-  ) async {
-    final data = await _convocatoriasData(_get('/postulaciones/mias', tokens));
-    return (data as List)
-        .map(
-          (item) =>
-              PostulacionStaffModel.fromJson(item as Map<String, dynamic>),
-        )
-        .toList();
-  }
-
-  Future<PostulacionStaffModel> retirarPostulacion(
-    SessionTokens tokens,
-    int id,
-  ) async => PostulacionStaffModel.fromJson(
-    await _convocatoriasData(
-          _send('PATCH', '/postulaciones/$id/retirar', tokens, {}),
-        )
-        as Map<String, dynamic>,
-  );
-
-  // Estas rutas devuelven objetos, listas o 204; _data conserva su contrato actual.
-  Future<dynamic> _convocatoriasData(Future<http.Response> request) async {
-    try {
-      final response = await request.timeout(const Duration(seconds: 20));
-      dynamic data;
-      try {
-        data = response.body.isEmpty
-            ? null
-            : jsonDecode(utf8.decode(response.bodyBytes));
-      } on FormatException {
-        if (response.statusCode >= 200 && response.statusCode < 300) {
-          throw const ApiException('La respuesta del servidor no es valida.');
-        }
-      }
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw ApiException(
-          data is Map && data['message'] is String
-              ? data['message'] as String
-              : 'La solicitud no pudo completarse',
-          response.statusCode,
-        );
-      }
-      return data;
-    } on TimeoutException {
-      throw const ApiException(
-        'El servidor tarda en responder. Intenta nuevamente.',
-      );
-    } on http.ClientException {
-      throw const ApiException(
-        'No se pudo conectar. Revisa tu conexion e intenta nuevamente.',
-      );
-    }
-  }
 
   Future<SessionTokens> login(String email, String password) async {
     final response = await http.post(
@@ -1428,49 +3119,230 @@ class ApiClient {
     );
   }
 
-  Future<UserProfile> currentUser(SessionTokens tokens) async =>
-      UserProfile.fromJson(
-        _data(await _get('/autenticacion/usuario-actual', tokens)),
-      );
+  Future<UserProfile> currentUser(
+    SessionTokens tokens, {
+    int? organizationId,
+  }) async => UserProfile.fromJson(
+    _data(
+      await _get(
+        '/autenticacion/usuario-actual',
+        tokens,
+        organizationId: organizationId,
+      ),
+    ),
+  );
+
+  Future<List<OrganizationModel>> listOrganizations(
+    SessionTokens tokens,
+  ) async {
+    final data = _data(await _get('/organizaciones/mias', tokens));
+    return (data as List<dynamic>)
+        .map((item) => OrganizationModel.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> uiPrivileges(
+    SessionTokens tokens, {
+    required int organizationId,
+  }) async => _data(
+    await _get(
+      '/componentes-ui/actual/privilegios',
+      tokens,
+      organizationId: organizationId,
+    ),
+  ) as Map<String, dynamic>;
+
   Future<UserProfile> updateProfile(
     SessionTokens tokens,
     String names,
     String lastNames,
-    String email,
-  ) async => UserProfile.fromJson(
+    String email, {
+    int? organizationId,
+  }) async => UserProfile.fromJson(
     _data(
-      await _send('PUT', '/perfil', tokens, {
-        'nombres': names,
-        'apellidos': lastNames,
-        'correo': email,
-      }),
+      await _send(
+        'PUT',
+        '/perfil',
+        tokens,
+        body: {'nombres': names, 'apellidos': lastNames, 'correo': email},
+        organizationId: organizationId,
+      ),
     ),
   );
   Future<void> changePassword(
     SessionTokens tokens,
     String current,
-    String next,
-  ) async {
+    String next, {
+    int? organizationId,
+  }) async {
     _data(
-      await _send('PATCH', '/perfil/clave', tokens, {
-        'claveActual': current,
-        'nuevaClave': next,
-      }),
+      await _send(
+        'PATCH',
+        '/perfil/clave',
+        tokens,
+        body: {'claveActual': current, 'nuevaClave': next},
+        organizationId: organizationId,
+      ),
     );
   }
 
-  Future<http.Response> _get(String path, SessionTokens tokens) =>
-      http.get(Uri.parse('$baseUrl$path'), headers: _headers(tokens));
+  Future<List<EventModel>> listEvents(
+    SessionTokens tokens,
+    String term,
+    String category, {
+    int? organizationId,
+  }) async {
+    final query = <String, String>{};
+    if (term.trim().isNotEmpty) query['termino'] = term.trim();
+    if (category.isNotEmpty) query['categoria'] = category;
+    final uri = Uri.parse('$baseUrl/eventos').replace(queryParameters: query);
+    final response = await http.get(
+      uri,
+      headers: _headers(tokens, organizationId: organizationId),
+    );
+    final data = _data(response);
+    return (data as List<dynamic>)
+        .map((item) => EventModel.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<InscripcionModel> inscribirAEvento(
+    SessionTokens tokens,
+    int idEvento, {
+    int? organizationId,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/inscripciones/eventos/$idEvento',
+      tokens,
+      organizationId: organizationId,
+    );
+    return InscripcionModel.fromJson(_data(response) as Map<String, dynamic>);
+  }
+
+  Future<List<InscripcionModel>> listarMisInscripciones(
+    SessionTokens tokens, {
+    int? organizationId,
+  }) async {
+    final response = await _get(
+      '/inscripciones/mis-inscripciones',
+      tokens,
+      organizationId: organizationId,
+    );
+    final data = _data(response);
+    return (data as List<dynamic>)
+        .map((item) => InscripcionModel.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<InscripcionModel> cancelarInscripcion(
+    SessionTokens tokens,
+    int idInscripcion, {
+    int? organizationId,
+  }) async {
+    final response = await _send(
+      'PATCH',
+      '/inscripciones/$idInscripcion/cancelar',
+      tokens,
+      organizationId: organizationId,
+    );
+    return InscripcionModel.fromJson(_data(response) as Map<String, dynamic>);
+  }
+
+  Future<DisponibilidadModel> obtenerDisponibilidad(
+    SessionTokens tokens,
+    int idEvento, {
+    int? organizationId,
+  }) async {
+    final response = await _get(
+      '/inscripciones/eventos/$idEvento/disponibilidad',
+      tokens,
+      organizationId: organizationId,
+    );
+    return DisponibilidadModel.fromJson(
+      _data(response) as Map<String, dynamic>,
+    );
+  }
+
+  Future<List<PostulacionStaffModel>> listarMisPostulaciones(
+    SessionTokens tokens, {
+    int? organizationId,
+  }) async {
+    final data = _data(
+      await _get(
+        '/postulaciones-staff/mias',
+        tokens,
+        organizationId: organizationId,
+      ),
+    );
+    return (data as List<dynamic>)
+        .map(
+          (item) =>
+              PostulacionStaffModel.fromJson(item as Map<String, dynamic>),
+        )
+        .toList();
+  }
+
+  Future<PostulacionStaffModel> crearPostulacionStaff(
+    SessionTokens tokens,
+    int idConvocatoria,
+    String motivacion, {
+    int? organizationId,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/postulaciones-staff/convocatorias/$idConvocatoria',
+      tokens,
+      body: {'motivacion': motivacion},
+      organizationId: organizationId,
+    );
+    return PostulacionStaffModel.fromJson(
+      _data(response) as Map<String, dynamic>,
+    );
+  }
+
+  Future<List<AsignacionStaffModel>> listarMisAsignaciones(
+    SessionTokens tokens, {
+    int? organizationId,
+  }) async {
+    final data = _data(
+      await _get(
+        '/asignaciones-staff/mias',
+        tokens,
+        organizationId: organizationId,
+      ),
+    );
+    return (data as List<dynamic>)
+        .map(
+          (item) => AsignacionStaffModel.fromJson(item as Map<String, dynamic>),
+        )
+        .toList();
+  }
+
+  Future<http.Response> _get(
+    String path,
+    SessionTokens tokens, {
+    int? organizationId,
+  }) => http.get(
+    Uri.parse('$baseUrl$path'),
+    headers: _headers(tokens, organizationId: organizationId),
+  );
   Future<http.Response> _send(
     String method,
     String path,
-    SessionTokens tokens,
-    Map<String, String> body,
-  ) {
+    SessionTokens tokens, {
+    Map<String, dynamic> body = const {},
+    int? organizationId,
+  }) {
     final request = http.Request(method, Uri.parse('$baseUrl$path'))
-      ..headers.addAll(_headers(tokens))
-      ..body = jsonEncode(body);
-    return _sendRequest(request);
+      ..headers.addAll(_headers(tokens, organizationId: organizationId));
+    if (body.isNotEmpty ||
+        method == 'POST' ||
+        method == 'PUT' ||
+        method == 'PATCH') {
+      request.body = jsonEncode(body);
+    }
+    return http.Client().send(request).then(http.Response.fromStream);
   }
 
   Future<http.Response> _publicSend(
@@ -1481,29 +3353,18 @@ class ApiClient {
     final request = http.Request(method, Uri.parse('$baseUrl$path'))
       ..headers['Content-Type'] = 'application/json'
       ..body = jsonEncode(body);
-    return _sendRequest(request);
+    return http.Client().send(request).then(http.Response.fromStream);
   }
 
-  Future<http.Response> _sendRequest(http.Request request) async {
-    final client = http.Client();
-    try {
-      return await client
-          .send(request)
-          .then(http.Response.fromStream)
-          .timeout(const Duration(seconds: 20));
-    } finally {
-      client.close();
-    }
-  }
-
-  Map<String, String> _headers(SessionTokens tokens) => {
+  Map<String, String> _headers(SessionTokens tokens, {int? organizationId}) => {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer ${tokens.accessToken}',
+    if (organizationId != null) 'X-Organization-Id': '$organizationId',
   };
-  Map<String, dynamic> _data(http.Response response) {
+  dynamic _data(http.Response response) {
     final data = response.body.isEmpty
         ? <String, dynamic>{}
-        : jsonDecode(response.body) as Map<String, dynamic>;
+        : jsonDecode(response.body);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ApiException(
         data['message'] as String? ?? 'La solicitud no pudo completarse',
@@ -1512,6 +3373,195 @@ class ApiClient {
     }
     return data;
   }
+}
+
+class EventModel {
+  const EventModel({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.category,
+    required this.start,
+    required this.end,
+    required this.place,
+    required this.status,
+  });
+
+  final int id;
+  final String name;
+  final String description;
+  final String category;
+  final DateTime start;
+  final DateTime? end;
+  final String place;
+  final String status;
+
+  factory EventModel.fromJson(Map<String, dynamic> json) => EventModel(
+    id: json['id'] as int,
+    name: json['nombre'] as String,
+    description: json['descripcion'] as String? ?? '',
+    category: _readCategoryName(json),
+    start: DateTime.parse(json['fechaInicio'] as String),
+    end: json['fechaFin'] == null
+        ? null
+        : DateTime.parse(json['fechaFin'] as String),
+    place: json['lugarPrincipal'] as String? ?? '',
+    status: json['estado'] as String,
+  );
+
+  static String _readCategoryName(Map<String, dynamic> json) {
+    final category = json['categoria'];
+    if (category is String && category.isNotEmpty) return category;
+    if (category is Map<String, dynamic>) {
+      final name = category['nombre'];
+      if (name is String && name.isNotEmpty) return name;
+    }
+    final categoryName = json['categoriaNombre'];
+    return categoryName is String && categoryName.isNotEmpty
+        ? categoryName
+        : 'GENERAL';
+  }
+}
+
+class InscripcionModel {
+  const InscripcionModel({
+    required this.idInscripcion,
+    required this.idEvento,
+    required this.nombreEvento,
+    required this.descripcionEvento,
+    required this.categoriaEvento,
+    required this.fechaInicioEvento,
+    required this.fechaFinEvento,
+    required this.lugarEvento,
+    required this.estado,
+    required this.codigoQr,
+    required this.fechaInscripcion,
+  });
+
+  final int idInscripcion;
+  final int idEvento;
+  final String nombreEvento;
+  final String descripcionEvento;
+  final String categoriaEvento;
+  final DateTime fechaInicioEvento;
+  final DateTime? fechaFinEvento;
+  final String lugarEvento;
+  final String estado;
+  final String codigoQr;
+  final DateTime fechaInscripcion;
+
+  factory InscripcionModel.fromJson(Map<String, dynamic> json) =>
+      InscripcionModel(
+        idInscripcion: json['idInscripcion'] as int,
+        idEvento: json['idEvento'] as int,
+        nombreEvento: json['nombreEvento'] as String? ?? 'Evento',
+        descripcionEvento: json['descripcionEvento'] as String? ?? '',
+        categoriaEvento: json['categoriaEvento'] as String? ?? 'GENERAL',
+        fechaInicioEvento: DateTime.parse(json['fechaInicioEvento'] as String),
+        fechaFinEvento: json['fechaFinEvento'] != null
+            ? DateTime.parse(json['fechaFinEvento'] as String)
+            : null,
+        lugarEvento: json['lugarEvento'] as String? ?? '',
+        estado: json['estado'] as String? ?? 'CONFIRMADA',
+        codigoQr: json['codigoQr'] as String? ?? '',
+        fechaInscripcion: DateTime.parse(json['fechaInscripcion'] as String),
+      );
+}
+
+class DisponibilidadModel {
+  const DisponibilidadModel({
+    required this.idEvento,
+    required this.aforoMaximo,
+    required this.cuposOcupados,
+    required this.cuposDisponibles,
+    required this.tieneCupo,
+    required this.estaInscrito,
+    required this.idInscripcionActiva,
+  });
+
+  final int idEvento;
+  final int? aforoMaximo;
+  final int cuposOcupados;
+  final int? cuposDisponibles;
+  final bool tieneCupo;
+  final bool estaInscrito;
+  final int? idInscripcionActiva;
+
+  factory DisponibilidadModel.fromJson(Map<String, dynamic> json) =>
+      DisponibilidadModel(
+        idEvento: json['idEvento'] as int,
+        aforoMaximo: json['aforoMaximo'] as int?,
+        cuposOcupados: (json['cuposOcupados'] as num).toInt(),
+        cuposDisponibles: json['cuposDisponibles'] as int?,
+        tieneCupo: json['tieneCupo'] as bool? ?? true,
+        estaInscrito: json['estaInscrito'] as bool? ?? false,
+        idInscripcionActiva: json['idInscripcionActiva'] as int?,
+      );
+}
+
+class PostulacionStaffModel {
+  const PostulacionStaffModel({
+    required this.id,
+    required this.idConvocatoria,
+    required this.idUsuario,
+    required this.estado,
+    required this.motivacion,
+    required this.fechaPostulacion,
+  });
+
+  final int id;
+  final int idConvocatoria;
+  final int idUsuario;
+  final String estado;
+  final String? motivacion;
+  final DateTime? fechaPostulacion;
+
+  factory PostulacionStaffModel.fromJson(Map<String, dynamic> json) =>
+      PostulacionStaffModel(
+        id: (json['id'] as num).toInt(),
+        idConvocatoria: (json['idConvocatoria'] as num).toInt(),
+        idUsuario: (json['idUsuario'] as num).toInt(),
+        estado: json['estado'] as String? ?? 'PENDIENTE',
+        motivacion: json['motivacion'] as String?,
+        fechaPostulacion: json['fechaPostulacion'] == null
+            ? null
+            : DateTime.parse(json['fechaPostulacion'] as String),
+      );
+}
+
+class AsignacionStaffModel {
+  const AsignacionStaffModel({
+    required this.id,
+    required this.idPostulacion,
+    required this.idUsuario,
+    required this.tarea,
+    required this.turnoInicio,
+    required this.turnoFin,
+    required this.estado,
+  });
+
+  final int id;
+  final int idPostulacion;
+  final int idUsuario;
+  final String tarea;
+  final DateTime? turnoInicio;
+  final DateTime? turnoFin;
+  final String estado;
+
+  factory AsignacionStaffModel.fromJson(Map<String, dynamic> json) =>
+      AsignacionStaffModel(
+        id: (json['id'] as num).toInt(),
+        idPostulacion: (json['idPostulacion'] as num).toInt(),
+        idUsuario: (json['idUsuario'] as num).toInt(),
+        tarea: json['tarea'] as String? ?? 'Tarea sin nombre',
+        turnoInicio: json['turnoInicio'] == null
+            ? null
+            : DateTime.parse(json['turnoInicio'] as String),
+        turnoFin: json['turnoFin'] == null
+            ? null
+            : DateTime.parse(json['turnoFin'] as String),
+        estado: json['estado'] as String? ?? 'ASIGNADA',
+      );
 }
 
 class ApiException implements Exception {

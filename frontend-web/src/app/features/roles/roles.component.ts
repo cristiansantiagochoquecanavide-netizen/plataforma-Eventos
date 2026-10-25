@@ -1,13 +1,14 @@
 import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ApiService } from '../../core/api.service';
+import { RolesService } from './servicios/roles.service';
 import { obtenerMensajeError } from '../../core/mensajes-error';
-import { Permiso, Rol } from '../../core/modelos';
+import { Permiso, Rol } from './modelos/rol.modelo';
 import { ToastService } from '../../core/toast.service';
+import { UiPrivilegeEditableDirective, UiPrivilegeEnabledDirective, UiPrivilegeVisibleDirective } from '../../core/ui-privilege.directive';
 
 @Component({
   selector: 'app-roles',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, UiPrivilegeVisibleDirective, UiPrivilegeEnabledDirective, UiPrivilegeEditableDirective],
   templateUrl: './roles.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -30,13 +31,13 @@ export class RolesComponent implements OnInit {
   });
 
   constructor(
-    private readonly api: ApiService,
+    private readonly rolesService: RolesService,
     private readonly toast: ToastService,
   ) {}
 
   ngOnInit() {
     this.cargar();
-    this.api.listarPermisos().subscribe({
+    this.rolesService.listarPermisos().subscribe({
       next: (permisos) => this.permisos.set(permisos),
       error: (error) => {
         const mensaje = obtenerMensajeError(error, 'No fue posible cargar permisos');
@@ -47,7 +48,7 @@ export class RolesComponent implements OnInit {
   }
 
   cargar() {
-    this.api
+    this.rolesService
       .listarRoles()
       .subscribe({
         next: (roles) => this.roles.set(roles),
@@ -68,6 +69,7 @@ export class RolesComponent implements OnInit {
   cerrarModal() {
     this.modalAbierto.set(false);
     this.cancelar();
+    this.limpiarAvisos();
   }
 
   editar(rol: Rol) {
@@ -100,8 +102,8 @@ export class RolesComponent implements OnInit {
     const datos = this.formulario.getRawValue();
     const editando = this.editando();
     const solicitud = editando
-      ? this.api.actualizarRol(editando.id, datos)
-      : this.api.crearRol(datos);
+      ? this.rolesService.actualizarRol(editando.id, datos)
+      : this.rolesService.crearRol(datos);
     solicitud.subscribe({
       next: () => {
         const mensaje = editando ? 'Rol actualizado correctamente.' : 'Rol creado correctamente.';
@@ -123,7 +125,7 @@ export class RolesComponent implements OnInit {
   seleccionarRol(rol: Rol) {
     this.limpiarAvisos();
     this.rolSeleccionado.set(rol);
-    this.api.permisosRol(rol.id).subscribe({
+    this.rolesService.permisosRol(rol.id).subscribe({
       next: (respuesta) =>
         this.permisosSeleccionados.set(
           new Set(respuesta.permisos.map((permiso) => permiso.nombre)),
@@ -147,7 +149,7 @@ export class RolesComponent implements OnInit {
     if (!rol || this.guardandoPermisos()) return;
     this.limpiarAvisos();
     this.guardandoPermisos.set(true);
-    this.api.asignarPermisos(rol.id, [...this.permisosSeleccionados()]).subscribe({
+    this.rolesService.asignarPermisos(rol.id, [...this.permisosSeleccionados()]).subscribe({
       next: () => {
         const mensaje = `Permisos de ${rol.nombre} actualizados correctamente.`;
         this.mensaje.set(mensaje);
@@ -166,6 +168,16 @@ export class RolesComponent implements OnInit {
   campoConError(nombre: 'nombre' | 'estado') {
     const control = this.formulario.controls[nombre];
     return control.invalid && (control.touched || this.intentoEnvio());
+  }
+
+  rolProtegidoSoloLectura() {
+    const nombre = this.editando()?.nombre;
+    return (
+      nombre === 'ADMINISTRADOR' ||
+      nombre === 'ORGANIZADOR' ||
+      nombre === 'STAFF' ||
+      nombre === 'PARTICIPANTE'
+    );
   }
 
   mensajeCampo(nombre: 'nombre' | 'estado') {

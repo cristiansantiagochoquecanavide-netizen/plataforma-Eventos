@@ -17,22 +17,22 @@ export function obtenerRequisitosClave(clave: string): RequisitoClave[] {
   return [
     {
       id: 'longitud',
-      texto: 'Tiene minimo 8 caracteres.',
+      texto: 'Mínimo 8 caracteres',
       valido: clave.length >= 8,
     },
     {
       id: 'mayuscula',
-      texto: 'Tiene una mayuscula.',
+      texto: 'Una mayúscula',
       valido: /[A-Z]/.test(clave),
     },
     {
       id: 'minuscula',
-      texto: 'Tiene una minuscula.',
+      texto: 'Una minúscula',
       valido: /[a-z]/.test(clave),
     },
     {
       id: 'numeros',
-      texto: 'Tiene al menos 2 numeros.',
+      texto: 'Al menos 2 números',
       valido: numeros >= 2,
     },
   ];

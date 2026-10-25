@@ -1,16 +1,19 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ApiService } from '../../core/api.service';
+import { ConvocatoriasService } from './servicios/convocatorias.service';
+import { EventosService } from '../eventos/servicios/eventos.service';
 import { obtenerMensajeError } from '../../core/mensajes-error';
 import {
   Convocatoria,
+  CrearConvocatoriaSolicitud,
   EstadoConvocatoria,
-  Evento,
   TipoPersonalConvocatoria,
-} from '../../core/modelos';
+} from './modelos/convocatoria.modelo';
+import { Evento } from '../eventos/modelos/evento.modelo';
 import { SesionService } from '../../core/sesion.service';
 import { ToastService } from '../../core/toast.service';
+import { UiPrivilegeEnabledDirective, UiPrivilegeVisibleDirective } from '../../core/ui-privilege.directive';
 
 /**
  * CU15: Gestion de Convocatorias de Staff y Voluntarios.
@@ -23,7 +26,7 @@ import { ToastService } from '../../core/toast.service';
  */
 @Component({
   selector: 'app-convocatorias',
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [ReactiveFormsModule, DatePipe, UiPrivilegeEnabledDirective, UiPrivilegeVisibleDirective],
   templateUrl: './convocatorias.component.html',
   styleUrl: './convocatorias.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -72,7 +75,8 @@ export class ConvocatoriasComponent implements OnInit {
   });
 
   constructor(
-    private readonly api: ApiService,
+    private readonly convocatoriasService: ConvocatoriasService,
+    private readonly eventosService: EventosService,
     readonly sesion: SesionService,
     private readonly toast: ToastService,
   ) {}
@@ -86,7 +90,7 @@ export class ConvocatoriasComponent implements OnInit {
     this.cargando.set(true);
     this.error.set('');
     const idEvento = this.filtroEvento() || undefined;
-    this.api
+    this.convocatoriasService
       .listarConvocatorias(
         idEvento,
         this.filtroTipo(),
@@ -108,7 +112,7 @@ export class ConvocatoriasComponent implements OnInit {
   }
 
   cargarEventos() {
-    this.api.listarEventos().subscribe({
+    this.eventosService.listarEventos().subscribe({
       next: (eventos) => this.eventos.set(eventos),
       error: (error) => {
         const mensaje = obtenerMensajeError(error, 'No fue posible cargar los eventos.');
@@ -142,7 +146,7 @@ export class ConvocatoriasComponent implements OnInit {
 
     this.guardando.set(true);
     const valor = this.formulario.getRawValue();
-    this.api
+    this.convocatoriasService
       .crearConvocatoria({
         idEvento: valor.idEvento,
         tipoPersonal: valor.tipoPersonal,
@@ -237,8 +241,8 @@ export class ConvocatoriasComponent implements OnInit {
     this.idProcesando.set(convocatoria.id);
     const operacion =
       destino === 'CERRADA'
-        ? this.api.cerrarConvocatoria(convocatoria.id)
-        : this.api.cancelarConvocatoria(convocatoria.id);
+        ? this.convocatoriasService.cerrarConvocatoria(convocatoria.id)
+        : this.convocatoriasService.cancelarConvocatoria(convocatoria.id);
 
     operacion.subscribe({
       next: (actualizada) => {

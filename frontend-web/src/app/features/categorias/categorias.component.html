@@ -1,0 +1,124 @@
+<section class="page-heading">
+  <p class="eyebrow">Gestion de Eventos y Programacion</p>
+  <h1>Categorias</h1>
+  <p>Clasificacion operativa para organizar eventos y facilitar su consulta.</p>
+  <div style="margin-top: 14px;">
+    <button class="primary" type="button" (click)="abrirModalCrear()" [appUiPrivilegeEnabled]="{ key: 'categories.create' }" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 10px 18px; color: #ffffff;">
+      <span style="font-weight: 800; font-size: 1.15rem; line-height: 1; color: #ffffff;">+</span>
+      <span style="color: #ffffff; font-weight: 700;">Crear Categoria</span>
+    </button>
+  </div>
+</section>
+
+@if (mensaje()) {
+  <p class="notice success">{{ mensaje() }}</p>
+}
+@if (error() && !modalAbierto()) {
+  <p class="notice error">{{ error() }}</p>
+}
+
+<section class="card table-card" [appUiPrivilegeVisible]="'categories.list'">
+  <div class="card-title compact" style="display: flex; justify-content: space-between; align-items: center;">
+    <h2>Catalogo de Categorias</h2>
+    <span class="role-chip">{{ categorias().length }} categorias</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Categoria</th>
+          <th>Descripcion</th>
+          <th>Actualizacion</th>
+          <th style="text-align: right;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (cargando()) {
+          <tr>
+            <td colspan="4" style="text-align: center; padding: 32px;"><small>Cargando categorias...</small></td>
+          </tr>
+        } @else if (categorias().length === 0) {
+          <tr>
+            <td colspan="4" style="text-align: center; padding: 32px;">
+              <small>No hay categorias registradas.</small>
+            </td>
+          </tr>
+        } @else {
+          @for (categoria of categorias(); track categoria.id) {
+            <tr>
+              <td>
+                <strong>{{ categoria.nombre }}</strong>
+                <small>ID {{ categoria.id }}</small>
+              </td>
+              <td>{{ categoria.descripcion || 'Sin descripcion' }}</td>
+              <td>
+                @if (categoria.fechaActualizacion) {
+                  {{ categoria.fechaActualizacion | date: 'dd/MM/yyyy HH:mm' }}
+                } @else {
+                  <small>Sin fecha registrada</small>
+                }
+              </td>
+              <td class="actions" style="text-align: right; display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" (click)="editar(categoria)" [appUiPrivilegeEnabled]="{ key: 'categories.edit' }">Editar</button>
+                <button
+                  type="button"
+                  (click)="eliminar(categoria)"
+                  [appUiPrivilegeEnabled]="{ key: 'categories.delete', businessDisabled: eliminandoId() === categoria.id }"
+                >
+                  {{ eliminandoId() === categoria.id ? 'Eliminando...' : 'Eliminar' }}
+                </button>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+
+@if (modalAbierto()) {
+  <div class="modal-overlay" (click)="cerrarModal()">
+    <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h2>{{ categoriaSeleccionada() ? 'Editar Categoria' : 'Crear Categoria' }}</h2>
+          <small style="color: var(--muted);">
+            {{ categoriaSeleccionada() ? 'Actualiza la clasificacion usada por los eventos' : 'Registra una clasificacion disponible para nuevos eventos' }}
+          </small>
+        </div>
+        <button class="btn-close" type="button" (click)="cerrarModal()" title="Cerrar">x</button>
+      </div>
+
+      <div class="modal-body">
+        @if (error()) {
+          <p class="notice error" style="margin-top: 0; margin-bottom: 16px;">{{ error() }}</p>
+        }
+
+        <form [formGroup]="formulario" (ngSubmit)="guardar()" class="form-grid" novalidate>
+          <label class="full" [class.invalid]="campoConError('nombre')">
+            Nombre *
+            <input formControlName="nombre" placeholder="Ej: Congreso academico" />
+            @if (campoConError('nombre')) {
+              <small class="field-error">{{ mensajeCampo('nombre') }}</small>
+            }
+          </label>
+
+          <label class="full" [class.invalid]="campoConError('descripcion')">
+            Descripcion
+            <textarea formControlName="descripcion" rows="3" placeholder="Describe el tipo de eventos que pertenecen a esta categoria"></textarea>
+            @if (campoConError('descripcion')) {
+              <small class="field-error">{{ mensajeCampo('descripcion') }}</small>
+            }
+          </label>
+
+          <div class="button-row full" style="margin-top: 12px;">
+            <button type="button" (click)="cerrarModal()">Cancelar</button>
+            <button class="primary" type="submit" [appUiPrivilegeEnabled]="{ key: categoriaSeleccionada() ? 'categories.edit' : 'categories.create', businessDisabled: guardando() }" style="color: #ffffff;">
+              {{ guardando() ? 'Guardando...' : categoriaSeleccionada() ? 'Actualizar Categoria' : 'Crear Categoria' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}

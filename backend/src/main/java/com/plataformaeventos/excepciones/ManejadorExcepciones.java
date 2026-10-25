@@ -1,5 +1,10 @@
 package com.plataformaeventos.excepciones;
 
+import com.plataformaeventos.audit.servicio.AuditoriaContexto;
+import com.plataformaeventos.audit.servicio.BitacoraService;
+import com.plataformaeventos.organizaciones.modelo.Organizacion;
+import com.plataformaeventos.organizaciones.servicio.ContextoOrganizacion;
+import com.plataformaeventos.usuarios.repositorio.UsuarioRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +16,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.beans.factory.ObjectProvider;
 import jakarta.validation.ConstraintViolationException;
 
 import java.time.OffsetDateTime;
@@ -19,6 +26,17 @@ import java.time.OffsetDateTime;
 public class ManejadorExcepciones {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ManejadorExcepciones.class);
+    private final BitacoraService bitacora;
+    private final ContextoOrganizacion contextoOrganizacion;
+    private final UsuarioRepository usuarios;
+
+    public ManejadorExcepciones(ObjectProvider<BitacoraService> bitacora,
+                                ObjectProvider<ContextoOrganizacion> contextoOrganizacion,
+                                ObjectProvider<UsuarioRepository> usuarios) {
+        this.bitacora = bitacora.getIfAvailable();
+        this.contextoOrganizacion = contextoOrganizacion.getIfAvailable();
+        this.usuarios = usuarios.getIfAvailable();
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorRespuesta> manejarValidacion(
@@ -71,6 +89,14 @@ public class ManejadorExcepciones {
         return crearRespuesta(HttpStatus.BAD_REQUEST, excepcion.getMessage(), solicitud);
     }
 
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorRespuesta> manejarEstadoIlegal(
+            IllegalStateException excepcion,
+            HttpServletRequest solicitud
+    ) {
+        return crearRespuesta(HttpStatus.BAD_REQUEST, excepcion.getMessage(), solicitud);
+    }
+
     @ExceptionHandler(ExcepcionNoEncontrado.class)
     public ResponseEntity<ErrorRespuesta> manejarNoEncontrado(
             ExcepcionNoEncontrado excepcion,
@@ -92,6 +118,17 @@ public class ManejadorExcepciones {
         );
     }
 
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorRespuesta> manejarEstadoHttp(
+            ResponseStatusException excepcion,
+            HttpServletRequest solicitud
+    ) {
+        HttpStatus estado = HttpStatus.resolve(excepcion.getStatusCode().value());
+        if (estado == null) estado = HttpStatus.INTERNAL_SERVER_ERROR;
+        String mensaje = excepcion.getReason() == null ? estado.getReasonPhrase() : excepcion.getReason();
+        return crearRespuesta(estado, mensaje, solicitud);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorRespuesta> manejarErrorNoControlado(
             Exception excepcion,
@@ -106,6 +143,7 @@ public class ManejadorExcepciones {
             String mensaje,
             HttpServletRequest solicitud
     ) {
+        registrarFallo(solicitud, mensaje);
         ErrorRespuesta respuesta = new ErrorRespuesta(
                 OffsetDateTime.now(),
                 estado.value(),
@@ -114,5 +152,31 @@ public class ManejadorExcepciones {
                 solicitud.getRequestURI()
         );
         return ResponseEntity.status(estado).body(respuesta);
+    }
+
+    private void registrarFallo(HttpServletRequest solicitud, String mensaje) {
+        try {
+            var autenticacion = org.springframework.security.core.context.SecurityContextHolder
+                    .getContext().getAuthentication();
+            if (bitacora == null || contextoOrganizacion == null || usuarios == null
+                    || autenticacion == null || !autenticacion.isAuthenticated()
+                    || solicitud.getRequestURI().startsWith("/api/admin/bitacora")) return;
+            Organizacion organizacion = contextoOrganizacion.resolver(autenticacion, solicitud);
+            var actor = usuarios.findByCorreo(autenticacion.getName()).orElse(null);
+            if (actor == null) return;
+            String[] partes = solicitud.getRequestURI().split("/");
+            int indiceModulo = partes.length > 3 && "admin".equalsIgnoreCase(partes[2]) ? 3 : 2;
+            String modulo = partes.length > indiceModulo ? partes[indiceModulo].toUpperCase() : "HTTP";
+            String entidad = partes.length == 0 ? "HTTP" : partes[Math.max(0, partes.length - 1)].toUpperCase();
+            bitacora.registrar(actor, organizacion, solicitud.getMethod(), modulo, entidad, null,
+                    AuditoriaContexto.ip(solicitud), false, limitar(mensaje));
+        } catch (RuntimeException ignorado) {
+            LOGGER.debug("No fue posible registrar la operacion fallida", ignorado);
+        }
+    }
+
+    private String limitar(String mensaje) {
+        if (mensaje == null) return null;
+        return mensaje.length() <= 1000 ? mensaje : mensaje.substring(0, 1000);
     }
 }

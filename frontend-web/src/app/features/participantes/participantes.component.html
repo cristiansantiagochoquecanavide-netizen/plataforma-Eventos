@@ -1,0 +1,320 @@
+<section class="page-heading" [appUiPrivilegeVisible]="'participants.menu'">
+  <div class="heading-row">
+    <div>
+      <p class="eyebrow">Gestión de Participantes e Inscripciones</p>
+      <h1>Participantes</h1>
+      <p>Supervisión, historial de inscripciones y administración del padrón de asistentes.</p>
+    </div>
+    <div class="heading-actions">
+      <button
+        class="secondary-btn"
+        type="button"
+        (click)="exportarCsv()"
+        [appUiPrivilegeEnabled]="{ key: 'participants.export', businessDisabled: exportando() || participantes().length === 0 }"
+      >
+        <span class="icon">📥</span>
+        <span>{{ exportando() ? 'Generando...' : 'Exportar a CSV' }}</span>
+      </button>
+    </div>
+  </div>
+</section>
+
+@if (error()) {
+  <p class="notice error">{{ error() }}</p>
+}
+
+<!-- Barra de filtros predictivos y selección -->
+<section class="card filters-card" [appUiPrivilegeVisible]="'participants.filters'">
+  <div class="filters-grid">
+    <div class="filter-item search-box">
+      <label for="busqueda">Búsqueda predictiva</label>
+      <div class="input-with-icon">
+        <input
+          id="busqueda"
+          type="text"
+          [ngModel]="busqueda()"
+          (ngModelChange)="busqueda.set($event); aplicarFiltros()"
+          placeholder="Nombre, apellido o correo..."
+          [appUiPrivilegeEditable]="'participants.filters'"
+        />
+        @if (busqueda()) {
+          <button type="button" class="clear-btn" (click)="busqueda.set(''); aplicarFiltros()" [appUiPrivilegeEditable]="'participants.filters'">×</button>
+        }
+      </div>
+    </div>
+
+    <div class="filter-item">
+      <label for="eventoFiltro">Filtrar por Evento</label>
+      <select
+        id="eventoFiltro"
+        [ngModel]="eventoFiltro()"
+        (ngModelChange)="eventoFiltro.set($event); aplicarFiltros()"
+        [appUiPrivilegeEditable]="'participants.filters'"
+      >
+        <option [ngValue]="null">Todos los eventos</option>
+        @for (evento of eventos(); track evento.id) {
+          <option [ngValue]="evento.id">{{ evento.nombre }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="filter-item">
+      <label for="estadoFiltro">Estado</label>
+      <select
+        id="estadoFiltro"
+        [ngModel]="estadoFiltro()"
+        (ngModelChange)="estadoFiltro.set($event); aplicarFiltros()"
+        [appUiPrivilegeEditable]="'participants.filters'"
+      >
+        <option value="TODOS">Todos</option>
+        <option value="ACTIVO">Activos</option>
+        <option value="INACTIVO">Inactivos</option>
+      </select>
+    </div>
+
+    <div class="filter-actions">
+      <button type="button" class="btn-text" (click)="limpiarFiltros()" [appUiPrivilegeEditable]="'participants.filters'">
+        Restablecer filtros
+      </button>
+    </div>
+  </div>
+</section>
+
+
+<!-- Tabla de participantes -->
+<section class="card table-card" [appUiPrivilegeVisible]="'participants.list'">
+  <div class="card-title compact">
+    <h2>Padrón de Participantes</h2>
+    <div class="counter-badge">
+      <span>Total: <strong>{{ totalElementos() }}</strong> registros</span>
+    </div>
+  </div>
+
+  @if (cargando()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Cargando información de participantes...</p>
+    </div>
+  } @else if (participantes().length === 0) {
+    <div class="empty-state">
+      <p class="empty-title">No se encontraron participantes</p>
+      <p class="empty-desc">
+        No hay registros que coincidan con los filtros aplicados en la organización activa.
+      </p>
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Participante</th>
+            <th>Correo Electrónico</th>
+            <th>Estado</th>
+            <th style="text-align: center;">Inscripciones</th>
+            <th>Última Actividad</th>
+            <th style="text-align: right;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of participantes(); track p.idUsuario) {
+            <tr>
+              <td>
+                <div class="user-cell">
+                  <div class="avatar">{{ p.nombres.charAt(0) }}{{ p.apellidos.charAt(0) }}</div>
+                  <div>
+                    <strong>{{ p.nombres }} {{ p.apellidos }}</strong>
+                    <small class="text-muted">ID #{{ p.idUsuario }}</small>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span class="email-text">{{ p.correo }}</span>
+              </td>
+              <td>
+                <span class="status-chip" [class.inactive]="p.estado === 'INACTIVO'">
+                  {{ p.estado }}
+                </span>
+              </td>
+              <td style="text-align: center;">
+                <div class="stats-pills">
+                  <span class="pill total" title="Total inscripciones">
+                    {{ p.totalInscripciones }}
+                  </span>
+                  @if (p.inscripcionesConfirmadas > 0) {
+                    <span class="pill confirmed" title="Confirmadas">
+                      ✓ {{ p.inscripcionesConfirmadas }}
+                    </span>
+                  }
+                  @if (p.inscripcionesCanceladas > 0) {
+                    <span class="pill cancelled" title="Canceladas">
+                      ✕ {{ p.inscripcionesCanceladas }}
+                    </span>
+                  }
+                </div>
+              </td>
+              <td>
+                <span class="date-text">
+                  {{ p.ultimaInscripcion ? (p.ultimaInscripcion | date:'shortDate') : 'Sin actividad' }}
+                </span>
+              </td>
+              <td class="actions-cell">
+                <button
+                  type="button"
+                  class="btn-detail"
+                  (click)="verDetalle(p)"
+                  [appUiPrivilegeEnabled]="{ key: 'participants.history' }"
+                  title="Ver detalle e historial completo de eventos"
+                >
+                  Historial
+                </button>
+                @if (sesion.puedeGestionarParticipantes()) {
+                  <button
+                    type="button"
+                    class="btn-toggle"
+                    [class.danger]="p.estado === 'ACTIVO'"
+                    (click)="alternarEstado(p)"
+                    [appUiPrivilegeEnabled]="{ key: 'participants.status.toggle', businessDisabled: idCambiandoEstado() === p.idUsuario }"
+                  >
+                    {{ p.estado === 'ACTIVO' ? 'Desactivar' : 'Activar' }}
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Paginación -->
+    @if (totalPaginas() > 1) {
+      <div class="pagination-bar">
+        <span>Página {{ pagina() + 1 }} de {{ totalPaginas() }}</span>
+        <div class="pagination-controls">
+          <button
+            type="button"
+            [disabled]="pagina() === 0"
+            (click)="cambiarPagina(pagina() - 1)"
+          >
+            ← Anterior
+          </button>
+          <button
+            type="button"
+            [disabled]="pagina() >= totalPaginas() - 1"
+            (click)="cambiarPagina(pagina() + 1)"
+          >
+            Siguiente →
+          </button>
+        </div>
+      </div>
+    }
+  }
+</section>
+
+<!-- Modal de Detalle e Historial de Inscripciones -->
+@if (modalDetalleAbierto()) {
+  <div class="modal-overlay" (click)="cerrarModalDetalle()">
+    <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Historial y Detalle del Participante</h2>
+        <button type="button" class="btn-close" (click)="cerrarModalDetalle()">×</button>
+      </div>
+
+      <div class="modal-body">
+        @if (cargandoDetalle()) {
+          <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Cargando información detallada...</p>
+          </div>
+        } @else if (detalle(); as d) {
+          <!-- Tarjeta de Perfil -->
+          <div class="participant-summary-card" [appUiPrivilegeVisible]="'participants.detail'">
+            <div class="summary-avatar">
+              {{ d.nombres.charAt(0) }}{{ d.apellidos.charAt(0) }}
+            </div>
+            <div class="summary-info">
+              <h4>{{ d.nombres }} {{ d.apellidos }}</h4>
+              <p class="summary-email">{{ d.correo }}</p>
+              <div class="summary-badges">
+                <span class="status-chip" [class.inactive]="d.estado === 'INACTIVO'">
+                  {{ d.estado }}
+                </span>
+                <span class="role-chip">Participante</span>
+                <small class="text-muted">Registrado: {{ d.fechaRegistro | date:'mediumDate' }}</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Métricas de participación -->
+          <div class="metrics-grid" [appUiPrivilegeVisible]="'participants.detail'">
+            <div class="metric-card">
+              <span class="metric-number">{{ d.totalInscripciones }}</span>
+              <span class="metric-label">Total Inscripciones</span>
+            </div>
+            <div class="metric-card highlight">
+              <span class="metric-number">{{ d.inscripcionesConfirmadas }}</span>
+              <span class="metric-label">Confirmadas</span>
+            </div>
+            <div class="metric-card warning">
+              <span class="metric-number">{{ d.inscripcionesCanceladas }}</span>
+              <span class="metric-label">Canceladas</span>
+            </div>
+          </div>
+
+          <!-- Listado de Inscripciones a Eventos -->
+          <h4 class="history-title" [appUiPrivilegeVisible]="'participants.history'">Eventos Asociados en la Organización</h4>
+          @if (d.inscripciones.length === 0) {
+            <p class="text-muted empty-history" [appUiPrivilegeVisible]="'participants.history'">
+              Este participante aún no tiene inscripciones registradas en eventos de la organización.
+            </p>
+          } @else {
+            <div class="table-wrap mini-table" [appUiPrivilegeVisible]="'participants.history'">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Evento</th>
+                    <th>Fecha del Evento</th>
+                    <th>Fecha Inscripción</th>
+                    <th>Código QR</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (ins of d.inscripciones; track ins.idInscripcion) {
+                    <tr>
+                      <td>
+                        <strong>{{ ins.tituloEvento }}</strong>
+                      </td>
+                      <td>
+                        <span class="date-text">{{ ins.fechaInicioEvento | date:'short' }}</span>
+                      </td>
+                      <td>
+                        <span class="date-text">{{ ins.fechaInscripcion | date:'short' }}</span>
+                      </td>
+                      <td>
+                        <code class="qr-code">{{ ins.codigoQr }}</code>
+                      </td>
+                      <td>
+                        <span
+                          class="status-chip"
+                          [class.inactive]="ins.estado === 'CANCELADA'"
+                        >
+                          {{ ins.estado }}
+                        </span>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        }
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="secondary-btn" (click)="cerrarModalDetalle()">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+}

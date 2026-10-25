@@ -2,7 +2,6 @@ package com.plataformaeventos.usuarios.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 
 import java.util.Set;
@@ -18,7 +17,6 @@ public record ActualizarUsuarioSolicitud(
         @Email(message = "El correo no tiene un formato valido")
         @Size(max = 254, message = "El correo no debe superar 254 caracteres")
         String correo,
-        @NotEmpty(message = "Debe asignarse al menos un rol")
         Set<@NotBlank(message = "El nombre del rol es obligatorio") String> roles
 ) {
 }

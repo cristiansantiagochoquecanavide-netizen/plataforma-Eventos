@@ -1,6 +1,7 @@
 package com.plataformaeventos.convocatorias;
 
 import com.plataformaeventos.convocatorias.dto.CrearConvocatoriaSolicitud;
+import com.plataformaeventos.convocatorias.modelo.TipoPersonal;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.Test;

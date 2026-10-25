@@ -1,7 +1,6 @@
 package com.plataformaeventos.roles.dto;
- 
-import com.plataformaeventos.roles.EstadoRol;
 
+import com.plataformaeventos.roles.modelo.EstadoRol;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;

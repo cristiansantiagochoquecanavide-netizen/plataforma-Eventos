@@ -19,6 +19,63 @@ Servicios expuestos: PostgreSQL `5432`, backend `8080`, FastAPI `8000` y Angular
 
 El cliente Flutter se ejecuta localmente; consultar `aplicacion-movil/README.md`.
 
+## Demo local Sprint 2 con Docker
+
+El archivo base `docker-compose.yml` mantiene `DEMO_SEED_ENABLED=false` por defecto. Para levantar la demo multi-tenant local, usar el override `docker-compose.local.yml`, que habilita el seeder solo en el backend.
+
+Iniciar o reconstruir el stack local:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+```
+
+Iniciar en segundo plano:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build -d
+```
+
+Inspeccionar estado:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml ps
+```
+
+Ver logs de todos los servicios:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml logs -f
+```
+
+Ver logs del backend:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml logs -f backend
+```
+
+Detener el stack sin borrar datos:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml down
+```
+
+Reset destructivo de la base demo local:
+
+> Destructivo: este comando borra el volumen `datos_postgres` y elimina todos los datos locales de PostgreSQL. Usarlo solo para reiniciar la demo.
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml down -v
+```
+
+URLs locales:
+
+- Angular: `http://localhost:4200`
+- API Spring Boot: `http://localhost:8080/api/`
+- Mailpit: `http://localhost:8025`
+- FastAPI: `http://localhost:8000`
+
+Las credenciales demo creadas por el seeder son solo para uso local. No reutilizarlas fuera del entorno de desarrollo.
+
 ## Correo en produccion
 
 En local, CU4 puede usar Mailpit. En AWS debe usarse un SMTP transaccional real, por ejemplo Amazon SES, configurando `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_AUTH`, `SMTP_STARTTLS_ENABLE`, `SMTP_STARTTLS_REQUIRED` y `URL_FRONTEND_WEB`.

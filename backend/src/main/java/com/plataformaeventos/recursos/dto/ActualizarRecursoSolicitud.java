@@ -1,7 +1,7 @@
 package com.plataformaeventos.recursos.dto;
 
-import com.plataformaeventos.recursos.EstadoRecurso;
-import com.plataformaeventos.recursos.TipoRecurso;
+import com.plataformaeventos.recursos.modelo.EstadoRecurso;
+import com.plataformaeventos.recursos.modelo.TipoRecurso;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

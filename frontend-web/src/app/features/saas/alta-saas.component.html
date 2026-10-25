@@ -1,0 +1,653 @@
+<main class="saas-page">
+  <!-- ==================== NAVEGACIÓN SUPERIOR ==================== -->
+  <header class="saas-nav">
+    <a class="saas-brand" routerLink="/planes" aria-label="Eventos, inicio">eventos<span>.</span></a>
+    
+    <nav class="nav-links" aria-label="Navegación principal">
+      <button type="button" class="nav-link-btn" (click)="hacerScrollA('eventos')">Eventos</button>
+      <button type="button" class="nav-link-btn" (click)="hacerScrollA('modulos')">Módulos</button>
+      <button type="button" class="nav-link-btn" (click)="hacerScrollA('ventajas')">Ventajas</button>
+      <button type="button" class="nav-link-btn" (click)="hacerScrollA('calculadora')">Calculadora</button>
+      <button type="button" class="nav-link-btn" (click)="hacerScrollA('planes')">Planes</button>
+      <button type="button" class="nav-link-btn" (click)="hacerScrollA('faq')">Preguntas</button>
+    </nav>
+
+    <div class="nav-actions">
+      <a class="login-link" routerLink="/iniciar-sesion">Ya tengo cuenta <span aria-hidden="true">↗</span></a>
+      <button type="button" class="nav-cta-btn" (click)="hacerScrollA('planes')">Comenzar</button>
+    </div>
+  </header>
+
+  @if (vista() === 'planes') {
+    <!-- ==================== HERO PRINCIPAL ==================== -->
+    <section class="saas-hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Operación integral de eventos · Multi-Tenant</p>
+        <h1>Tu próximo evento<br /><em>empieza aquí.</em></h1>
+        <p class="hero-intro">
+          Personas, espacios, postulaciones, acreditaciones con QR, reportes ejecutivos con IA y cobros en línea en un solo ecosistema integrado. Elige el ritmo que necesita tu organización.
+        </p>
+        <div class="hero-cta-group">
+          <button type="button" class="hero-btn-primary" (click)="hacerScrollA('planes')">
+            Explorar planes y precios <span aria-hidden="true">↓</span>
+          </button>
+          <button type="button" class="hero-btn-secondary" (click)="hacerScrollA('eventos')">
+            Ver agenda y eventos en vivo
+          </button>
+        </div>
+      </div>
+
+      <div class="hero-visual" aria-label="Vista abstracta de calendario y actividad de eventos">
+        <div class="orbit orbit-one"></div>
+        <div class="orbit orbit-two"></div>
+        <div class="visual-card calendar-card">
+          <span class="visual-label">PRÓXIMA FECHA</span>
+          <strong>24</strong>
+          <small>OCT · 2026</small>
+          <i></i>
+        </div>
+        <div class="visual-card activity-card">
+          <span class="activity-dot"></span>
+          <span>Acreditación QR confirmada</span>
+          <small>en tiempo real</small>
+        </div>
+        <div class="visual-badge-tenant">
+          <span class="tenant-dot"></span>
+          <span>Aislamiento por inquilino 100% activo</span>
+        </div>
+        <div class="visual-note">Una operación<br />más liviana.</div>
+        <span class="visual-index">01 / 06</span>
+      </div>
+    </section>
+
+    @if (aviso()) { <p class="banner success" role="status">{{ aviso() }}</p> }
+    @if (error()) { <p class="banner error" role="alert">{{ error() }}</p> }
+
+    <!-- ==================== SECCIÓN 1: VITRINA DE EVENTOS DESTACADOS ==================== -->
+    <section class="events-showcase-section" id="eventos">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Catálogo público de experiencias</p>
+          <h2>Eventos destacados y agenda en vivo</h2>
+        </div>
+        <p>Explora iniciativas gestionadas con nuestra plataforma.<br />Filtra por sector temático o busca por nombre y sede.</p>
+      </div>
+
+      <div class="events-toolbar">
+        <div class="search-box">
+          <span class="search-icon" aria-hidden="true">🔍</span>
+          <input
+            type="search"
+            [ngModel]="filtroTexto()"
+            (ngModelChange)="filtroTexto.set($event)"
+            placeholder="Buscar por nombre de evento, expositor o lugar..."
+            aria-label="Buscar eventos"
+          />
+        </div>
+        <div class="category-pills" role="tablist" aria-label="Categorías de eventos">
+          @for (cat of categoriasDisponibles(); track cat) {
+            <button
+              type="button"
+              class="cat-pill"
+              [class.active]="categoriaActiva() === cat"
+              (click)="seleccionarCategoria(cat)"
+              role="tab"
+              [attr.aria-selected]="categoriaActiva() === cat"
+            >
+              {{ cat }}
+            </button>
+          }
+        </div>
+      </div>
+
+      @if (eventosFiltrados().length === 0) {
+        <div class="empty-events-state">
+          <p>No se encontraron eventos que coincidan con "{{ filtroTexto() }}".</p>
+          <button type="button" class="btn-clear-filter" (click)="filtroTexto.set(''); categoriaActiva.set('TODAS')">
+            Restablecer filtros
+          </button>
+        </div>
+      } @else {
+        <div class="events-grid">
+          @for (ev of eventosFiltrados(); track ev.id) {
+            <article class="event-card">
+              <div class="event-img-wrap">
+                <img [src]="ev.imagen" [alt]="ev.nombre" loading="lazy" />
+                <span class="event-badge">{{ ev.destacadoBadge || 'Oficial' }}</span>
+                <span class="event-cat-tag">{{ ev.categoria }}</span>
+              </div>
+              <div class="event-content">
+                <p class="event-date">
+                  <span class="cal-mini-icon" aria-hidden="true">📅</span>
+                  {{ ev.fechaInicio | date: 'dd MMM, yyyy · HH:mm' }}
+                </p>
+                <h3 class="event-title">{{ ev.nombre }}</h3>
+                <p class="event-desc">{{ ev.descripcion }}</p>
+                <p class="event-location">
+                  <span aria-hidden="true">📍</span> {{ ev.lugar }}
+                </p>
+
+                <div class="event-capacity">
+                  <div class="capacity-labels">
+                    <span>Aforo reservado</span>
+                    <strong>{{ ev.inscritos }} / {{ ev.aforoMaximo }}</strong>
+                  </div>
+                  <div class="capacity-bar" aria-hidden="true">
+                    <div class="capacity-fill" [style.width.%]="porcentajeOcupacion(ev)"></div>
+                  </div>
+                </div>
+
+                <button type="button" class="event-detail-btn" (click)="abrirModalEvento(ev)">
+                  Ver información completa <span aria-hidden="true">→</span>
+                </button>
+              </div>
+            </article>
+          }
+        </div>
+      }
+    </section>
+
+    <!-- MODAL DETALLE DE EVENTO -->
+    @if (eventoModal(); as em) {
+      <div class="modal-backdrop" (click)="cerrarModalEvento()">
+        <div class="modal-dialog" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" [attr.aria-label]="em.nombre">
+          <button type="button" class="modal-close-btn" (click)="cerrarModalEvento()" aria-label="Cerrar ventana">✕</button>
+          <div class="modal-img-header">
+            <img [src]="em.imagen" [alt]="em.nombre" />
+            <span class="modal-badge">{{ em.destacadoBadge || em.categoria }}</span>
+          </div>
+          <div class="modal-body">
+            <p class="modal-category">{{ em.categoria }} · {{ em.estado }}</p>
+            <h2>{{ em.nombre }}</h2>
+            <div class="modal-meta-grid">
+              <div class="meta-item">
+                <span class="meta-label">INICIO</span>
+                <strong>{{ em.fechaInicio | date: 'EEEE, dd MMMM yyyy' }}</strong>
+                <small>{{ em.fechaInicio | date: 'HH:mm' }} hrs</small>
+              </div>
+              @if (em.fechaFin) {
+                <div class="meta-item">
+                  <span class="meta-label">CONCLUSIÓN</span>
+                  <strong>{{ em.fechaFin | date: 'EEEE, dd MMMM yyyy' }}</strong>
+                  <small>{{ em.fechaFin | date: 'HH:mm' }} hrs</small>
+                </div>
+              }
+              <div class="meta-item">
+                <span class="meta-label">SEDE / RECINTO</span>
+                <strong>{{ em.lugar }}</strong>
+                <small>Acceso verificado con QR</small>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">DISPONIBILIDAD</span>
+                <strong>{{ em.inscritos }} inscritos</strong>
+                <small>de {{ em.aforoMaximo }} plazas ({{ porcentajeOcupacion(em) }}% cubierto)</small>
+              </div>
+            </div>
+            <p class="modal-desc">{{ em.descripcion }}</p>
+            <div class="modal-actions">
+              <button type="button" class="modal-cta-primary" (click)="cerrarModalEvento(); hacerScrollA('planes')">
+                Organizar eventos como este <span aria-hidden="true">→</span>
+              </button>
+              <button type="button" class="modal-cta-secondary" (click)="cerrarModalEvento()">
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- ==================== SECCIÓN 2: MÓDULOS DE LA PLATAFORMA ==================== -->
+    <section class="modules-section" id="modulos">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Arquitectura integral</p>
+          <h2>Todo lo que tu equipo necesita en un solo lugar</h2>
+        </div>
+        <p>Desde la convocatoria hasta el certificado de asistencia.<br />Herramientas diseñadas para operar eventos de cualquier tamaño.</p>
+      </div>
+
+      <div class="modules-grid">
+        @for (m of modulos; track m.numero) {
+          <article class="module-card">
+            <div class="module-header">
+              <span class="module-number">{{ m.numero }}</span>
+              <div class="module-icon-wrap" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path [attr.d]="m.icono" />
+                </svg>
+              </div>
+            </div>
+            <h3>{{ m.titulo }}</h3>
+            <p>{{ m.descripcion }}</p>
+            <ul class="module-highlights">
+              @for (h of m.destacados; track h) {
+                <li>
+                  <span class="check-icon" aria-hidden="true">✓</span> {{ h }}
+                </li>
+              }
+            </ul>
+          </article>
+        }
+      </div>
+    </section>
+
+    <!-- ==================== SECCIÓN 3: VENTAJAS Y MÉTRICAS ==================== -->
+    <section class="advantages-section" id="ventajas">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Confiabilidad de nivel enterprise</p>
+          <h2>Construido para el rigor de la producción real</h2>
+        </div>
+        <p>Infraestructura diseñada para responder en momentos de alta concurrencia.<br />Sin caídas en el registro ni demoras en acreditación.</p>
+      </div>
+
+      <div class="stats-banner">
+        <div class="stat-card">
+          <strong>99.9%</strong>
+          <span>Disponibilidad cloud</span>
+          <small>Alta disponibilidad garantizada</small>
+        </div>
+        <div class="stat-card">
+          <strong>100%</strong>
+          <span>Multi-Tenant estricto</span>
+          <small>Datos y esquemas completamente aislados</small>
+        </div>
+        <div class="stat-card">
+          <strong>+50,000</strong>
+          <span>Participantes acreditados</span>
+          <small>Con códigos QR seguros e intransferibles</small>
+        </div>
+        <div class="stat-card">
+          <strong>&lt; 100ms</strong>
+          <span>Verificación en puerta</span>
+          <small>Validación en tiempo real por escaneo</small>
+        </div>
+      </div>
+
+      <div class="trust-grid">
+        <div class="trust-box">
+          <div class="trust-icon" aria-hidden="true">🔒</div>
+          <h4>Seguridad y Auditoría Continua</h4>
+          <p>Cada cambio, inscripción y acceso queda registrado en una bitácora inmutable con trazabilidad total.</p>
+        </div>
+        <div class="trust-box">
+          <div class="trust-icon" aria-hidden="true">💳</div>
+          <h4>Moneda Local y Pasarela Stripe</h4>
+          <p>Planes transparentes en Bolivianos (BOB) con integración directa a Stripe Checkout para cobros seguros.</p>
+        </div>
+        <div class="trust-box">
+          <div class="trust-icon" aria-hidden="true">⚡</div>
+          <h4>Sin Instalaciones Complejas</h4>
+          <p>Tu organización lista en minutos. Todo opera en la nube accesible desde cualquier navegador o móvil.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== SECCIÓN 4: CALCULADORA / SIMULADOR SAAS ==================== -->
+    <section class="calculator-section" id="calculadora">
+      <div class="calculator-card">
+        <div class="calc-copy">
+          <p class="eyebrow">Simulador interactivo de escala</p>
+          <h2>Encuentra el plan ideal para tu organización</h2>
+          <p>Ajusta el volumen de tus eventos mensuales y la asistencia esperada. Te sugeriremos la capacidad óptima sin pagar de más.</p>
+
+          <div class="calc-controls">
+            <div class="calc-control-group">
+              <div class="control-label-row">
+                <label for="slider-eventos">Eventos activos por mes</label>
+                <strong>{{ calcEventos() }} eventos</strong>
+              </div>
+              <input
+                id="slider-eventos"
+                type="range"
+                min="1"
+                max="15"
+                [value]="calcEventos()"
+                (input)="actualizarCalcEventos($event)"
+                class="calc-slider"
+              />
+              <div class="range-limits"><span>1 evento</span><span>15 eventos</span></div>
+            </div>
+
+            <div class="calc-control-group">
+              <div class="control-label-row">
+                <label for="slider-asistentes">Asistentes promedio por evento</label>
+                <strong>{{ calcAsistentes() | number }} personas</strong>
+              </div>
+              <input
+                id="slider-asistentes"
+                type="range"
+                min="50"
+                max="1500"
+                step="50"
+                [value]="calcAsistentes()"
+                (input)="actualizarCalcAsistentes($event)"
+                class="calc-slider"
+              />
+              <div class="range-limits"><span>50 personas</span><span>1,500 personas</span></div>
+            </div>
+
+            <div class="cycle-selector">
+              <span class="cycle-label">Ciclo de facturación:</span>
+              <div class="cycle-pill-group">
+                <button
+                  type="button"
+                  class="cycle-pill"
+                  [class.active]="calcCiclo() === 'MENSUAL'"
+                  (click)="setCiclo('MENSUAL')"
+                >
+                  Mensual
+                </button>
+                <button
+                  type="button"
+                  class="cycle-pill"
+                  [class.active]="calcCiclo() === 'ANUAL'"
+                  (click)="setCiclo('ANUAL')"
+                >
+                  Anual <span class="discount-badge">-20% Ahorro</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="calc-recommendation">
+          <span class="rec-badge">RECOMENDACIÓN INTELIGENTE</span>
+          <div class="rec-metric">
+            <small>CAPACIDAD ESTIMADA</small>
+            <strong>{{ calcInscripcionesTotales() | number }}</strong>
+            <span>inscripciones / mes proyectadas</span>
+          </div>
+
+          <div class="rec-plan-box">
+            <span class="rec-plan-label">PLAN SUGERIDO</span>
+            <h3>Plan {{ planRecomendadoCodigo() }}</h3>
+            @if (planRecomendado(); as pr) {
+              <p class="rec-plan-price">
+                <strong>{{ pr.gratuito ? 'Gratis' : ('Bs ' + pr.precioMensualBob) }}</strong>
+                @if (!pr.gratuito) { <span>/ mes</span> }
+              </p>
+              <ul class="rec-plan-features">
+                <li>Hasta {{ pr.usuariosInternos }} usuarios internos</li>
+                <li>Hasta {{ pr.eventosActivos }} eventos simultáneos</li>
+                <li>Hasta {{ pr.inscripcionesMes | number }} inscripciones / mes</li>
+              </ul>
+            } @else {
+              <p class="rec-plan-desc">Plan óptimo para cubrir la concurrencia proyectada con margen de crecimiento.</p>
+            }
+          </div>
+
+          <button
+            type="button"
+            class="calc-select-btn"
+            (click)="elegirPlanPorCodigo(planRecomendadoCodigo())"
+          >
+            Elegir Plan {{ planRecomendadoCodigo() }} <span aria-hidden="true">→</span>
+          </button>
+          <small class="calc-note">Puedes cambiar de plan o cancelar en cualquier momento desde tu panel.</small>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== SECCIÓN 5: CATÁLOGO DE PLANES SAAS ==================== -->
+    <section class="plans-section" id="planes">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Precios claros, en bolivianos</p>
+          <h2>Un plan para cada escala.</h2>
+        </div>
+        <p>Mensual. Sin cobros sorpresa.<br />Todos incluyen exportación de reportes y correo.</p>
+      </div>
+
+      @if (planes().length === 0 && !error()) {
+        <p class="loading">Cargando opciones<span>…</span></p>
+      }
+
+      <div class="plan-grid">
+        @for (plan of planes(); track plan.codigo; let i = $index) {
+          <article class="plan-card" [class.featured]="plan.codigo === 'PROFESIONAL'">
+            @if (plan.codigo === 'PROFESIONAL') {
+              <span class="popular">MÁS ELEGIDO</span>
+            }
+            <div class="plan-top">
+              <span class="plan-index">0{{ i + 1 }}</span>
+              <span class="plan-marker" aria-hidden="true">↗</span>
+            </div>
+            <h3>{{ plan.nombre }}</h3>
+            <p class="plan-summary">Recursos y límites para organizar eventos con tu equipo.</p>
+            <p class="price">
+              <strong>{{ plan.gratuito ? 'Gratis' : ('Bs ' + plan.precioMensualBob) }}</strong>
+              @if (!plan.gratuito) { <span>/ mes</span> }
+            </p>
+            <div class="plan-rule"></div>
+            <p class="includes">TU CAPACIDAD</p>
+            <ul class="limits">
+              <li><strong>{{ plan.usuariosInternos }}</strong> usuarios internos</li>
+              <li><strong>{{ plan.eventosActivos }}</strong> eventos activos</li>
+              <li><strong>{{ plan.inscripcionesMes | number }}</strong> inscripciones / mes</li>
+            </ul>
+            <p class="includes">INCLUYE REPORTES</p>
+            <p class="report-types">{{ plan.reportes.join(' · ') }} <span>+ envío por correo</span></p>
+            <button
+              type="button"
+              class="plan-cta"
+              [class.cta-featured]="plan.codigo === 'PROFESIONAL'"
+              (click)="seleccionarPlan(plan)"
+            >
+              {{ plan.gratuito ? 'Empezar gratis' : 'Elegir ' + plan.nombre }} <span aria-hidden="true">→</span>
+            </button>
+          </article>
+        }
+      </div>
+    </section>
+
+    <!-- ==================== SECCIÓN 6: FORMULARIO DE ALTA ==================== -->
+    @if (planSeleccionado(); as plan) {
+      <section class="signup-section" id="alta-formulario" aria-labelledby="signup-title">
+        <div class="signup-aside">
+          <p class="eyebrow">Un buen comienzo</p>
+          <h2 id="signup-title">Cuéntanos<br />de tu equipo.</h2>
+          <p>Verificaremos tu correo antes de crear el espacio de trabajo.</p>
+          <div class="selected-plan">
+            <span>PLAN SELECCIONADO</span>
+            <strong>{{ plan.nombre }}</strong>
+            <b>{{ plan.gratuito ? 'Sin costo' : 'Bs ' + plan.precioMensualBob + ' / mes' }}</b>
+          </div>
+        </div>
+
+        <form class="signup-form" [formGroup]="formularioAlta" (ngSubmit)="enviarAlta()" novalidate>
+          <label>
+            Nombre de la organización
+            <input formControlName="nombreEmpresa" autocomplete="organization" placeholder="Ej. Colectivo Horizonte" />
+          </label>
+          <label>
+            Dirección sugerida <small>Opcional · letras minúsculas, números y guiones</small>
+            <div class="slug-field">
+              <span>app.eventos.bo/</span>
+              <input formControlName="slugSugerido" placeholder="colectivo-horizonte" />
+            </div>
+          </label>
+          <div class="name-fields">
+            <label>
+              Nombres
+              <input formControlName="nombresContacto" autocomplete="given-name" placeholder="Tu nombre" />
+            </label>
+            <label>
+              Apellidos
+              <input formControlName="apellidosContacto" autocomplete="family-name" placeholder="Tus apellidos" />
+            </label>
+          </div>
+          <label>
+            Correo de trabajo
+            <input type="email" formControlName="correoContacto" autocomplete="email" placeholder="nombre@organizacion.bo" />
+          </label>
+          @if (error()) { <p class="form-error" role="alert">{{ error() }}</p> }
+          <button class="submit-button" type="submit" [disabled]="cargando()">
+            {{ cargando() ? 'Enviando…' : 'Continuar con el correo' }} <span aria-hidden="true">→</span>
+          </button>
+          <p class="privacy-note">
+            Al continuar, enviaremos un enlace de verificación a tu correo. No se crea la cuenta hasta confirmar la dirección.
+          </p>
+        </form>
+      </section>
+    }
+
+    <!-- ==================== SECCIÓN 7: PREGUNTAS FRECUENTES (FAQ) ==================== -->
+    <section class="faq-section" id="faq">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Dudas resueltas</p>
+          <h2>Preguntas frecuentes</h2>
+        </div>
+        <p>Respuestas claras sobre la plataforma, métodos de pago y seguridad.</p>
+      </div>
+
+      <div class="faq-accordion">
+        @for (faq of faqs; track $index) {
+          <article class="faq-item" [class.open]="faqAbierto() === $index">
+            <button
+              type="button"
+              class="faq-question"
+              (click)="toggleFaq($index)"
+              [attr.aria-expanded]="faqAbierto() === $index"
+            >
+              <span>{{ faq.pregunta }}</span>
+              <span class="faq-chevron" aria-hidden="true">{{ faqAbierto() === $index ? '−' : '+' }}</span>
+            </button>
+            @if (faqAbierto() === $index) {
+              <div class="faq-answer">
+                <p>{{ faq.respuesta }}</p>
+              </div>
+            }
+          </article>
+        }
+      </div>
+    </section>
+
+    <!-- ==================== FOOTER INSTITUCIONAL ==================== -->
+    <footer class="saas-footer-extended">
+      <div class="footer-columns">
+        <div class="footer-col brand-col">
+          <a class="footer-brand" routerLink="/planes">eventos<span>.</span></a>
+          <p>Plataforma SaaS multi-tenant para la gestión, acreditación y análisis inteligente de eventos institucionales.</p>
+          <span class="footer-region">Hecho para Bolivia y Latinoamérica · 2026</span>
+        </div>
+        <div class="footer-col">
+          <h4>Plataforma</h4>
+          <button type="button" class="footer-link-btn" (click)="hacerScrollA('eventos')">Agenda de eventos</button>
+          <button type="button" class="footer-link-btn" (click)="hacerScrollA('modulos')">Módulos del sistema</button>
+          <button type="button" class="footer-link-btn" (click)="hacerScrollA('ventajas')">Ventajas y métricas</button>
+          <button type="button" class="footer-link-btn" (click)="hacerScrollA('calculadora')">Calculadora de planes</button>
+        </div>
+        <div class="footer-col">
+          <h4>Acceso</h4>
+          <a routerLink="/iniciar-sesion" class="footer-link">Iniciar sesión</a>
+          <a routerLink="/recuperar-clave" class="footer-link">Recuperar contraseña</a>
+          <button type="button" class="footer-link-btn" (click)="hacerScrollA('planes')">Planes comerciales</button>
+          <button type="button" class="footer-link-btn" (click)="hacerScrollA('faq')">Preguntas frecuentes</button>
+        </div>
+        <div class="footer-col">
+          <h4>Seguridad</h4>
+          <p class="footer-security-text">Aislamiento de esquemas PostgreSQL, cifrado JWT de extremo a extremo y transacciones seguras mediante Stripe.</p>
+          <div class="footer-status-pill">
+            <span class="status-indicator"></span> Sistema 100% Operativo
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom-bar">
+        <span>© 2026 eventos. · Todos los derechos reservados.</span>
+        <span>Menos fricción. Mejores encuentros.</span>
+      </div>
+    </footer>
+
+  } @else if (vista() === 'correo') {
+    <section class="flow-state">
+      <span class="flow-icon" aria-hidden="true">✉</span>
+      <p class="eyebrow">Primer paso completado</p>
+      <h1>Verifica tu correo para continuar.</h1>
+      <p>{{ aviso() || 'Enviamos un enlace de verificación.' }}</p>
+      <p class="email-next-step">Revisa <strong>{{ correoVerificacion() }}</strong> y abre el enlace para confirmar tu dirección.</p>
+      @if (planSeleccionado()?.gratuito) {
+        <p>Después prepararemos tu espacio y te enviaremos otro enlace para activar tu cuenta.</p>
+      } @else {
+        <p>Después de verificar el correo, te redirigiremos a Stripe Checkout para completar el pago de tu plan.</p>
+      }
+      <p class="privacy-note">Si no ves el mensaje, revisa la carpeta de correo no deseado o spam.</p>
+      <a class="back-link" routerLink="/planes">Volver a los planes</a>
+    </section>
+
+  } @else if (vista() === 'verificar') {
+    <section class="flow-state">
+      <span class="flow-icon">{{ cargando() ? '…' : error() ? '!' : '✓' }}</span>
+      <p class="eyebrow">Verificación de correo</p>
+      <h1>{{ cargando() ? 'Revisando tu enlace.' : error() ? 'No pudimos verificarlo.' : activacionEnviada() ? 'Revisa tu correo.' : 'Preparando tu espacio.' }}</h1>
+      <p>{{ error() || aviso() || 'Estamos validando el enlace de forma segura.' }}</p>
+      @if (activacionEnviada()) {
+        <p class="email-next-step">Te enviamos un segundo enlace para definir tu clave. Abre ese mensaje para terminar de activar tu acceso.</p>
+      }
+      <a class="back-link" routerLink="/planes">Volver a planes</a>
+    </section>
+
+  } @else if (vista() === 'activar') {
+    <section class="flow-state activation-state">
+      @if (activacionEnviada()) {
+        <span class="flow-icon">✓</span>
+        <p class="eyebrow">Acceso listo</p>
+        <h1>Bienvenido a bordo.</h1>
+        <p>Tu cuenta ya está activa y puedes entrar a tu espacio de trabajo.</p>
+        <a class="submit-button flow-link" routerLink="/iniciar-sesion">Iniciar sesión <span aria-hidden="true">→</span></a>
+      } @else {
+        <p class="eyebrow">Último paso</p>
+        <h1>Define tu clave.</h1>
+        <p>Con ella podrás administrar la organización y empezar a organizar eventos.</p>
+        <form [formGroup]="formularioActivacion" (ngSubmit)="activarPropietario()">
+          <label>
+            Nueva clave
+            <div class="password-input-wrap">
+              <input
+                [type]="mostrarClave() ? 'text' : 'password'"
+                formControlName="nuevaClave"
+                autocomplete="new-password"
+                placeholder="Ingresa tu contraseña..."
+              />
+              <button
+                type="button"
+                class="toggle-password-btn"
+                (click)="mostrarClave.set(!mostrarClave())"
+                [attr.aria-label]="mostrarClave() ? 'Ocultar contraseña' : 'Ver contraseña'"
+              >
+                @if (mostrarClave()) {
+                  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
+                } @else {
+                  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                }
+              </button>
+            </div>
+          </label>
+          <app-requisitos-clave [clave]="claveActivacion()"></app-requisitos-clave>
+          @if (error()) { <p class="form-error" role="alert">{{ error() }}</p> }
+          <button class="submit-button" type="submit" [disabled]="cargando()">
+            {{ cargando() ? 'Activando…' : 'Activar mi cuenta' }} <span aria-hidden="true">→</span>
+          </button>
+        </form>
+      }
+      <a class="back-link" routerLink="/planes">Volver al inicio</a>
+    </section>
+
+  } @else {
+    <section class="flow-state">
+      <span class="flow-icon">✓</span>
+      <p class="eyebrow">Pago enviado a verificar</p>
+      <h1>Gracias. Estamos cerrando el ciclo.</h1>
+      <p>Stripe notificará el resultado de forma segura. Cuando el pago sea confirmado, te enviaremos el enlace para activar tu acceso. Puedes cerrar esta ventana.</p>
+      <a class="back-link" routerLink="/iniciar-sesion">Ir a iniciar sesión</a>
+    </section>
+  }
+</main>

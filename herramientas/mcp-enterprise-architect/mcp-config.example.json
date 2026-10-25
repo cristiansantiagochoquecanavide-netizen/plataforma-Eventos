@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "enterprise-architect": {
+      "command": "C:\\Proyecto-GestionEventos\\plataforma-gestion-eventos\\herramientas\\mcp-enterprise-architect\\.venv\\Scripts\\python.exe",
+      "args": [
+        "C:\\Proyecto-GestionEventos\\plataforma-gestion-eventos\\herramientas\\mcp-enterprise-architect\\server.py"
+      ],
+      "env": {
+        "EA_MODEL_PATH": "C:\\ruta\\a\\tu-modelo.qea"
+      }
+    }
+  }
+}

@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -23,6 +24,7 @@ import java.util.Arrays;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@EnableAspectJAutoProxy
 public class SeguridadConfiguracion {
 
     private final JwtFiltro jwtFiltro;
@@ -53,9 +55,12 @@ public class SeguridadConfiguracion {
                         .accessDeniedHandler(manejadorAccesoDenegado))
                 .authorizeHttpRequests(autorizacion -> autorizacion
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/salud", "/actuator/health", "/swagger-ui/**", "/swagger-ui.html", "/api-docs/**")
-                        .permitAll()
-                        .requestMatchers("/api/autenticacion/**").permitAll()
+                         .requestMatchers("/api/salud", "/actuator/health", "/swagger-ui/**", "/swagger-ui.html", "/api-docs/**")
+                         .permitAll()
+                         .requestMatchers("/api/saas/planes", "/api/saas/altas/**", "/api/saas/stripe/webhook")
+                         .permitAll()
+                         .requestMatchers("/api/autenticacion/usuario-actual").authenticated()
+                         .requestMatchers("/api/autenticacion/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFiltro, UsernamePasswordAuthenticationFilter.class)
                 .build();
@@ -74,7 +79,7 @@ public class SeguridadConfiguracion {
                 .filter(origen -> !origen.isEmpty())
                 .toList());
         configuracion.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuracion.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuracion.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Organization-Id"));
         configuracion.setExposedHeaders(List.of("Authorization"));
 
         UrlBasedCorsConfigurationSource fuente = new UrlBasedCorsConfigurationSource();

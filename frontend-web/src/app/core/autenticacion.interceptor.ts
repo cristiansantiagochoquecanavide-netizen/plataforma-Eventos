@@ -5,18 +5,28 @@ import { SesionService } from './sesion.service';
 
 export const autenticacionInterceptor: HttpInterceptorFn = (solicitud, siguiente) => {
   const sesion = inject(SesionService);
+  const ruta = new URL(solicitud.url, globalThis.location?.origin ?? 'http://localhost').pathname;
   const esPublica = [
-    '/autenticacion/registro',
-    '/autenticacion/iniciar-sesion',
-    '/autenticacion/refrescar',
-    '/autenticacion/recuperar-clave',
-    '/autenticacion/solicitar-recuperacion-clave',
-    '/autenticacion/restablecer-clave',
-  ].some((ruta) => solicitud.url.includes(ruta));
+    '/api/autenticacion/registro',
+    '/api/autenticacion/iniciar-sesion',
+    '/api/autenticacion/refrescar',
+    '/api/autenticacion/recuperar-clave',
+    '/api/autenticacion/solicitar-recuperacion-clave',
+    '/api/autenticacion/restablecer-clave',
+    '/api/saas/planes',
+    '/api/saas/altas',
+    '/api/saas/altas/verificar-email',
+    '/api/saas/altas/activar',
+    '/api/saas/stripe/webhook',
+  ].includes(ruta);
   const token = sesion.tokenAcceso();
+  const headers: Record<string, string> = {};
+  if (token && !esPublica) headers['Authorization'] = `Bearer ${token}`;
+  const organizacionId = sesion.organizacionActivaId();
+  if (organizacionId && !esPublica) headers['X-Organization-Id'] = String(organizacionId);
   const autorizada =
-    !esPublica && token
-      ? solicitud.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
+    Object.keys(headers).length > 0
+      ? solicitud.clone({ setHeaders: headers })
       : solicitud;
 
   return siguiente(autorizada).pipe(
@@ -26,7 +36,12 @@ export const autenticacionInterceptor: HttpInterceptorFn = (solicitud, siguiente
         switchMap((nuevaSesion) =>
           siguiente(
             solicitud.clone({
-              setHeaders: { Authorization: `Bearer ${nuevaSesion.accessToken}` },
+              setHeaders: {
+                Authorization: `Bearer ${nuevaSesion.accessToken}`,
+                ...(sesion.organizacionActivaId()
+                  ? { 'X-Organization-Id': String(sesion.organizacionActivaId()) }
+                  : {}),
+              },
             }),
           ),
         ),

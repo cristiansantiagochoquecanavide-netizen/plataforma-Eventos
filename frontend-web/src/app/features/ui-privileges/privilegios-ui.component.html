@@ -1,0 +1,101 @@
+<section class="page-heading">
+  <p class="eyebrow">Organización activa</p>
+  <h1>Privilegios de interfaz</h1>
+  <p>Administrá qué controles de la UI puede ver, habilitar o editar cada grupo del tenant.</p>
+</section>
+
+<p class="notice" id="ui-privileges-recovery-note">
+  Los administradores del tenant conservan acceso de recuperación a grupos y a la configuración de privilegios de interfaz.
+  Ese acceso de recuperación es provisto por el servidor y no implica acceso a controles de negocio.
+</p>
+
+@if (mensaje()) {
+  <p class="notice success">{{ mensaje() }}</p>
+}
+@if (error()) {
+  <p class="notice error" role="alert">{{ error() }}</p>
+}
+
+<div class="roles-layout" style="grid-template-columns: minmax(280px, 380px) 1fr;">
+  <section class="card">
+    <div class="card-title compact" style="display: flex; justify-content: space-between; align-items: center;">
+      <h2>Grupos disponibles</h2>
+      <span class="role-chip">{{ grupos().length }} grupos</span>
+    </div>
+
+    <label>
+      Seleccionar grupo
+      <select
+        id="ui-privileges-group-select"
+        [value]="idGrupoSeleccionado() ?? ''"
+        (change)="seleccionarGrupo($any($event.target).value)"
+        [appUiPrivilegeEditable]="'ui-privileges.group-grants'"
+      >
+        <option value="">Elegí un grupo</option>
+        @for (grupo of grupos(); track grupo.id) {
+          <option [value]="grupo.id">{{ grupo.nombre }}</option>
+        }
+      </select>
+    </label>
+  </section>
+
+  <section id="ui-privileges-catalog" class="card permissions-card" [appUiPrivilegeVisible]="'ui-privileges.catalog'">
+    <div class="card-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div>
+        <p class="eyebrow">Catálogo UI</p>
+        <h2>{{ grupoSeleccionado()?.nombre || 'Sin grupo seleccionado' }}</h2>
+        <small>Solo se administran estados soportados: visible, habilitado y editable.</small>
+      </div>
+      <button
+        id="ui-privileges-save-button"
+        class="primary"
+        type="button"
+        (click)="guardar()"
+        [appUiPrivilegeVisible]="'ui-privileges.save'"
+        [appUiPrivilegeEnabled]="{ key: 'ui-privileges.save', businessDisabled: !idGrupoSeleccionado() || guardando() || cargandoPrivilegios() }"
+        style="color: #ffffff;"
+      >
+        {{ guardando() ? 'Guardando...' : 'Guardar privilegios' }}
+      </button>
+    </div>
+
+    @if (idGrupoSeleccionado()) {
+      <div id="ui-privileges-group-grants" class="permission-list" [appUiPrivilegeVisible]="'ui-privileges.group-grants'">
+        @for (entrada of catalogo(); track entrada.clave) {
+          <article class="permission-option" style="align-items: flex-start;">
+            <span style="min-width: 220px;">
+              <strong>{{ entrada.descripcion }}</strong>
+              <small>{{ entrada.clave }} · {{ entrada.tipo }}</small>
+              @if (entrada.controlRecuperacion) {
+                <small>Control con recuperación provista por servidor</small>
+              }
+            </span>
+            <span class="button-row" style="margin-left: auto; flex-wrap: wrap;">
+              @for (estado of estados; track estado) {
+                @if (soportaEstado(entrada, estado)) {
+                  <label style="display: inline-flex; align-items: center; gap: 6px; margin-right: 10px;">
+                    <input
+                      type="checkbox"
+                      [id]="'ui-privilege-' + entrada.clave + '-' + estado"
+                      [checked]="estaConcedido(entrada.clave, estado)"
+                      (change)="alternarEstado(entrada.clave, estado, $any($event.target).checked)"
+                      [appUiPrivilegeEditable]="'ui-privileges.group-grants'"
+                    />
+                    {{ estado }}
+                  </label>
+                }
+              }
+            </span>
+          </article>
+        } @empty {
+          <p class="empty-state">No hay componentes UI registrados en el catálogo.</p>
+        }
+      </div>
+    } @else {
+      <div class="empty-state" style="text-align: center; padding: 48px 24px; color: var(--muted);">
+        <p style="font-size: 1.05rem; font-weight: 600; margin-bottom: 8px;">Ningún grupo seleccionado</p>
+        <small>Elegí un grupo para cargar sus privilegios actuales.</small>
+      </div>
+    }
+  </section>
+</div>

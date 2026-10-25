@@ -1,7 +1,7 @@
 package com.plataformaeventos.convocatorias.dto;
 
-import com.plataformaeventos.convocatorias.EstadoConvocatoria;
-import com.plataformaeventos.convocatorias.TipoPersonal;
+import com.plataformaeventos.convocatorias.modelo.EstadoConvocatoria;
+import com.plataformaeventos.convocatorias.modelo.TipoPersonal;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;

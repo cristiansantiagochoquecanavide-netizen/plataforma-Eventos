@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
+@import './app/features/saas/alta-saas.component.css';
 
 :root {
   color: #17211f;
@@ -334,9 +335,14 @@ small {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  overflow: hidden;
   padding: 28px 18px;
   background: #133a34;
   color: white;
+}
+
+.sidebar .brand {
+  flex: 0 0 auto;
 }
 
 .brand {
@@ -345,7 +351,13 @@ small {
 
 .sidebar nav {
   display: grid;
+  flex: 1 1 auto;
   gap: 6px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-color: #86aaa0 transparent;
+  overscroll-behavior: contain;
 }
 
 .sidebar nav a {
@@ -376,8 +388,31 @@ small {
   text-transform: uppercase;
 }
 
+.sidebar nav .nav-placeholder {
+  border-radius: 8px;
+  color: #6d8e85;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+}
+
+.sidebar nav .nav-placeholder span {
+  font-size: 0.68rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: #86aaa0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-style: normal;
+}
+
 .logout {
-  margin-top: auto;
+  flex: 0 0 auto;
+  margin-top: 18px;
   background: rgba(255, 255, 255, 0.08);
   color: #d6e5df;
   text-align: left;
@@ -422,6 +457,28 @@ small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.report-builder{margin-bottom:20px;padding:16px 20px}
+.report-columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px 16px;border:1px solid var(--line);border-radius:8px;padding:14px;margin:12px 0}
+.report-columns legend{padding:0 6px;font-size:.84rem;font-weight:800}
+.report-column{display:flex;align-items:center;gap:8px;font-size:.84rem;color:var(--ink)}
+.report-options{display:flex;align-items:flex-end;flex-wrap:wrap;gap:12px;margin:14px 0}
+.report-options label,.report-email{display:flex;flex-direction:column;gap:6px;font-size:.82rem;font-weight:700;color:var(--muted)}
+.report-email{display:grid;grid-template-columns:minmax(220px,1fr) auto;align-items:end;gap:10px;margin-top:16px}
+.report-email small{grid-column:1/-1}
+.report-preview{margin-top:16px;overflow:auto}
+.report-preview>p{font-size:.84rem;color:var(--muted)}
+
+.tenant-selector {
+  min-width: min(280px, 100%);
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.tenant-selector select {
+  min-height: 39px;
+  padding: 8px 10px;
 }
 
 .page-heading {
@@ -720,47 +777,88 @@ td strong {
   text-align: center;
 }
 
+/* ==================== REQUISITOS CLAVE FINO ==================== */
+.password-checklist-wrapper {
+  display: grid;
+  gap: 10px;
+  margin: 6px 0 4px;
+}
+
+.strength-track {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  height: 3px;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.strength-segment {
+  height: 100%;
+  background: rgba(23, 62, 54, 0.09);
+  border-radius: 2px;
+  transition: background 0.25s ease;
+}
+
+.strength-segment.active {
+  background: #d8a748;
+}
+
+.strength-segment.strong {
+  background: #173e36;
+}
+
 .password-checklist {
   display: grid;
-  gap: 8px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin: -3px 0 2px;
+  gap: 8px 14px;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .password-checklist li {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 30px;
-  border-radius: 8px;
-  background: #f3f6f4;
-  color: #6b2f26;
-  padding: 7px 9px;
-  font-size: 0.78rem;
-  font-weight: 800;
+  background: transparent;
+  padding: 2px 0;
+  color: #718276;
+  font-size: 0.76rem;
+  font-weight: 500;
+  line-height: 1.3;
+  transition: color 0.2s ease;
 }
 
-.password-checklist span {
+.password-checklist li .indicator-icon {
   display: inline-grid;
-  width: 19px;
-  height: 19px;
-  flex: 0 0 auto;
   place-items: center;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
   border-radius: 999px;
-  background: var(--danger-soft);
-  color: var(--danger);
-  font-size: 0.72rem;
+  background: transparent;
+  border: 1.5px solid #a3b2a7;
+  color: #fff;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .password-checklist li.ok {
-  color: var(--success);
+  color: #173e36;
+  font-weight: 600;
 }
 
-.password-checklist li.ok span {
-  background: var(--success-soft);
-  color: var(--success);
+.password-checklist li.ok .indicator-icon {
+  background: #173e36;
+  border-color: #173e36;
+  color: #ffffff;
+  transform: scale(1.05);
+}
+
+.password-checklist li .req-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .toast-stack {
@@ -838,11 +936,14 @@ td strong {
   .sidebar {
     position: static;
     height: auto;
+    overflow: visible;
   }
 
   .sidebar nav {
     display: flex;
     flex-wrap: wrap;
+    overflow: visible;
+    padding-right: 0;
   }
 
   .brand {
@@ -940,7 +1041,7 @@ td strong {
   border-radius: 16px;
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25);
   width: 100%;
-  max-width: 620px;
+  max-width: 740px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -986,6 +1087,7 @@ td strong {
 .modal-body {
   padding: 24px;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 @keyframes modalFadeIn {

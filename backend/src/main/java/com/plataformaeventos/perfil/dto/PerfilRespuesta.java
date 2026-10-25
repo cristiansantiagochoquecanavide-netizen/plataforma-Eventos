@@ -7,6 +7,7 @@ public record PerfilRespuesta(
         String nombres,
         String apellidos,
         String correo,
-        List<String> roles
+        List<String> roles,
+        List<String> permisos
 ) {
 }

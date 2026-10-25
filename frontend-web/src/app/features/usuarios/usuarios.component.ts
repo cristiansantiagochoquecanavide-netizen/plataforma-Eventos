@@ -1,21 +1,21 @@
 import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ApiService } from '../../core/api.service';
+import { UsuariosService } from './servicios/usuarios.service';
 import { obtenerMensajeError } from '../../core/mensajes-error';
-import { Rol, Usuario } from '../../core/modelos';
+import { Usuario } from './modelos/usuario.modelo';
 import { ToastService } from '../../core/toast.service';
 import { mensajeClaveInvalida, validadorClaveSegura } from '../../core/validacion-clave';
 import { RequisitosClaveComponent } from '../../shared/requisitos-clave.component';
+import { UiPrivilegeEditableDirective, UiPrivilegeEnabledDirective, UiPrivilegeVisibleDirective } from '../../core/ui-privilege.directive';
 
 @Component({
   selector: 'app-usuarios',
-  imports: [ReactiveFormsModule, RequisitosClaveComponent],
+  imports: [ReactiveFormsModule, RequisitosClaveComponent, UiPrivilegeVisibleDirective, UiPrivilegeEnabledDirective, UiPrivilegeEditableDirective],
   templateUrl: './usuarios.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UsuariosComponent implements OnInit {
   readonly usuarios = signal<Usuario[]>([]);
-  readonly roles = signal<Rol[]>([]);
   readonly error = signal('');
   readonly mensaje = signal('');
   readonly modalAbierto = signal(false);
@@ -32,24 +32,16 @@ export class UsuariosComponent implements OnInit {
   });
 
   constructor(
-    private readonly api: ApiService,
+    private readonly usuariosService: UsuariosService,
     private readonly toast: ToastService,
   ) {}
 
   ngOnInit() {
     this.cargar();
-    this.api.listarRoles().subscribe({
-      next: (roles) => this.roles.set(roles),
-      error: (error) => {
-        const mensaje = obtenerMensajeError(error, 'No fue posible cargar roles');
-        this.error.set(mensaje);
-        this.toast.error(mensaje);
-      },
-    });
   }
 
   cargar() {
-    this.api.listarUsuarios().subscribe({
+    this.usuariosService.listarUsuarios().subscribe({
       next: (pagina) => this.usuarios.set(pagina.elementos),
       error: (error) => {
         const mensaje = obtenerMensajeError(error, 'No fue posible cargar usuarios');
@@ -68,6 +60,7 @@ export class UsuariosComponent implements OnInit {
   cerrarModal() {
     this.modalAbierto.set(false);
     this.cancelar();
+    this.limpiarAvisos();
   }
 
   editar(usuario: Usuario) {
@@ -118,13 +111,13 @@ export class UsuariosComponent implements OnInit {
       .filter(Boolean);
     const editando = this.editando();
     const solicitud = editando
-      ? this.api.actualizarUsuario(editando.id, {
+      ? this.usuariosService.actualizarUsuario(editando.id, {
           nombres: valor.nombres,
           apellidos: valor.apellidos,
           correo: valor.correo,
           roles,
         })
-      : this.api.crearUsuario({ ...valor, roles });
+      : this.usuariosService.crearUsuario({ ...valor, roles });
     solicitud.subscribe({
       next: () => {
         const mensaje = editando
@@ -150,7 +143,7 @@ export class UsuariosComponent implements OnInit {
     this.limpiarAvisos();
     this.idCambiandoEstado.set(usuario.id);
     const estado = usuario.estado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO';
-    this.api.cambiarEstadoUsuario(usuario.id, estado).subscribe({
+    this.usuariosService.cambiarEstadoUsuario(usuario.id, estado).subscribe({
       next: () => {
         const mensaje = `Usuario ${estado.toLowerCase()} correctamente.`;
         this.mensaje.set(mensaje);
