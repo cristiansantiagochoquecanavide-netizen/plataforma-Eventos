@@ -145,6 +145,7 @@ export class SesionService {
   puedeGestionarPostulacionesStaff() { return this.tienePermiso('POSTULACION_STAFF_GESTIONAR'); }
   puedeGestionarAsignacionesStaff() { return this.tienePermiso('ASIGNACION_STAFF_GESTIONAR'); }
   puedeVerAsignacionesStaff() { return this.puedeGestionarAsignacionesStaff() || this.puedeCrearPostulacionesStaff(); }
+  puedeRegistrarAsistencia() { return this.tienePermiso('ASISTENCIA_REGISTRAR'); }
   puedeVerBitacora() { return this.esAdministrador() || this.tienePermiso('BITACORA_VER'); }
   puedeGestionarMiembros() { return this.usuario()?.perfilOrganizacionActiva?.administrador ?? false; }
   puedeVerParticipantes() { return this.esAdministrador() || this.tieneAlgunPermiso(['PARTICIPANTE_VER', 'USUARIO_VER', 'INSCRIPCION_VER', 'INSCRIPCION_VER_TODAS']); }
