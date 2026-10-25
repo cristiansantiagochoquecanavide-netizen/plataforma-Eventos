@@ -92,7 +92,7 @@ export const convocatoriasGuard: CanActivateFn = () => {
   );
 };
 
-function permisoGuard(autorizado: (sesion: SesionService) => boolean): CanActivateFn {
+export function permisoGuard(autorizado: (sesion: SesionService) => boolean): CanActivateFn {
   return () => {
     const sesion = inject(SesionService);
     const router = inject(Router);

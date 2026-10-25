@@ -16,6 +16,7 @@ Alcance comprobado contra las rutas de `frontend-web/src/app/app.routes.ts`, los
 | Administrar usuarios, roles, miembros y grupos | ✓ | — | Web: administración de la organización/plataforma. |
 | Configurar privilegios por componente UI | ✓ | — | Web: pantalla administrativa; la app móvil aplica la política recibida. |
 | Gestionar participantes e historial | ✓ | — | Web: operación de padrón y administración. |
+| CU27 Consultar historial de participación y eventos asistidos | ✓ | ✓ | Participante: consulta sus inscripciones y asistencias en ambas plataformas. |
 | Construir/previsualizar/exportar/enviar reportes de participantes | ✓ | — | Web: reportes administrativos con filtros tenant-scoped. |
 | Consultar bitácora | ✓ | — | Web: operación autorizada de auditoría. |
 | Ver ayuda contextual | ✓ | ✓ | Ambas: orientación de uso. |

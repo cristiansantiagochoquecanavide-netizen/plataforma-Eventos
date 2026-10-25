@@ -16,6 +16,7 @@ import {
   administradorGuard,
   reportesGuard,
   asistenciasGuard,
+  permisoGuard,
 } from './core/guards';
 import { InicioSesionComponent } from './features/auth/inicio-sesion.component';
 import { RecuperarClaveComponent } from './features/auth/recuperar-clave.component';
@@ -52,6 +53,7 @@ export const routes: Routes = [
     canActivate: [autenticacionGuard],
     children: [
       { path: 'perfil', component: PerfilComponent },
+      { path: 'mi-historial', loadComponent: () => import('./features/historial/historial-participacion.component').then((m) => m.HistorialParticipacionComponent), canActivate: [permisoGuard((s) => s.puedeVerHistorialParticipacion())] },
       { path: 'ayuda', component: AyudaComponent },
       { path: 'consulta-eventos', component: ConsultaEventosComponent, canActivate: [consultaEventosGuard] },
       { path: 'eventos', loadComponent: () => import('./features/eventos/eventos.component').then((m) => m.EventosComponent), canActivate: [eventosGuard] },

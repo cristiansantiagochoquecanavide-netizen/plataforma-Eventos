@@ -1,11 +1,14 @@
 package com.plataformaeventos.inscripciones.servicio;
 
+import com.plataformaeventos.asistencias.modelo.Asistencia;
+import com.plataformaeventos.asistencias.repositorio.AsistenciaRepository;
 import com.plataformaeventos.eventos.modelo.EstadoEvento;
 import com.plataformaeventos.eventos.modelo.Evento;
 import com.plataformaeventos.eventos.repositorio.EventoRepository;
 import com.plataformaeventos.excepciones.ExcepcionNoEncontrado;
 import com.plataformaeventos.inscripciones.dto.DisponibilidadEventoRespuesta;
 import com.plataformaeventos.inscripciones.dto.InscripcionRespuesta;
+import com.plataformaeventos.inscripciones.dto.HistorialParticipacionRespuesta;
 import com.plataformaeventos.inscripciones.dto.ParticipanteInscritoRespuesta;
 import com.plataformaeventos.inscripciones.modelo.EstadoInscripcion;
 import com.plataformaeventos.inscripciones.modelo.Inscripcion;
@@ -18,6 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -27,15 +33,18 @@ public class InscripcionService {
     private final InscripcionRepository inscripcionRepository;
     private final EventoRepository eventoRepository;
     private final UsuarioRepository usuarioRepository;
+    private final AsistenciaRepository asistenciaRepository;
 
     public InscripcionService(
             InscripcionRepository inscripcionRepository,
             EventoRepository eventoRepository,
-            UsuarioRepository usuarioRepository
+            UsuarioRepository usuarioRepository,
+            AsistenciaRepository asistenciaRepository
     ) {
         this.inscripcionRepository = inscripcionRepository;
         this.eventoRepository = eventoRepository;
         this.usuarioRepository = usuarioRepository;
+        this.asistenciaRepository = asistenciaRepository;
     }
 
     @Transactional
@@ -89,6 +98,25 @@ public class InscripcionService {
         return (organizacion == null ? inscripcionRepository.findByParticipanteIdConEvento(participante.getId()) : inscripcionRepository.findByParticipanteIdAndOrganizacionIdConEvento(participante.getId(), organizacion.getId()))
                 .stream()
                 .map(InscripcionRespuesta::desdeEntidad)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<HistorialParticipacionRespuesta> listarMiHistorial(String correoUsuario, Organizacion organizacion) {
+        Usuario participante = buscarUsuario(correoUsuario);
+        List<Inscripcion> inscripciones = organizacion == null
+                ? inscripcionRepository.findByParticipanteIdConEvento(participante.getId())
+                : inscripcionRepository.findByParticipanteIdAndOrganizacionIdConEvento(participante.getId(), organizacion.getId());
+
+        if (inscripciones.isEmpty()) return List.of();
+
+        Map<Long, Asistencia> asistencias = asistenciaRepository.findByInscripcionIdIn(
+                        inscripciones.stream().map(Inscripcion::getId).toList())
+                .stream()
+                .collect(Collectors.toMap(a -> a.getInscripcion().getId(), Function.identity()));
+
+        return inscripciones.stream()
+                .map(inscripcion -> HistorialParticipacionRespuesta.desde(inscripcion, asistencias.get(inscripcion.getId())))
                 .toList();
     }
 

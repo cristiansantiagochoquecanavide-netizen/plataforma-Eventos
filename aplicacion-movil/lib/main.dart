@@ -807,6 +807,14 @@ class _HomeShellState extends State<HomeShell> {
             ),
             page: MyInscriptionsPage(session: widget.session),
           ));
+          destinations.add((
+            destination: const NavigationDestination(
+              icon: Icon(Icons.history_outlined),
+              selectedIcon: Icon(Icons.history_rounded),
+              label: 'Mi historial',
+            ),
+            page: ParticipationHistoryPage(session: widget.session),
+          ));
         }
         if (privileges.visible('staff-applications.menu') ||
             privileges.visible('staff-assignments.menu')) {
@@ -1995,6 +2003,76 @@ class _EventDetailModalState extends State<EventDetailModal> {
 }
 
 // Pantalla de Consulta de Estado de Inscripciones (CU12) y Cancelación (CU13)
+// Pantalla del CU27: historial de participación y eventos asistidos.
+class ParticipationHistoryPage extends StatefulWidget {
+  const ParticipationHistoryPage({required this.session, super.key});
+  final SessionController session;
+
+  @override
+  State<ParticipationHistoryPage> createState() => _ParticipationHistoryPageState();
+}
+
+class _ParticipationHistoryPageState extends State<ParticipationHistoryPage> {
+  List<HistorialParticipacionModel> _history = [];
+  bool _loading = true;
+  String? _error;
+  int _organizationVersion = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _organizationVersion = widget.session.organizationVersion;
+    widget.session.addListener(_onOrganizationChanged);
+    _loadHistory();
+  }
+
+  @override
+  void dispose() {
+    widget.session.removeListener(_onOrganizationChanged);
+    super.dispose();
+  }
+
+  void _onOrganizationChanged() {
+    if (!mounted || _organizationVersion == widget.session.organizationVersion) return;
+    _organizationVersion = widget.session.organizationVersion;
+    setState(() => _history = []);
+    if (widget.session.activeOrganization != null) _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final history = await widget.session.listarMiHistorial();
+      if (mounted) setState(() { _history = history; _loading = false; });
+    } on ApiException catch (e) {
+      if (mounted) setState(() { _error = e.message; _loading = false; });
+    }
+  }
+
+  String _formatDate(DateTime date) => '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Mi historial de participación'), actions: [IconButton(onPressed: _loadHistory, icon: const Icon(Icons.refresh_rounded))]),
+    body: RefreshIndicator(onRefresh: _loadHistory, child: _buildBody()),
+  );
+
+  Widget _buildBody() {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) return ListView(padding: const EdgeInsets.all(24), children: [Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.danger)), const SizedBox(height: 16), FilledButton(onPressed: _loadHistory, child: const Text('Reintentar'))]);
+    if (_history.isEmpty) return ListView(padding: const EdgeInsets.all(32), children: [const Icon(Icons.history_rounded, size: 64, color: AppColors.muted), const SizedBox(height: 16), const Text('Aún no tienes participación registrada', textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), const SizedBox(height: 8), const Text('Tus inscripciones y asistencias aparecerán aquí.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted))]);
+
+    final attended = _history.where((item) => item.asistio).length;
+    return ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 32), children: [
+      Card(child: Padding(padding: const EdgeInsets.all(16), child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [_metric('Registros', '${_history.length}'), _metric('Asistidos', '$attended'), _metric('Pendientes', '${_history.length - attended}')]))),
+      const SizedBox(height: 12),
+      ..._history.map((item) => Card(margin: const EdgeInsets.only(bottom: 12), child: ListTile(leading: CircleAvatar(backgroundColor: item.asistio ? AppColors.forest.withValues(alpha: .12) : Colors.grey.shade200, child: Icon(item.asistio ? Icons.check_rounded : Icons.event_outlined, color: item.asistio ? AppColors.forest : AppColors.muted)), title: Text(item.nombreEvento, style: const TextStyle(fontWeight: FontWeight.bold)), subtitle: Text('${_formatDate(item.fechaInicioEvento)} · ${item.lugarEvento}\n${item.asistio ? 'Asistencia registrada' : 'Sin asistencia registrada'} · ${item.estadoInscripcion}'), isThreeLine: true))),
+    ]);
+  }
+
+  Widget _metric(String label, String value) => Column(children: [Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)), Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 12))]);
+}
+
 class MyInscriptionsPage extends StatefulWidget {
   const MyInscriptionsPage({required this.session, super.key});
 
@@ -3070,6 +3148,11 @@ class SessionController extends ChangeNotifier {
         _api.listarMisInscripciones(tokens, organizationId: organizationId),
   );
 
+  Future<List<HistorialParticipacionModel>> listarMiHistorial() => _authorized(
+    (tokens, organizationId) =>
+        _api.listarMiHistorial(tokens, organizationId: organizationId),
+  );
+
   Future<InscripcionModel> cancelarInscripcion(int idInscripcion) =>
       _authorized(
         (tokens, organizationId) => _api.cancelarInscripcion(
@@ -3345,6 +3428,21 @@ class ApiClient {
         .toList();
   }
 
+  Future<List<HistorialParticipacionModel>> listarMiHistorial(
+    SessionTokens tokens, {
+    int? organizationId,
+  }) async {
+    final response = await _get(
+      '/inscripciones/mi-historial',
+      tokens,
+      organizationId: organizationId,
+    );
+    final data = _data(response);
+    return (data as List<dynamic>)
+        .map((item) => HistorialParticipacionModel.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<InscripcionModel> cancelarInscripcion(
     SessionTokens tokens,
     int idInscripcion, {
@@ -3575,6 +3673,45 @@ class InscripcionModel {
         estado: json['estado'] as String? ?? 'CONFIRMADA',
         codigoQr: json['codigoQr'] as String? ?? '',
         fechaInscripcion: DateTime.parse(json['fechaInscripcion'] as String),
+      );
+}
+
+class HistorialParticipacionModel {
+  const HistorialParticipacionModel({
+    required this.idInscripcion,
+    required this.nombreEvento,
+    required this.categoriaEvento,
+    required this.fechaInicioEvento,
+    required this.lugarEvento,
+    required this.fechaInscripcion,
+    required this.estadoInscripcion,
+    required this.asistio,
+    required this.fechaAsistencia,
+  });
+
+  final int idInscripcion;
+  final String nombreEvento;
+  final String categoriaEvento;
+  final DateTime fechaInicioEvento;
+  final String lugarEvento;
+  final DateTime fechaInscripcion;
+  final String estadoInscripcion;
+  final bool asistio;
+  final DateTime? fechaAsistencia;
+
+  factory HistorialParticipacionModel.fromJson(Map<String, dynamic> json) =>
+      HistorialParticipacionModel(
+        idInscripcion: (json['idInscripcion'] as num).toInt(),
+        nombreEvento: json['nombreEvento'] as String? ?? 'Evento',
+        categoriaEvento: json['categoriaEvento'] as String? ?? 'GENERAL',
+        fechaInicioEvento: DateTime.parse(json['fechaInicioEvento'] as String),
+        lugarEvento: json['lugarEvento'] as String? ?? 'Sin lugar asignado',
+        fechaInscripcion: DateTime.parse(json['fechaInscripcion'] as String),
+        estadoInscripcion: json['estadoInscripcion'] as String? ?? 'CONFIRMADA',
+        asistio: json['asistio'] as bool? ?? false,
+        fechaAsistencia: json['fechaAsistencia'] == null
+            ? null
+            : DateTime.parse(json['fechaAsistencia'] as String),
       );
 }
 

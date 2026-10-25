@@ -1,6 +1,7 @@
 package com.plataformaeventos.inscripciones;
 
 import com.plataformaeventos.categorias.modelo.Categoria;
+import com.plataformaeventos.asistencias.repositorio.AsistenciaRepository;
 import com.plataformaeventos.eventos.modelo.EstadoEvento;
 import com.plataformaeventos.eventos.modelo.Evento;
 import com.plataformaeventos.eventos.repositorio.EventoRepository;
@@ -31,11 +32,13 @@ class InscripcionServiceTest {
     private final InscripcionRepository inscripcionRepository = mock(InscripcionRepository.class);
     private final EventoRepository eventoRepository = mock(EventoRepository.class);
     private final UsuarioRepository usuarioRepository = mock(UsuarioRepository.class);
+    private final AsistenciaRepository asistenciaRepository = mock(AsistenciaRepository.class);
 
     private final InscripcionService inscripcionService = new InscripcionService(
             inscripcionRepository,
             eventoRepository,
-            usuarioRepository
+            usuarioRepository,
+            asistenciaRepository
     );
 
     @Test
