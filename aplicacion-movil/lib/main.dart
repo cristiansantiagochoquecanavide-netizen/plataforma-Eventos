@@ -819,6 +819,16 @@ class _HomeShellState extends State<HomeShell> {
             page: StaffPage(session: widget.session),
           ));
         }
+        if (widget.session.puedeRegistrarAsistencia) {
+          destinations.add((
+            destination: const NavigationDestination(
+              icon: Icon(Icons.how_to_reg_outlined),
+              selectedIcon: Icon(Icons.how_to_reg_rounded),
+              label: 'Asistencia',
+            ),
+            page: AttendancePage(session: widget.session),
+          ));
+        }
         if (privileges.visible('profile.menu')) {
           destinations.add((
             destination: const NavigationDestination(
@@ -954,6 +964,84 @@ class MobileHelpPage extends StatelessWidget {
       ),
     );
   }
+}
+
+class AttendancePage extends StatefulWidget {
+  const AttendancePage({required this.session, super.key});
+  final SessionController session;
+
+  @override
+  State<AttendancePage> createState() => _AttendancePageState();
+}
+
+class _AttendancePageState extends State<AttendancePage> {
+  final _idInscripcion = TextEditingController();
+  bool _sending = false;
+  String? _error;
+  AttendanceModel? _attendance;
+
+  String _formatDate(DateTime value) {
+    final date = value.toLocal();
+    String twoDigits(int part) => part.toString().padLeft(2, '0');
+    return '${twoDigits(date.day)}/${twoDigits(date.month)}/${date.year} ${twoDigits(date.hour)}:${twoDigits(date.minute)}';
+  }
+
+  @override
+  void dispose() {
+    _idInscripcion.dispose();
+    super.dispose();
+  }
+
+  Future<void> _checkIn() async {
+    final id = int.tryParse(_idInscripcion.text.trim());
+    if (id == null || id < 1) {
+      setState(() => _error = 'Ingresa un ID de inscripción válido.');
+      return;
+    }
+    setState(() { _sending = true; _error = null; _attendance = null; });
+    try {
+      final response = await widget.session.registrarAsistencia(id);
+      if (mounted) setState(() => _attendance = response);
+    } on ApiException catch (error) {
+      final message = switch (error.status) {
+        401 => 'Tu sesión expiró. Inicia sesión nuevamente.',
+        403 => 'No tienes permiso para registrar asistencias.',
+        404 => 'No se puede registrar la asistencia.',
+        409 => 'Esta asistencia ya fue registrada.',
+        400 => 'No se puede registrar la asistencia.',
+        _ => error.status != null && error.status! >= 500
+            ? 'No fue posible registrar la asistencia. Intenta nuevamente.'
+            : error.message,
+      };
+      if (mounted) setState(() => _error = message);
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Registrar asistencia')),
+    body: ListView(padding: const EdgeInsets.all(20), children: [
+      const Text('Ingresa el ID de inscripción validado por el proceso de acceso.', style: TextStyle(color: AppColors.muted)),
+      const SizedBox(height: 16),
+      TextField(controller: _idInscripcion, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'ID de inscripción', prefixIcon: Icon(Icons.confirmation_number_outlined))),
+      const SizedBox(height: 12),
+      FilledButton.icon(onPressed: _sending ? null : _checkIn, icon: _sending ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.how_to_reg_rounded), label: Text(_sending ? 'Registrando...' : 'Registrar asistencia')),
+      if (_error != null) ...[const SizedBox(height: 16), Text(_error!, key: const Key('attendance-error'), style: const TextStyle(color: AppColors.danger))],
+      if (_attendance != null) ...[
+        const SizedBox(height: 20),
+        Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Asistencia registrada correctamente.', style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 12),
+          Text('Participante: ${_attendance!.participante}'),
+          Text('Evento: ${_attendance!.nombreEvento}'),
+          Text('Fecha y hora: ${_formatDate(_attendance!.fechaHora)}'),
+          Text('Registrado por: ${_attendance!.nombreRegistradoPor}'),
+        ]))),
+      ],
+    ]),
+  );
 }
 
 class StaffPage extends StatefulWidget {
@@ -2754,6 +2842,7 @@ class UserProfile {
     required this.lastNames,
     required this.email,
     required this.roles,
+    this.permissions = const [],
   });
 
   final int id;
@@ -2761,6 +2850,7 @@ class UserProfile {
   final String lastNames;
   final String email;
   final List<String> roles;
+  final List<String> permissions;
 
   factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
     id: json['id'] as int,
@@ -2768,6 +2858,9 @@ class UserProfile {
     lastNames: json['apellidos'] as String,
     email: json['correo'] as String,
     roles: List<String>.from(json['roles'] as List),
+    permissions: List<String>.from(
+      (json['perfilOrganizacionActiva'] as Map<String, dynamic>?)?['permisos'] as List? ?? json['permisos'] as List? ?? const [],
+    ),
   );
 }
 
@@ -2820,6 +2913,11 @@ class SessionController extends ChangeNotifier {
   OrganizationModel? activeOrganization;
   bool organizationsLoaded = false;
   int organizationVersion = 0;
+  bool get puedeRegistrarAsistencia => user?.permissions.contains('ASISTENCIA_REGISTRAR') ?? false;
+
+  Future<AttendanceModel> registrarAsistencia(int idInscripcion) => _authorized(
+    (tokens, organizationId) => _api.registrarAsistencia(tokens, idInscripcion, organizationId: organizationId),
+  );
 
   Future<void> restore() async {
     final raw = await _storage.read(key: 'sesion');
@@ -2901,6 +2999,13 @@ class SessionController extends ChangeNotifier {
     activeOrganization = matches.first;
     await _storage.write(key: 'organizacion-activa', value: '$id');
     organizationVersion++;
+    notifyListeners();
+    user = await _authorized(
+      (tokens, organizationId) => _api.currentUser(
+        tokens,
+        organizationId: organizationId,
+      ),
+    );
     notifyListeners();
     await _loadUiPrivileges();
     notifyListeners();
@@ -3067,6 +3172,11 @@ class SessionController extends ChangeNotifier {
 class ApiClient {
   ApiClient(this.baseUrl);
   final String baseUrl;
+
+  Future<AttendanceModel> registrarAsistencia(SessionTokens tokens, int idInscripcion, {int? organizationId}) async {
+    final response = await _send('POST', '/asistencias/check-in', tokens, body: {'idInscripcion': idInscripcion}, organizationId: organizationId);
+    return AttendanceModel.fromJson(_data(response) as Map<String, dynamic>);
+  }
 
   Future<SessionTokens> login(String email, String password) async {
     final response = await http.post(
@@ -3568,4 +3678,23 @@ class ApiException implements Exception {
   const ApiException(this.message, [this.status]);
   final String message;
   final int? status;
+}
+
+class AttendanceModel {
+  const AttendanceModel({required this.idAsistencia, required this.idInscripcion, required this.participante, required this.nombreEvento, required this.fechaHora, required this.nombreRegistradoPor});
+  final int idAsistencia;
+  final int idInscripcion;
+  final String participante;
+  final String nombreEvento;
+  final DateTime fechaHora;
+  final String nombreRegistradoPor;
+
+  factory AttendanceModel.fromJson(Map<String, dynamic> json) => AttendanceModel(
+    idAsistencia: (json['idAsistencia'] as num).toInt(),
+    idInscripcion: (json['idInscripcion'] as num).toInt(),
+    participante: json['participante'] as String? ?? '',
+    nombreEvento: json['nombreEvento'] as String? ?? 'Evento',
+    fechaHora: DateTime.parse(json['fechaHora'] as String),
+    nombreRegistradoPor: json['nombreRegistradoPor'] as String? ?? '',
+  );
 }

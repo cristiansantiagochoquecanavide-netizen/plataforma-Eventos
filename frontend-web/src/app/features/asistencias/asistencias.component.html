@@ -1,0 +1,38 @@
+<section class="attendance-page">
+  <header><p class="eyebrow">Control de acceso</p><h1>Registrar asistencia</h1><p>Selecciona la inscripción que se identificó en el control de acceso.</p></header>
+  @if (cargando()) { <p role="status">Cargando inscripciones...</p> }
+  @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+  @if (!cargando() && inscripciones().length > 0) {
+    <div class="attendance-card">
+      <label for="inscripcion">Inscripción</label>
+      <select id="inscripcion" (change)="seleccionar(+$any($event.target).value)">
+        <option value="">Selecciona una inscripción</option>
+        @for (item of inscripciones(); track item.idInscripcion) {
+          <option [value]="item.idInscripcion" [disabled]="item.asistenciaRegistrada">#{{ item.idInscripcion }} · {{ item.nombres }} {{ item.apellidos }} · {{ item.tituloEvento }} · {{ item.estado }} · {{ item.asistenciaRegistrada ? 'Asistencia registrada' : 'Pendiente' }}</option>
+        }
+      </select>
+      <button type="button" (click)="registrar()" [disabled]="seleccionada() === null || enviando()">
+        {{ enviando() ? 'Registrando...' : 'Registrar asistencia' }}
+      </button>
+    </div>
+  }
+  @if (asistencia(); as resultado) {
+    <article class="attendance-result" role="status">
+      <h2>Asistencia registrada correctamente.</h2>
+      <p><strong>Participante:</strong> {{ resultado.participante }} ({{ resultado.correoParticipante }})</p>
+      <p><strong>Evento:</strong> {{ resultado.nombreEvento }}</p>
+      <p><strong>Fecha y hora:</strong> {{ resultado.fechaHora | date:'medium' }}</p>
+      <p><strong>Registrado por:</strong> {{ resultado.nombreRegistradoPor }}</p>
+    </article>
+  }
+  @if (!cargando() && inscripciones().length === 0 && !error()) { <p>No hay inscripciones para mostrar.</p> }
+  @if (tieneAsistenciasRegistradas()) {
+    <section aria-label="Asistencias existentes">
+      @for (item of inscripciones(); track item.idInscripcion) {
+        @if (item.asistenciaRegistrada) {
+          <p role="status">{{ item.nombres }} {{ item.apellidos }} · {{ item.tituloEvento }} · Asistencia registrada{{ item.fechaAsistencia ? ' el ' + (item.fechaAsistencia | date:'medium') : '' }}</p>
+        }
+      }
+    </section>
+  }
+</section>

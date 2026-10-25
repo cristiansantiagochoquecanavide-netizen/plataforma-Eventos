@@ -81,6 +81,11 @@ public class ManejadorExcepciones {
         return crearRespuesta(HttpStatus.FORBIDDEN, "No tiene permiso para esta operacion", solicitud);
     }
 
+    @ExceptionHandler(com.plataformaeventos.asistencias.servicio.AsistenciaDuplicadaException.class)
+    public ResponseEntity<ErrorRespuesta> manejarAsistenciaDuplicada(HttpServletRequest solicitud) {
+        return crearRespuesta(HttpStatus.CONFLICT, "La asistencia de esta inscripción ya fue registrada", solicitud);
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorRespuesta> manejarSolicitudIncorrecta(
             IllegalArgumentException excepcion,

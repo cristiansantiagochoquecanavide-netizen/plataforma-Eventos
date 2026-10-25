@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router, UrlTree } from '@angular/router';
 import { firstValueFrom, Observable, of } from 'rxjs';
-import { asignacionesGuard, consultaEventosGuard, miembrosGuard, rolesGuard } from './guards';
+import { asignacionesGuard, asistenciasGuard, consultaEventosGuard, miembrosGuard, rolesGuard } from './guards';
 import { SesionService } from './sesion.service';
 
 describe('authorization guards', () => {
@@ -14,6 +14,7 @@ describe('authorization guards', () => {
       'esAdministradorSaas',
       'puedeVerAsignacionesStaff',
       'puedeVerEventos',
+      'puedeRegistrarAsistencia',
     ]);
     TestBed.configureTestingModule({
       providers: [provideRouter([]), { provide: SesionService, useValue: sesion }],
@@ -65,5 +66,20 @@ describe('authorization guards', () => {
 
     expect(resultado instanceof UrlTree).toBeTrue();
     expect(TestBed.inject(Router).serializeUrl(resultado as UrlTree)).toBe('/perfil');
+  });
+
+  it('allows the attendance route only when the user has ASISTENCIA_REGISTRAR', async () => {
+    sesion.restaurar.and.returnValue(of(true));
+    sesion.puedeRegistrarAsistencia.and.returnValue(true);
+    const resultado = await TestBed.runInInjectionContext(() =>
+      firstValueFrom(asistenciasGuard({} as never, {} as never) as Observable<boolean | UrlTree>),
+    );
+    expect(resultado).toBeTrue();
+
+    sesion.puedeRegistrarAsistencia.and.returnValue(false);
+    const denegado = await TestBed.runInInjectionContext(() =>
+      firstValueFrom(asistenciasGuard({} as never, {} as never) as Observable<boolean | UrlTree>),
+    );
+    expect(denegado instanceof UrlTree).toBeTrue();
   });
 });

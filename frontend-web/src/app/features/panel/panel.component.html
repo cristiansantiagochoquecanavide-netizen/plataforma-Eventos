@@ -53,6 +53,9 @@
       @if (sesion.puedeVerAsignacionesStaff()) {
         <a routerLink="/asignaciones" routerLinkActive="active" [appUiPrivilegeVisible]="'staff-assignments.menu'">Asignaciones de staff</a>
       }
+      @if (sesion.puedeRegistrarAsistencia()) {
+        <a routerLink="/asistencias" routerLinkActive="active">Registrar asistencia</a>
+      }
     </nav>
     <button class="logout" type="button" (click)="cerrarSesion()">Cerrar sesion</button>
   </aside>
