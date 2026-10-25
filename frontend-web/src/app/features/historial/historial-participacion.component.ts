@@ -26,7 +26,7 @@ export class HistorialParticipacionComponent implements OnInit {
     this.error.set('');
     this.servicio.listar().subscribe({
       next: (historial) => { this.historial.set(historial); this.cargando.set(false); },
-      error: (error) => { this.error.set(obtenerMensajeError(error)); this.cargando.set(false); },
+      error: (error) => { this.error.set(obtenerMensajeError(error, 'No fue posible cargar tu historial.')); this.cargando.set(false); },
     });
   }
 
