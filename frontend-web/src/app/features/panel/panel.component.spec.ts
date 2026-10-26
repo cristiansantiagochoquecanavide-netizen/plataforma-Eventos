@@ -45,6 +45,7 @@ class SesionServiceStub {
   puedeGestionarPostulacionesStaff = jasmine.createSpy('puedeGestionarPostulacionesStaff').and.returnValue(false);
   puedeGestionarAsignacionesStaff = jasmine.createSpy('puedeGestionarAsignacionesStaff').and.returnValue(false);
   puedeVerAsignacionesStaff = jasmine.createSpy('puedeVerAsignacionesStaff').and.returnValue(false);
+  puedeRegistrarAsistencia = jasmine.createSpy('puedeRegistrarAsistencia').and.returnValue(false);
   cerrar = jasmine.createSpy('cerrar');
 }
 

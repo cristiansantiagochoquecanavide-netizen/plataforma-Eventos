@@ -1,0 +1,37 @@
+<section class="page-section">
+  <div class="heading-row">
+    <div>
+      <p class="eyebrow">CU27 · Participante</p>
+      <h1>Mi historial de participación</h1>
+      <p class="page-description">Consulta tus inscripciones y los eventos a los que asististe.</p>
+    </div>
+    <button type="button" class="secondary-btn" (click)="cargar()" [disabled]="cargando()">Actualizar</button>
+  </div>
+
+  @if (cargando()) {
+    <div class="state-card"><div class="spinner"></div><p>Cargando tu historial...</p></div>
+  } @else if (error()) {
+    <div class="state-card error-state"><p>{{ error() }}</p><button type="button" class="secondary-btn" (click)="cargar()">Reintentar</button></div>
+  } @else if (historial().length === 0) {
+    <div class="state-card"><h2>Aún no tienes participación registrada</h2><p>Cuando te inscribas o asistas a un evento, aparecerá aquí.</p></div>
+  } @else {
+    <div class="summary-grid">
+      <div class="summary-card"><strong>{{ historial().length }}</strong><span>Registros</span></div>
+      <div class="summary-card attended"><strong>{{ contarAsistencias() }}</strong><span>Eventos asistidos</span></div>
+      <div class="summary-card"><strong>{{ contarConfirmadas() }}</strong><span>Inscripciones confirmadas</span></div>
+    </div>
+    <div class="history-list">
+      @for (item of historial(); track item.idInscripcion) {
+        <article class="history-card">
+          <div class="event-icon">{{ item.asistio ? '✓' : '○' }}</div>
+          <div class="event-content">
+            <div class="event-header"><h2>{{ item.nombreEvento }}</h2><span class="attendance" [class.not-attended]="!item.asistio">{{ item.asistio ? 'Asistió' : 'Sin asistencia registrada' }}</span></div>
+            <p class="event-meta">{{ item.fechaInicioEvento | date:'medium' }} · {{ item.lugarEvento }} · {{ item.categoriaEvento }}</p>
+            <p class="event-meta">Inscripción: {{ item.fechaInscripcion | date:'medium' }} · Estado: {{ item.estadoInscripcion }}</p>
+            @if (item.fechaAsistencia) { <p class="attended-date">Asistencia registrada: {{ item.fechaAsistencia | date:'medium' }}</p> }
+          </div>
+        </article>
+      }
+    </div>
+  }
+</section>

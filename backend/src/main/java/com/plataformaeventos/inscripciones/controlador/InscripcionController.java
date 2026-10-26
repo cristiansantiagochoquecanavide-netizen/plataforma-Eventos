@@ -2,6 +2,7 @@ package com.plataformaeventos.inscripciones.controlador;
 
 import com.plataformaeventos.inscripciones.dto.DisponibilidadEventoRespuesta;
 import com.plataformaeventos.inscripciones.dto.InscripcionRespuesta;
+import com.plataformaeventos.inscripciones.dto.HistorialParticipacionRespuesta;
 import com.plataformaeventos.inscripciones.dto.ParticipanteInscritoRespuesta;
 import com.plataformaeventos.inscripciones.dto.CredencialDigitalRespuesta;
 import com.plataformaeventos.inscripciones.servicio.CredencialQrService;
@@ -75,6 +76,17 @@ public class InscripcionController {
             @PathVariable Long idInscripcion, Authentication autenticacion, HttpServletRequest request) {
         return ResponseEntity.ok(credencialQrService.emitir(idInscripcion, autenticacion.getName(),
                 contextoOrganizacion.resolver(autenticacion, request)));
+    }
+
+    @GetMapping("/mi-historial")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'INSCRIPCION_VER_PROPIAS') and @contextoOrganizacion.tieneRolActivo(authentication, #request, 'PARTICIPANTE')")
+    @Operation(summary = "Consultar historial de participación y eventos asistidos (CU27)")
+    @ApiResponse(responseCode = "200", description = "Historial propio de eventos e inscripciones consultado")
+    public ResponseEntity<List<HistorialParticipacionRespuesta>> listarMiHistorial(
+            Authentication autenticacion, HttpServletRequest request
+    ) {
+        return ResponseEntity.ok(inscripcionService.listarMiHistorial(
+                autenticacion.getName(), contextoOrganizacion.resolver(autenticacion, request)));
     }
 
     @PatchMapping("/{idInscripcion}/cancelar")

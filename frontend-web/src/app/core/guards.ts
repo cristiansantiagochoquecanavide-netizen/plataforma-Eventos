@@ -92,7 +92,7 @@ export const convocatoriasGuard: CanActivateFn = () => {
   );
 };
 
-function permisoGuard(autorizado: (sesion: SesionService) => boolean): CanActivateFn {
+export function permisoGuard(autorizado: (sesion: SesionService) => boolean): CanActivateFn {
   return () => {
     const sesion = inject(SesionService);
     const router = inject(Router);
@@ -105,4 +105,5 @@ export const asignacionesGuard = permisoGuard((s) => s.puedeVerAsignacionesStaff
 export const bitacoraGuard = permisoGuard((s) => s.puedeVerBitacora());
 export const miembrosGuard = permisoGuard((s) => s.puedeGestionarMiembros());
 export const participantesGuard = permisoGuard((s) => s.puedeVerParticipantes());
+export const asistenciasGuard = permisoGuard((s) => s.puedeRegistrarAsistencia());
 export const reportesGuard = permisoGuard((s) => s.tieneAccesoEventos() || s.puedeVerParticipantes() || s.esAdministrador());

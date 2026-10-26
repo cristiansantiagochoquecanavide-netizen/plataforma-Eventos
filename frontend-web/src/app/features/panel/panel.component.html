@@ -11,6 +11,9 @@
       @if (sesion.puedeVerCredencialesPropias()) {
         <a routerLink="/mis-credenciales" routerLinkActive="active">Mis credenciales QR</a>
       }
+      @if (sesion.puedeVerHistorialParticipacion()) {
+        <a routerLink="/mi-historial" routerLinkActive="active" [appUiPrivilegeVisible]="'inscriptions.list'">Mi historial</a>
+      }
       @if (sesion.tieneAccesoUsuarios()) {
         <a routerLink="/usuarios" routerLinkActive="active" [appUiPrivilegeVisible]="'users.menu'">Usuarios</a>
       }
@@ -55,6 +58,9 @@
       }
       @if (sesion.puedeVerAsignacionesStaff()) {
         <a routerLink="/asignaciones" routerLinkActive="active" [appUiPrivilegeVisible]="'staff-assignments.menu'">Asignaciones de staff</a>
+      }
+      @if (sesion.puedeRegistrarAsistencia()) {
+        <a routerLink="/asistencias" routerLinkActive="active">Registrar asistencia</a>
       }
     </nav>
     <button class="logout" type="button" (click)="cerrarSesion()">Cerrar sesion</button>

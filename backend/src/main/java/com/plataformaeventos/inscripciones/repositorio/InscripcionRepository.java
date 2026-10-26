@@ -2,6 +2,7 @@ package com.plataformaeventos.inscripciones.repositorio;
 
 import com.plataformaeventos.inscripciones.modelo.EstadoInscripcion;
 import com.plataformaeventos.inscripciones.modelo.Inscripcion;
+import com.plataformaeventos.asistencias.dto.InscripcionElegibleAsistenciaRespuesta;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,6 +11,26 @@ import java.util.List;
 import java.util.Optional;
 
 public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> {
+
+    @Query("select distinct new com.plataformaeventos.asistencias.dto.InscripcionElegibleAsistenciaRespuesta(" +
+            "i.id, p.nombres, p.apellidos, p.correo, e.id, e.nombre, i.estado, " +
+            "case when a.id is null then false else true end, a.fechaHora) " +
+            "from Inscripcion i join i.participante p join i.evento e " +
+            "join AsignacionStaff asignacion on asignacion.postulacion.convocatoria.evento = e " +
+            "left join Asistencia a on a.inscripcion = i " +
+            "where i.organizacion.id = :organizacionId and e.organizacion.id = :organizacionId " +
+            "and asignacion.organizacion.id = :organizacionId and asignacion.usuario.id = :staffId " +
+            "and asignacion.estado = com.plataformaeventos.asignacionesstaff.modelo.EstadoAsignacionStaff.ASIGNADA " +
+            "and i.estado = com.plataformaeventos.inscripciones.modelo.EstadoInscripcion.CONFIRMADA " +
+            "and e.estado in (com.plataformaeventos.eventos.modelo.EstadoEvento.PUBLICADO, " +
+            "com.plataformaeventos.eventos.modelo.EstadoEvento.EN_CURSO) " +
+            "order by e.nombre, p.apellidos, p.nombres")
+    List<InscripcionElegibleAsistenciaRespuesta> listarElegiblesParaAsistencia(
+            @Param("organizacionId") Long organizacionId, @Param("staffId") Long staffId);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select i from Inscripcion i join fetch i.evento e join fetch i.participante p where i.id = :id and i.organizacion.id = :org")
+    Optional<Inscripcion> bloquearPorIdEOrganizacion(@Param("id") Long id, @Param("org") Long org);
 
     @Query("SELECT i FROM Inscripcion i JOIN FETCH i.evento e LEFT JOIN FETCH e.categoria LEFT JOIN FETCH e.espacio WHERE i.participante.id = :idParticipante ORDER BY i.fechaInscripcion DESC")
     List<Inscripcion> findByParticipanteIdConEvento(@Param("idParticipante") Long idParticipante);

@@ -799,13 +799,23 @@ class _HomeShellState extends State<HomeShell> {
           ));
         }
         if (privileges.visible('inscriptions.list')) {
+          if (widget.session.puedeConsultarHistorialParticipacion) {
+            destinations.add((
+              destination: const NavigationDestination(
+                icon: Icon(Icons.confirmation_number_outlined),
+                selectedIcon: Icon(Icons.confirmation_number_rounded),
+                label: 'Inscripciones',
+              ),
+              page: MyInscriptionsPage(session: widget.session),
+            ));
+          }
           destinations.add((
             destination: const NavigationDestination(
-              icon: Icon(Icons.confirmation_number_outlined),
-              selectedIcon: Icon(Icons.confirmation_number_rounded),
-              label: 'Inscripciones',
+              icon: Icon(Icons.history_outlined),
+              selectedIcon: Icon(Icons.history_rounded),
+              label: 'Mi historial',
             ),
-            page: MyInscriptionsPage(session: widget.session),
+            page: ParticipationHistoryPage(session: widget.session),
           ));
         }
         if (privileges.visible('staff-applications.menu') ||
@@ -817,6 +827,16 @@ class _HomeShellState extends State<HomeShell> {
               label: 'Staff',
             ),
             page: StaffPage(session: widget.session),
+          ));
+        }
+        if (widget.session.puedeRegistrarAsistencia) {
+          destinations.add((
+            destination: const NavigationDestination(
+              icon: Icon(Icons.how_to_reg_outlined),
+              selectedIcon: Icon(Icons.how_to_reg_rounded),
+              label: 'Asistencia',
+            ),
+            page: AttendancePage(session: widget.session),
           ));
         }
         if (privileges.visible('profile.menu')) {
@@ -954,6 +974,84 @@ class MobileHelpPage extends StatelessWidget {
       ),
     );
   }
+}
+
+class AttendancePage extends StatefulWidget {
+  const AttendancePage({required this.session, super.key});
+  final SessionController session;
+
+  @override
+  State<AttendancePage> createState() => _AttendancePageState();
+}
+
+class _AttendancePageState extends State<AttendancePage> {
+  final _idInscripcion = TextEditingController();
+  bool _sending = false;
+  String? _error;
+  AttendanceModel? _attendance;
+
+  String _formatDate(DateTime value) {
+    final date = value.toLocal();
+    String twoDigits(int part) => part.toString().padLeft(2, '0');
+    return '${twoDigits(date.day)}/${twoDigits(date.month)}/${date.year} ${twoDigits(date.hour)}:${twoDigits(date.minute)}';
+  }
+
+  @override
+  void dispose() {
+    _idInscripcion.dispose();
+    super.dispose();
+  }
+
+  Future<void> _checkIn() async {
+    final id = int.tryParse(_idInscripcion.text.trim());
+    if (id == null || id < 1) {
+      setState(() => _error = 'Ingresa un ID de inscripción válido.');
+      return;
+    }
+    setState(() { _sending = true; _error = null; _attendance = null; });
+    try {
+      final response = await widget.session.registrarAsistencia(id);
+      if (mounted) setState(() => _attendance = response);
+    } on ApiException catch (error) {
+      final message = switch (error.status) {
+        401 => 'Tu sesión expiró. Inicia sesión nuevamente.',
+        403 => 'No tienes permiso para registrar asistencias.',
+        404 => 'No se puede registrar la asistencia.',
+        409 => 'Esta asistencia ya fue registrada.',
+        400 => 'No se puede registrar la asistencia.',
+        _ => error.status != null && error.status! >= 500
+            ? 'No fue posible registrar la asistencia. Intenta nuevamente.'
+            : error.message,
+      };
+      if (mounted) setState(() => _error = message);
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Registrar asistencia')),
+    body: ListView(padding: const EdgeInsets.all(20), children: [
+      const Text('Ingresa el ID de inscripción validado por el proceso de acceso.', style: TextStyle(color: AppColors.muted)),
+      const SizedBox(height: 16),
+      TextField(controller: _idInscripcion, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'ID de inscripción', prefixIcon: Icon(Icons.confirmation_number_outlined))),
+      const SizedBox(height: 12),
+      FilledButton.icon(onPressed: _sending ? null : _checkIn, icon: _sending ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.how_to_reg_rounded), label: Text(_sending ? 'Registrando...' : 'Registrar asistencia')),
+      if (_error != null) ...[const SizedBox(height: 16), Text(_error!, key: const Key('attendance-error'), style: const TextStyle(color: AppColors.danger))],
+      if (_attendance != null) ...[
+        const SizedBox(height: 20),
+        Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Asistencia registrada correctamente.', style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 12),
+          Text('Participante: ${_attendance!.participante}'),
+          Text('Evento: ${_attendance!.nombreEvento}'),
+          Text('Fecha y hora: ${_formatDate(_attendance!.fechaHora)}'),
+          Text('Registrado por: ${_attendance!.nombreRegistradoPor}'),
+        ]))),
+      ],
+    ]),
+  );
 }
 
 class StaffPage extends StatefulWidget {
@@ -1907,6 +2005,76 @@ class _EventDetailModalState extends State<EventDetailModal> {
 }
 
 // Pantalla de Consulta de Estado de Inscripciones (CU12) y Cancelación (CU13)
+// Pantalla del CU27: historial de participación y eventos asistidos.
+class ParticipationHistoryPage extends StatefulWidget {
+  const ParticipationHistoryPage({required this.session, super.key});
+  final SessionController session;
+
+  @override
+  State<ParticipationHistoryPage> createState() => _ParticipationHistoryPageState();
+}
+
+class _ParticipationHistoryPageState extends State<ParticipationHistoryPage> {
+  List<HistorialParticipacionModel> _history = [];
+  bool _loading = true;
+  String? _error;
+  int _organizationVersion = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _organizationVersion = widget.session.organizationVersion;
+    widget.session.addListener(_onOrganizationChanged);
+    _loadHistory();
+  }
+
+  @override
+  void dispose() {
+    widget.session.removeListener(_onOrganizationChanged);
+    super.dispose();
+  }
+
+  void _onOrganizationChanged() {
+    if (!mounted || _organizationVersion == widget.session.organizationVersion) return;
+    _organizationVersion = widget.session.organizationVersion;
+    setState(() => _history = []);
+    if (widget.session.activeOrganization != null) _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final history = await widget.session.listarMiHistorial();
+      if (mounted) setState(() { _history = history; _loading = false; });
+    } on ApiException catch (e) {
+      if (mounted) setState(() { _error = e.message; _loading = false; });
+    }
+  }
+
+  String _formatDate(DateTime date) => '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Mi historial de participación'), actions: [IconButton(onPressed: _loadHistory, icon: const Icon(Icons.refresh_rounded))]),
+    body: RefreshIndicator(onRefresh: _loadHistory, child: _buildBody()),
+  );
+
+  Widget _buildBody() {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) return ListView(padding: const EdgeInsets.all(24), children: [Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.danger)), const SizedBox(height: 16), FilledButton(onPressed: _loadHistory, child: const Text('Reintentar'))]);
+    if (_history.isEmpty) return ListView(padding: const EdgeInsets.all(32), children: [const Icon(Icons.history_rounded, size: 64, color: AppColors.muted), const SizedBox(height: 16), const Text('Aún no tienes participación registrada', textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), const SizedBox(height: 8), const Text('Tus inscripciones y asistencias aparecerán aquí.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted))]);
+
+    final attended = _history.where((item) => item.asistio).length;
+    return ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 32), children: [
+      Card(child: Padding(padding: const EdgeInsets.all(16), child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [_metric('Registros', '${_history.length}'), _metric('Asistidos', '$attended'), _metric('Pendientes', '${_history.length - attended}')]))),
+      const SizedBox(height: 12),
+      ..._history.map((item) => Card(margin: const EdgeInsets.only(bottom: 12), child: ListTile(leading: CircleAvatar(backgroundColor: item.asistio ? AppColors.forest.withValues(alpha: .12) : Colors.grey.shade200, child: Icon(item.asistio ? Icons.check_rounded : Icons.event_outlined, color: item.asistio ? AppColors.forest : AppColors.muted)), title: Text(item.nombreEvento, style: const TextStyle(fontWeight: FontWeight.bold)), subtitle: Text('${_formatDate(item.fechaInicioEvento)} · ${item.lugarEvento}\n${item.asistio ? 'Asistencia registrada' : 'Sin asistencia registrada'} · ${item.estadoInscripcion}'), isThreeLine: true))),
+    ]);
+  }
+
+  Widget _metric(String label, String value) => Column(children: [Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)), Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 12))]);
+}
+
 class MyInscriptionsPage extends StatefulWidget {
   const MyInscriptionsPage({required this.session, super.key});
 
@@ -2823,6 +2991,7 @@ class UserProfile {
     required this.lastNames,
     required this.email,
     required this.roles,
+    this.permissions = const [],
   });
 
   final int id;
@@ -2830,6 +2999,7 @@ class UserProfile {
   final String lastNames;
   final String email;
   final List<String> roles;
+  final List<String> permissions;
 
   factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
     id: json['id'] as int,
@@ -2837,6 +3007,9 @@ class UserProfile {
     lastNames: json['apellidos'] as String,
     email: json['correo'] as String,
     roles: List<String>.from(json['roles'] as List),
+    permissions: List<String>.from(
+      (json['perfilOrganizacionActiva'] as Map<String, dynamic>?)?['permisos'] as List? ?? json['permisos'] as List? ?? const [],
+    ),
   );
 }
 
@@ -2889,6 +3062,12 @@ class SessionController extends ChangeNotifier {
   OrganizationModel? activeOrganization;
   bool organizationsLoaded = false;
   int organizationVersion = 0;
+  bool get puedeRegistrarAsistencia => user?.permissions.contains('ASISTENCIA_REGISTRAR') ?? false;
+  bool get puedeConsultarHistorialParticipacion => user?.roles.contains('PARTICIPANTE') ?? false;
+
+  Future<AttendanceModel> registrarAsistencia(int idInscripcion) => _authorized(
+    (tokens, organizationId) => _api.registrarAsistencia(tokens, idInscripcion, organizationId: organizationId),
+  );
 
   Future<void> restore() async {
     final raw = await _storage.read(key: 'sesion');
@@ -2970,6 +3149,13 @@ class SessionController extends ChangeNotifier {
     activeOrganization = matches.first;
     await _storage.write(key: 'organizacion-activa', value: '$id');
     organizationVersion++;
+    notifyListeners();
+    user = await _authorized(
+      (tokens, organizationId) => _api.currentUser(
+        tokens,
+        organizationId: organizationId,
+      ),
+    );
     notifyListeners();
     await _loadUiPrivileges();
     notifyListeners();
@@ -3065,6 +3251,11 @@ class SessionController extends ChangeNotifier {
       return null;
     }
   }
+
+  Future<List<HistorialParticipacionModel>> listarMiHistorial() => _authorized(
+    (tokens, organizationId) =>
+        _api.listarMiHistorial(tokens, organizationId: organizationId),
+  );
 
   Future<InscripcionModel> cancelarInscripcion(int idInscripcion) =>
       _authorized(
@@ -3168,6 +3359,11 @@ class SessionController extends ChangeNotifier {
 class ApiClient {
   ApiClient(this.baseUrl);
   final String baseUrl;
+
+  Future<AttendanceModel> registrarAsistencia(SessionTokens tokens, int idInscripcion, {int? organizationId}) async {
+    final response = await _send('POST', '/asistencias/check-in', tokens, body: {'idInscripcion': idInscripcion}, organizationId: organizationId);
+    return AttendanceModel.fromJson(_data(response) as Map<String, dynamic>);
+  }
 
   Future<SessionTokens> login(String email, String password) async {
     final response = await http.post(
@@ -3349,6 +3545,21 @@ class ApiClient {
     return CredentialModel.fromJson(
       _data(response) as Map<String, dynamic>,
     );
+  }
+
+  Future<List<HistorialParticipacionModel>> listarMiHistorial(
+    SessionTokens tokens, {
+    int? organizationId,
+  }) async {
+    final response = await _get(
+      '/inscripciones/mi-historial',
+      tokens,
+      organizationId: organizationId,
+    );
+    final data = _data(response);
+    return (data as List<dynamic>)
+        .map((item) => HistorialParticipacionModel.fromJson(item as Map<String, dynamic>))
+        .toList();
   }
 
   Future<InscripcionModel> cancelarInscripcion(
@@ -3632,6 +3843,45 @@ class InscripcionModel {
       );
 }
 
+class HistorialParticipacionModel {
+  const HistorialParticipacionModel({
+    required this.idInscripcion,
+    required this.nombreEvento,
+    required this.categoriaEvento,
+    required this.fechaInicioEvento,
+    required this.lugarEvento,
+    required this.fechaInscripcion,
+    required this.estadoInscripcion,
+    required this.asistio,
+    required this.fechaAsistencia,
+  });
+
+  final int idInscripcion;
+  final String nombreEvento;
+  final String categoriaEvento;
+  final DateTime fechaInicioEvento;
+  final String lugarEvento;
+  final DateTime fechaInscripcion;
+  final String estadoInscripcion;
+  final bool asistio;
+  final DateTime? fechaAsistencia;
+
+  factory HistorialParticipacionModel.fromJson(Map<String, dynamic> json) =>
+      HistorialParticipacionModel(
+        idInscripcion: (json['idInscripcion'] as num).toInt(),
+        nombreEvento: json['nombreEvento'] as String? ?? 'Evento',
+        categoriaEvento: json['categoriaEvento'] as String? ?? 'GENERAL',
+        fechaInicioEvento: DateTime.parse(json['fechaInicioEvento'] as String),
+        lugarEvento: json['lugarEvento'] as String? ?? 'Sin lugar asignado',
+        fechaInscripcion: DateTime.parse(json['fechaInscripcion'] as String),
+        estadoInscripcion: json['estadoInscripcion'] as String? ?? 'CONFIRMADA',
+        asistio: json['asistio'] as bool? ?? false,
+        fechaAsistencia: json['fechaAsistencia'] == null
+            ? null
+            : DateTime.parse(json['fechaAsistencia'] as String),
+      );
+}
+
 class DisponibilidadModel {
   const DisponibilidadModel({
     required this.idEvento,
@@ -3732,4 +3982,23 @@ class ApiException implements Exception {
   const ApiException(this.message, [this.status]);
   final String message;
   final int? status;
+}
+
+class AttendanceModel {
+  const AttendanceModel({required this.idAsistencia, required this.idInscripcion, required this.participante, required this.nombreEvento, required this.fechaHora, required this.nombreRegistradoPor});
+  final int idAsistencia;
+  final int idInscripcion;
+  final String participante;
+  final String nombreEvento;
+  final DateTime fechaHora;
+  final String nombreRegistradoPor;
+
+  factory AttendanceModel.fromJson(Map<String, dynamic> json) => AttendanceModel(
+    idAsistencia: (json['idAsistencia'] as num).toInt(),
+    idInscripcion: (json['idInscripcion'] as num).toInt(),
+    participante: json['participante'] as String? ?? '',
+    nombreEvento: json['nombreEvento'] as String? ?? 'Evento',
+    fechaHora: DateTime.parse(json['fechaHora'] as String),
+    nombreRegistradoPor: json['nombreRegistradoPor'] as String? ?? '',
+  );
 }
