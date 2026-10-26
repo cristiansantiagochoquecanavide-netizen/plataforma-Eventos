@@ -9,6 +9,8 @@ Alcance comprobado contra las rutas de `frontend-web/src/app/app.routes.ts`, los
 | Consultar eventos | ✓ | ✓ | Ambas: búsqueda y consulta de campo. |
 | Inscribirse a un evento | — | ✓ | Móvil: inscripción del asistente. |
 | Consultar/cancelar inscripciones propias | — | ✓ | Móvil: autoservicio del asistente. |
+| CU22 Escanear y validar código QR de acreditación | — | ✓ | Móvil: operación de acceso para staff autorizado. |
+| CU23 Registrar asistencia con inscripción validada | ✓ | ✓ | Ambas: CU22 identifica en Móvil; Web permite revisar una inscripción elegible antes de confirmar. |
 | Postularse a convocatorias de staff | ✓ | ✓ | Ambas: web administra; móvil facilita operación de campo. |
 | Consultar asignaciones de staff | ✓ | ✓ | Ambas, con web para coordinación y móvil para consulta operativa. |
 | Crear/editar eventos y categorías | ✓ | — | Web: administración. |

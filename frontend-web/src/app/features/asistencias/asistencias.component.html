@@ -1,5 +1,5 @@
 <section class="attendance-page">
-  <header><p class="eyebrow">Control de acceso</p><h1>Registrar asistencia</h1><p>Selecciona la inscripción que se identificó en el control de acceso.</p></header>
+  <header><p class="eyebrow">Control de acceso</p><h1>Registrar asistencia</h1><p>Selecciona una inscripción elegible, revisa sus datos y confirma el check-in.</p></header>
   @if (cargando()) { <p role="status">Cargando inscripciones...</p> }
   @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
   @if (!cargando() && inscripciones().length > 0) {
@@ -11,10 +11,21 @@
           <option [value]="item.idInscripcion" [disabled]="item.asistenciaRegistrada">#{{ item.idInscripcion }} · {{ item.nombres }} {{ item.apellidos }} · {{ item.tituloEvento }} · {{ item.estado }} · {{ item.asistenciaRegistrada ? 'Asistencia registrada' : 'Pendiente' }}</option>
         }
       </select>
-      <button type="button" (click)="registrar()" [disabled]="seleccionada() === null || enviando()">
-        {{ enviando() ? 'Registrando...' : 'Registrar asistencia' }}
-      </button>
     </div>
+  }
+  @if (inscripcionSeleccionada(); as item) {
+    <article class="attendance-review">
+      <h2>Revisar inscripción</h2>
+      <p><strong>Participante:</strong> {{ item.nombres }} {{ item.apellidos }}</p>
+      <p><strong>Correo:</strong> {{ item.correo }}</p>
+      <p><strong>Evento:</strong> {{ item.tituloEvento }}</p>
+      <p><strong>Estado:</strong> {{ item.estado }}</p>
+      @if (!item.asistenciaRegistrada) {
+        <button type="button" (click)="registrar()" [disabled]="enviando()">
+          {{ enviando() ? 'Registrando...' : 'Confirmar y registrar asistencia' }}
+        </button>
+      }
+    </article>
   }
   @if (asistencia(); as resultado) {
     <article class="attendance-result" role="status">

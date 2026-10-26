@@ -3,6 +3,7 @@ package com.plataformaeventos.asistencias.servicio;
 import com.plataformaeventos.asignacionesstaff.modelo.EstadoAsignacionStaff;
 import com.plataformaeventos.asistencias.dto.AsistenciaRespuesta;
 import com.plataformaeventos.asistencias.dto.InscripcionElegibleAsistenciaRespuesta;
+import com.plataformaeventos.asistencias.dto.InscripcionQrValidadaRespuesta;
 import com.plataformaeventos.asistencias.modelo.Asistencia;
 import com.plataformaeventos.asistencias.repositorio.AsignacionAsistenciaRepository;
 import com.plataformaeventos.asistencias.repositorio.AsistenciaRepository;
@@ -37,11 +38,36 @@ public class AsistenciaService {
     @com.plataformaeventos.audit.servicio.OperacionAuditable(modulo = "ASISTENCIAS", entidad = "ASISTENCIA", accion = "REGISTRAR")
     public AsistenciaRespuesta registrar(Long idInscripcion, String correoStaff, Organizacion organizacion) {
         if (idInscripcion == null) throw new IllegalArgumentException("idInscripcion es obligatorio");
-        var staff = usuarios.findByCorreo(correoStaff.trim().toLowerCase(java.util.Locale.ROOT))
-                .orElseThrow(() -> new ExcepcionNoEncontrado("Usuario staff no encontrado"));
+        var staff = buscarStaff(correoStaff);
         Inscripcion inscripcion = inscripciones.bloquearPorIdEOrganizacion(idInscripcion, organizacion.getId())
                 .orElseThrow(() -> new ExcepcionNoEncontrado("Inscripcion no encontrada"));
+        validarElegibilidad(inscripcion, staff, organizacion);
+        Asistencia asistencia = asistencias.save(new Asistencia(inscripcion, organizacion, staff));
+        asistencias.flush();
+        return AsistenciaRespuesta.desde(asistencia);
+    }
 
+    @Transactional
+    @com.plataformaeventos.audit.servicio.OperacionAuditable(modulo = "ASISTENCIAS", entidad = "INSCRIPCION", accion = "VALIDAR_QR")
+    public InscripcionQrValidadaRespuesta validarCodigoQr(String codigoQr, String correoStaff, Organizacion organizacion) {
+        if (codigoQr == null || codigoQr.isBlank()) throw new IllegalArgumentException("codigoQr es obligatorio");
+        Inscripcion inscripcion = inscripciones.findByCodigoQrAndOrganizacionId(codigoQr.trim(), organizacion.getId())
+                .orElseThrow(() -> new ExcepcionNoEncontrado("Código QR inválido para esta organización"));
+        var staff = buscarStaff(correoStaff);
+        validarElegibilidad(inscripcion, staff, organizacion);
+        return new InscripcionQrValidadaRespuesta(inscripcion.getId(),
+                inscripcion.getParticipante().getNombres() + " " + inscripcion.getParticipante().getApellidos(),
+                inscripcion.getEvento().getId(), inscripcion.getEvento().getNombre());
+    }
+
+    private com.plataformaeventos.usuarios.modelo.Usuario buscarStaff(String correoStaff) {
+        return usuarios.findByCorreo(correoStaff.trim().toLowerCase(java.util.Locale.ROOT))
+                .orElseThrow(() -> new ExcepcionNoEncontrado("Usuario staff no encontrado"));
+    }
+
+    private void validarElegibilidad(Inscripcion inscripcion,
+                                    com.plataformaeventos.usuarios.modelo.Usuario staff,
+                                    Organizacion organizacion) {
         if (!asignaciones.existsByOrganizacionIdAndPostulacionUsuarioIdAndPostulacionConvocatoriaEventoIdAndEstado(
                 organizacion.getId(), staff.getId(), inscripcion.getEvento().getId(), EstadoAsignacionStaff.ASIGNADA)) {
             throw new org.springframework.security.access.AccessDeniedException("No tiene una asignacion activa para este evento");
@@ -53,13 +79,9 @@ public class AsistenciaService {
                 && inscripcion.getEvento().getEstado() != EstadoEvento.EN_CURSO) {
             throw new IllegalStateException("Solo se registra asistencia en eventos publicados o en curso");
         }
-        if (asistencias.existsByInscripcionId(idInscripcion)) {
+        if (asistencias.existsByInscripcionId(inscripcion.getId())) {
             throw new com.plataformaeventos.asistencias.servicio.AsistenciaDuplicadaException();
         }
-
-        Asistencia asistencia = asistencias.save(new Asistencia(inscripcion, organizacion, staff));
-        asistencias.flush();
-        return AsistenciaRespuesta.desde(asistencia);
     }
 
     @Transactional(readOnly = true)

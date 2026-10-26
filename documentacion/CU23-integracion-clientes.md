@@ -4,8 +4,10 @@
 
 Los clientes registran asistencia con `POST /api/asistencias/check-in` y el cuerpo mínimo `{"idInscripcion": 123}`. El backend valida permiso, inscripción, estado, evento, asignación del staff, duplicidad y fecha oficial. La fecha presentada es `fechaHora` de la respuesta.
 
-## Punto de integración pendiente con CU22
+## Flujo de CU22 a CU23
 
-La rama actual no contiene una pantalla ni un servicio CU22 de validación QR en Flutter o Angular. CU23 no simula el escaneo ni interpreta códigos QR. En Flutter, `AttendancePage` recibe por ahora el ID mediante el campo `ID de inscripción`; en Angular, `AsistenciasComponent` ofrece las inscripciones devueltas por `GET /api/inscripciones/participantes`. Cuando CU22 esté listo, el punto exacto de acoplamiento es reemplazar esa selección/entrada por el callback o resultado validado de CU22 que entregue `idInscripcion`, y llamar el método CU23 existente (`SessionController.registrarAsistencia(id)` / `AsistenciasService.registrar(id)`). No se debe enviar el QR al endpoint de CU23.
+En Flutter, CU22 lee el QR y llama `POST /api/asistencias/validar-qr`. El backend busca la inscripción en la organización activa y valida elegibilidad para el staff autenticado. La pantalla muestra participante y evento; el staff compara esos datos con la acreditación y confirma. Solo entonces Flutter llama `SessionController.registrarAsistencia(idInscripcion)`, que consume `POST /api/asistencias/check-in`.
 
-La consulta Angular reutiliza el endpoint de participantes existente, protegido por `PARTICIPANTE_VER`; CU23 exige además `ASISTENCIA_REGISTRAR`. Si falta el permiso de consulta, la pantalla informa HTTP 403, y el backend sigue siendo la autoridad para ambos permisos.
+En Web, CU23 mantiene el control operativo con su listado de inscripciones elegibles. El operador selecciona una inscripción, revisa participante y evento, y confirma el registro. Web llama `AsistenciasService.registrar(idInscripcion)`; no lee ni envía códigos QR.
+
+Los dos clientes terminan en el mismo check-in de CU23. El backend vuelve a cargar la inscripción y comprueba permiso, asignación activa, estado confirmado, evento publicado/en curso y ausencia de asistencia previa. La respuesta incluye la hora oficial del servidor.
