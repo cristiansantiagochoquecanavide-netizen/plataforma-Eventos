@@ -19,6 +19,7 @@ import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 
 @Entity
+@jakarta.persistence.EntityListeners(com.plataformaeventos.aforo.CambiosAforoListener.class)
 @Table(name = "inscripcion")
 public class Inscripcion {
 
@@ -48,6 +49,17 @@ public class Inscripcion {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private EstadoInscripcion estado;
+
+    @Column(name = "categoria_entrada", length = 80)
+    private String categoriaEntrada;
+
+    public String getCategoriaEntrada() { return categoriaEntrada; }
+    public void clasificarEntrada(String categoria) {
+        String valor = categoria == null ? null : categoria.strip();
+        if (valor != null && (valor.length() > 80 || valor.chars().anyMatch(Character::isISOControl)))
+            throw new IllegalArgumentException("Categoria de entrada invalida (maximo 80 caracteres)");
+        categoriaEntrada = valor == null || valor.isBlank() ? null : valor;
+    }
 
     protected Inscripcion() {
     }

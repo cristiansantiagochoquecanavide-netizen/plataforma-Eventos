@@ -1,0 +1,48 @@
+<section class="monitor">
+  <div class="titulo"><div><p class="eyebrow">Control de asistencia</p><h1>Asistencia y aforo</h1><p>Supervisa los ingresos registrados por evento y sala.</p></div>
+    <span class="conexion" [class.vivo]="servicio.estado() === 'En vivo'" role="status">{{ servicio.estado() }}</span></div>
+  <p class="nota">El aforo mostrado es acumulado: cuenta ingresos, no descuenta salidas. Cada evento tiene una sala asignada; los eventos que comparten sala se muestran por separado.</p>
+  <form class="filtros" (ngSubmit)="aplicar()">
+    <label>Evento<select name="evento" [(ngModel)]="eventoId"><option value="">Todos los eventos</option>@for(e of eventos(); track e.id){<option [value]="e.id">{{e.nombre}}</option>}</select></label>
+    <label>Sala<select name="sala" [(ngModel)]="salaId"><option value="">Todas las salas</option>@for(s of salas(); track s.id){<option [value]="s.id">{{s.nombre}}</option>}</select></label>
+    <label>Categoría de entrada<select name="categoria" [(ngModel)]="categoria"><option [ngValue]="null">Todas</option><option value="">Sin clasificar</option>@for(c of categorias(); track c){<option [value]="c">{{c}}</option>}</select></label>
+    <label>Ingreso desde (incluido)<input type="datetime-local" name="desde" [(ngModel)]="desde"></label>
+    <label>Ingreso hasta (excluido)<input type="datetime-local" name="hasta" [(ngModel)]="hasta"></label>
+    <button type="submit">Aplicar filtros</button>
+  </form>
+  <p class="detalle">Horas en la zona local del navegador. La franja filtra la nómina y “Ingresos en franja”; no cambia los totales de asistencia. El aforo acumulado no se reduce por categoría ni franja.</p>
+  @if(error()){<p class="error" role="alert">{{error()}}</p>}
+  @if(cargando()){<p role="status">Actualizando datos…</p>}
+  @if(datos(); as d){
+    <div class="metricas" aria-live="polite">
+      <article><span>Inscripciones consideradas</span><strong>{{totales().inscritos}}</strong></article>
+      <article><span>Asistentes registrados</span><strong>{{totales().presentes}}</strong></article>
+      <article><span>Ausentes</span><strong>{{totales().ausentes}}</strong></article>
+      <article><span>Ingresos en franja</span><strong>{{totales().franja}}</strong></article>
+    </div>
+    <p class="detalle">Se consideran inscripciones confirmadas y las que ya tienen asistencia. Los totales suman inscripciones por evento; una persona inscrita en varios eventos puede figurar varias veces.</p>
+    <h2>Aforo acumulado por evento y sala</h2>
+    <div class="salas">
+      @for(r of d.resumen; track r.eventoId){
+        <article class="sala" [attr.data-alerta]="r.alerta">
+          <h3>{{r.evento}}</h3><p>{{r.sala || 'Sin sala asignada'}}</p>
+          <strong>{{r.ingresosSala}} / {{r.capacidad ?? '—'}} ingresos</strong>
+          <div class="barra" role="meter" aria-label="Porcentaje de capacidad acumulada" [attr.aria-valuenow]="r.porcentajeAforo" aria-valuemin="0" [attr.aria-valuemax]="r.porcentajeAforo && r.porcentajeAforo > 100 ? r.porcentajeAforo : 100"><span [style.width.%]="ancho(r.porcentajeAforo)"></span></div>
+          <p class="umbral">{{etiqueta(r.alerta)}} @if(r.porcentajeAforo !== null){ · {{r.porcentajeAforo | number:'1.0-1'}}% }</p>
+          <p class="detalle">Asistencia de la categoría seleccionada: {{r.presentes}} de {{r.inscritos}} ({{r.porcentajeAsistencia | number:'1.0-1'}}%).</p>
+        </article>
+      } @empty {<p>No hay eventos para estos filtros.</p>}
+    </div>
+    <div class="titulo"><div><h2>Nómina de asistencia</h2><p>{{d.nomina.total}} registros · Actualizado {{d.actualizado | date:'dd/MM/yyyy HH:mm:ss'}}</p></div>
+      <div class="acciones"><button type="button" (click)="actualizar()" [disabled]="cargando()">Actualizar</button><button type="button" (click)="exportar('csv')" [disabled]="exportando()">Exportar CSV</button><button type="button" (click)="exportar('pdf')" [disabled]="exportando()">Exportar PDF</button></div></div>
+    <div class="tabla"><table><thead><tr><th>Participante</th><th>Evento / sala</th><th>Categoría de entrada</th><th>Asistencia</th><th>Operador</th></tr></thead><tbody>
+      @for(f of d.nomina.filas; track f.inscripcionId){<tr>
+        <td><strong>{{f.nombre}}</strong><small>{{f.correo}}</small></td><td>{{f.evento}}<small>{{f.sala || 'Sin sala'}}</small></td>
+        <td><label class="sr-only" [for]="'categoria-'+f.inscripcionId">Categoría de entrada de {{f.nombre}}</label><input #entrada [id]="'categoria-'+f.inscripcionId" [value]="f.categoria ?? ''" maxlength="80" placeholder="Sin clasificar" list="categorias-entrada"><button type="button" (click)="clasificar(f, entrada.value)" [disabled]="guardando() !== null">Guardar</button></td>
+        <td>{{f.ingreso ? 'Asistió' : 'Ausente'}} @if(f.ingreso){<small>{{f.ingreso | date:'dd/MM/yyyy HH:mm:ss'}}</small>}</td><td>{{f.staff || '—'}}</td>
+      </tr>} @empty {<tr><td colspan="5">No hay inscripciones que coincidan con los filtros.</td></tr>}
+    </tbody></table></div>
+    <datalist id="categorias-entrada">@for(c of categorias();track c){<option [value]="c"></option>}</datalist>
+    <div class="paginacion"><button type="button" (click)="mover(-1)" [disabled]="pagina() === 0 || cargando()">Anterior</button><span>Página {{pagina()+1}}</span><button type="button" (click)="mover(1)" [disabled]="(pagina()+1)*25 >= d.nomina.total || cargando()">Siguiente</button></div>
+  }
+</section>

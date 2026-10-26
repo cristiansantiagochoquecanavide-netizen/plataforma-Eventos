@@ -27,9 +27,9 @@ class MigracionesFase5Test {
                     .toList();
         }
 
-        assertThat(nombres).hasSize(33);
+        assertThat(nombres).hasSize(34);
         assertThat(nombres.stream().map(MigracionesFase5Test::version).toList())
-                .containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33);
+                .containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34);
         assertThat(version(nombres.get(13))).isEqualTo(14);
         assertThat(version(nombres.get(14))).isEqualTo(15);
         assertThat(version(nombres.get(15))).isEqualTo(16);
