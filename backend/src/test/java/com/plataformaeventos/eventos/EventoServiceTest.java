@@ -13,6 +13,7 @@ import com.plataformaeventos.eventos.repositorio.EventoRepository;
 import com.plataformaeventos.eventos.servicio.EventoService;
 import com.plataformaeventos.excepciones.ExcepcionNoEncontrado;
 import com.plataformaeventos.organizaciones.modelo.Organizacion;
+import com.plataformaeventos.notificaciones.servicio.NotificacionEventoService;
 import com.plataformaeventos.roles.modelo.EstadoRol;
 import com.plataformaeventos.roles.modelo.Rol;
 import com.plataformaeventos.usuarios.modelo.EstadoUsuario;
@@ -30,6 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.never;
@@ -204,6 +206,33 @@ class EventoServiceTest {
         assertThat(respuesta.espacio()).isNotNull();
         assertThat(respuesta.espacio().id()).isEqualTo(5L);
         assertThat(respuesta.estado()).isEqualTo("PUBLICADO");
+    }
+
+    @Test
+    void actualizarHorarioYLugarProgramaAvisosParaLosAsistentesDelTenant() {
+        Categoria categoria = categoriaConId(2L, "Tecnologia");
+        Espacio espacio = espacioConId(5L, 80);
+        Organizacion organizacion = mock(Organizacion.class);
+        when(organizacion.getId()).thenReturn(7L);
+        Evento evento = new Evento("Evento", null, OffsetDateTime.now().plusDays(5),
+                OffsetDateTime.now().plusDays(5).plusHours(2), "Sala anterior", EstadoEvento.PUBLICADO, categoria);
+        evento.asignarOrganizacion(organizacion);
+        ReflectionTestUtils.setField(evento, "id", 20L);
+        var notificaciones = mock(NotificacionEventoService.class);
+        var servicio = new EventoService(eventoRepository, categoriaRepository, usuarioRepository,
+                espacioRepository, notificaciones);
+        OffsetDateTime nuevoInicio = OffsetDateTime.now().plusDays(8);
+        GuardarEventoSolicitud solicitud = new GuardarEventoSolicitud("Evento", null, nuevoInicio,
+                nuevoInicio.plusHours(2), "Sala nueva", 2L, 5L, 60, EstadoEvento.PUBLICADO, null);
+        when(eventoRepository.findByIdAndOrganizacionId(20L, 7L)).thenReturn(Optional.of(evento));
+        when(categoriaRepository.findByIdAndOrganizacionId(2L, 7L)).thenReturn(Optional.of(categoria));
+        when(espacioRepository.findByIdAndOrganizacionId(5L, 7L)).thenReturn(Optional.of(espacio));
+        when(eventoRepository.existeConflictoProgramacionEditarConFinTenant(
+                5L, solicitud.fechaInicio(), solicitud.fechaFin(), 20L, 7L)).thenReturn(false);
+
+        servicio.actualizarEvento(20L, solicitud, organizacion);
+
+        verify(notificaciones).notificarCambioEvento(eq(evento), eq(organizacion), eq(true), eq(true), eq(false));
     }
 
     @Test

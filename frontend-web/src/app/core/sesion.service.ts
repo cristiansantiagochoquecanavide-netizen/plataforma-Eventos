@@ -111,6 +111,10 @@ export class SesionService {
     return this.tienePermiso('EVENTO_EDITAR');
   }
 
+  puedeGestionarNotificaciones() {
+    return this.puedeEditarEventos();
+  }
+
   puedeAsignarResponsablesEvento() {
     return this.tienePermiso('EVENTO_ASIGNAR_RESPONSABLE');
   }

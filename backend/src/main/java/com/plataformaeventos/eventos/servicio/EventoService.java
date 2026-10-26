@@ -19,12 +19,15 @@ import com.plataformaeventos.usuarios.modelo.EstadoUsuario;
 import com.plataformaeventos.usuarios.modelo.Usuario;
 import com.plataformaeventos.usuarios.repositorio.UsuarioRepository;
 import com.plataformaeventos.organizaciones.modelo.Organizacion;
+import com.plataformaeventos.notificaciones.servicio.NotificacionEventoService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -37,6 +40,7 @@ public class EventoService {
     private final CategoriaRepository categoriaRepository;
     private final UsuarioRepository usuarioRepository;
     private final EspacioRepository espacioRepository;
+    private final NotificacionEventoService notificaciones;
 
     public EventoService(
             EventoRepository eventoRepository,
@@ -44,10 +48,22 @@ public class EventoService {
             UsuarioRepository usuarioRepository,
             EspacioRepository espacioRepository
     ) {
+        this(eventoRepository, categoriaRepository, usuarioRepository, espacioRepository, null);
+    }
+
+    @Autowired
+    public EventoService(
+            EventoRepository eventoRepository,
+            CategoriaRepository categoriaRepository,
+            UsuarioRepository usuarioRepository,
+            EspacioRepository espacioRepository,
+            NotificacionEventoService notificaciones
+    ) {
         this.eventoRepository = eventoRepository;
         this.categoriaRepository = categoriaRepository;
         this.usuarioRepository = usuarioRepository;
         this.espacioRepository = espacioRepository;
+        this.notificaciones = notificaciones;
     }
 
     @Transactional(readOnly = true)
@@ -123,6 +139,10 @@ public class EventoService {
     public EventoRespuesta actualizarEvento(Long idEvento, GuardarEventoSolicitud solicitud, Organizacion organizacion) {
         validarFechas(solicitud.fechaInicio(), solicitud.fechaFin());
         Evento evento = buscarEvento(idEvento, organizacion);
+        OffsetDateTime fechaInicioAnterior = evento.getFechaInicio();
+        OffsetDateTime fechaFinAnterior = evento.getFechaFin();
+        EstadoEvento estadoAnterior = evento.getEstado();
+        String ubicacionAnterior = ubicacionEvento(evento);
         Categoria categoria = buscarCategoria(solicitud.idCategoria(), organizacion);
         Espacio espacio = validarProgramacion(solicitud, idEvento, organizacion);
         evento.actualizarDatos(
@@ -135,6 +155,16 @@ public class EventoService {
                 categoria
         );
         evento.configurarProgramacion(espacio, solicitud.aforoMaximo());
+        if (notificaciones != null && organizacion != null) {
+            boolean reprogramado = !Objects.equals(fechaInicioAnterior, evento.getFechaInicio())
+                    || !Objects.equals(fechaFinAnterior, evento.getFechaFin());
+            boolean cambioEspacio = !Objects.equals(ubicacionAnterior, ubicacionEvento(evento));
+            boolean cancelado = estadoAnterior != EstadoEvento.CANCELADO
+                    && evento.getEstado() == EstadoEvento.CANCELADO;
+            if (reprogramado || cambioEspacio || cancelado) {
+                notificaciones.notificarCambioEvento(evento, organizacion, reprogramado, cambioEspacio, cancelado);
+            }
+        }
         return convertirEvento(evento, organizacion);
     }
 
@@ -331,5 +361,13 @@ public class EventoService {
                 .map(Rol::getNombre)
                 .sorted()
                 .toList();
+    }
+
+    private String ubicacionEvento(Evento evento) {
+        if (evento.getLugarPrincipal() != null && !evento.getLugarPrincipal().isBlank()) {
+            return evento.getLugarPrincipal().trim();
+        }
+        if (evento.getEspacio() == null) return null;
+        return evento.getEspacio().getId() + ":" + evento.getEspacio().getNombre() + ":" + evento.getEspacio().getUbicacion();
     }
 }

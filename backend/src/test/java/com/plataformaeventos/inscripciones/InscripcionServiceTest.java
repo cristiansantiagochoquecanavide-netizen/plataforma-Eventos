@@ -11,6 +11,8 @@ import com.plataformaeventos.inscripciones.modelo.EstadoInscripcion;
 import com.plataformaeventos.inscripciones.modelo.Inscripcion;
 import com.plataformaeventos.inscripciones.repositorio.InscripcionRepository;
 import com.plataformaeventos.inscripciones.servicio.InscripcionService;
+import com.plataformaeventos.notificaciones.servicio.NotificacionEventoService;
+import com.plataformaeventos.organizaciones.modelo.Organizacion;
 import com.plataformaeventos.usuarios.modelo.EstadoUsuario;
 import com.plataformaeventos.usuarios.modelo.Usuario;
 import com.plataformaeventos.usuarios.repositorio.UsuarioRepository;
@@ -25,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class InscripcionServiceTest {
@@ -63,6 +66,34 @@ class InscripcionServiceTest {
         assertThat(respuesta.idEvento()).isEqualTo(10L);
         assertThat(respuesta.estado()).isEqualTo(EstadoInscripcion.CONFIRMADA);
         assertThat(respuesta.codigoQr()).startsWith("INS-10-1-");
+    }
+
+    @Test
+    void inscripcionConfirmadaProgramaCorreoTransaccionalEnElMismoTenant() {
+        Usuario usuario = usuarioConId(1L, "participante@eventos.com");
+        Organizacion organizacion = mock(Organizacion.class);
+        when(organizacion.getId()).thenReturn(7L);
+        Evento evento = eventoConId(10L, EstadoEvento.PUBLICADO, 50, OffsetDateTime.now().plusDays(5));
+        evento.asignarOrganizacion(organizacion);
+        var notificaciones = mock(NotificacionEventoService.class);
+        var servicioConNotificaciones = new InscripcionService(
+                inscripcionRepository, eventoRepository, usuarioRepository, asistenciaRepository, notificaciones);
+        when(usuarioRepository.findByCorreo("participante@eventos.com")).thenReturn(Optional.of(usuario));
+        when(inscripcionRepository.bloquearEvento(10L, 7L)).thenReturn(Optional.of(evento));
+        when(inscripcionRepository.findByEventoIdAndParticipanteIdAndOrganizacionId(10L, 1L, 7L))
+                .thenReturn(Optional.empty());
+        when(inscripcionRepository.countByEventoIdAndOrganizacionIdAndEstado(10L, 7L, EstadoInscripcion.CONFIRMADA))
+                .thenReturn(0L);
+        when(inscripcionRepository.save(any(Inscripcion.class))).thenAnswer(invocation -> {
+            Inscripcion guardada = invocation.getArgument(0);
+            ReflectionTestUtils.setField(guardada, "id", 101L);
+            return guardada;
+        });
+
+        InscripcionRespuesta respuesta = servicioConNotificaciones.inscribir(10L, "participante@eventos.com", organizacion);
+
+        assertThat(respuesta.estado()).isEqualTo(EstadoInscripcion.CONFIRMADA);
+        verify(notificaciones).programarConfirmacion(any(Inscripcion.class), org.mockito.ArgumentMatchers.same(organizacion));
     }
 
     @Test

@@ -1,0 +1,130 @@
+<section class="notifications-page">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">COMUNICACIÓN CON PARTICIPANTES · CU25</p>
+      <h1>Notificaciones y recordatorios</h1>
+      <p>Programa avisos y revisa el estado de entrega para los eventos de tu organización.</p>
+    </div>
+    <div class="heading-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+  </header>
+
+  <aside class="automation-note">
+    <div class="note-icon"><span class="material-symbols-outlined">schedule_send</span></div>
+    <div>
+      <strong>Automatización activa</strong>
+      <p>Confirmación con credencial QR, recordatorios 24 h y 2 h antes, y avisos al cambiar horario, ubicación o cancelar.</p>
+    </div>
+  </aside>
+
+  @if (error()) { <div class="feedback feedback--error" role="alert">{{ error() }}</div> }
+  @if (mensaje()) { <div class="feedback feedback--success" role="status">{{ mensaje() }}</div> }
+
+  @if (cargandoEventos()) {
+    <div class="loading-panel"><span class="spinner"></span><span>Cargando eventos de la organización…</span></div>
+  } @else if (eventos().length === 0) {
+    <section class="empty-panel">
+      <div class="empty-icon"><span class="material-symbols-outlined">event_busy</span></div>
+      <h2>No hay eventos disponibles</h2>
+      <p>Crea un evento antes de programar comunicaciones para sus participantes.</p>
+    </section>
+  } @else {
+    <div class="workspace">
+      <section class="composer panel">
+        <div class="panel-heading">
+          <div class="panel-icon"><span class="material-symbols-outlined">edit_calendar</span></div>
+          <div><p class="eyebrow">ENVÍO MASIVO</p><h2>Programar recordatorio</h2></div>
+        </div>
+        <p class="panel-copy">El correo se enviará a todas las inscripciones confirmadas del evento seleccionado.</p>
+
+        <form [formGroup]="formulario" (ngSubmit)="programar()" novalidate>
+          <label class="field-label" for="eventId">Evento</label>
+          <select id="eventId" class="field" formControlName="idEvento" (change)="cambioEvento()">
+            @for (evento of eventos(); track evento.id) {
+              <option [ngValue]="evento.id">{{ evento.nombre }}</option>
+            }
+          </select>
+
+          @if (eventoSeleccionado(); as evento) {
+            <div class="event-context">
+              <span class="material-symbols-outlined">event</span>
+              <div><b>{{ evento.nombre }}</b><small>{{ formatearFechaEvento(evento.fechaInicio) }} · {{ evento.lugarPrincipal || evento.espacio?.nombre || 'Lugar por confirmar' }}</small></div>
+            </div>
+          }
+
+          <label class="field-label" for="scheduledAt">Fecha y hora de envío</label>
+          <input id="scheduledAt" class="field" type="datetime-local" formControlName="fechaProgramada" />
+          @if (formulario.controls.fechaProgramada.touched && formulario.controls.fechaProgramada.invalid) {
+            <small class="field-error">Selecciona cuándo se enviará el recordatorio.</small>
+          }
+
+          <label class="field-label" for="subject">Asunto</label>
+          <input id="subject" class="field" type="text" maxlength="150" formControlName="asunto" placeholder="Recordatorio del evento" />
+          @if (formulario.controls.asunto.touched && formulario.controls.asunto.invalid) {
+            <small class="field-error">Escribe un asunto de hasta 150 caracteres.</small>
+          }
+
+          <label class="field-label" for="message">Mensaje</label>
+          <textarea id="message" class="field message-field" rows="4" maxlength="4000" formControlName="mensaje" placeholder="Comparte los detalles importantes para los asistentes…"></textarea>
+          <div class="field-footnote">La fecha, ubicación e indicaciones de acceso se agregan automáticamente.</div>
+          @if (formulario.controls.mensaje.touched && formulario.controls.mensaje.invalid) {
+            <small class="field-error">Escribe el mensaje del recordatorio.</small>
+          }
+
+          <button class="primary-action" type="submit" [disabled]="enviando() || formulario.invalid">
+            @if (enviando()) { <span class="spinner spinner--light"></span> } @else { <span class="material-symbols-outlined">schedule_send</span> }
+            {{ enviando() ? 'Programando…' : 'Programar para participantes' }}
+          </button>
+        </form>
+      </section>
+
+      <section class="history-column">
+        <div class="metrics" aria-label="Resumen de notificaciones">
+          <article class="metric metric--queued"><span class="material-symbols-outlined">pending_actions</span><b>{{ pendientes() }}</b><small>Pendientes</small></article>
+          <article class="metric metric--sent"><span class="material-symbols-outlined">mark_email_read</span><b>{{ enviados() }}</b><small>Enviados</small></article>
+          <article class="metric metric--failed"><span class="material-symbols-outlined">error_outline</span><b>{{ fallidos() }}</b><small>Fallidos</small></article>
+        </div>
+
+        <div class="history-heading">
+          <div><p class="eyebrow">SEGUIMIENTO</p><h2>Actividad de envío</h2></div>
+          <button class="refresh" type="button" (click)="cargarHistorial()" [disabled]="cargandoHistorial()" aria-label="Actualizar notificaciones">
+            <span class="material-symbols-outlined">refresh</span>
+          </button>
+        </div>
+
+        @if (cargandoHistorial()) {
+          <div class="loading-panel"><span class="spinner"></span><span>Actualizando historial…</span></div>
+        } @else if (notificaciones().length === 0) {
+          <section class="empty-panel empty-panel--compact">
+            <div class="empty-icon"><span class="material-symbols-outlined">mark_email_unread</span></div>
+            <h2>Aún no hay notificaciones</h2>
+            <p>Los correos de confirmación y recordatorios aparecerán aquí con su estado.</p>
+          </section>
+        } @else {
+          <div class="notification-list">
+            @for (item of notificaciones(); track item.id) {
+              <article class="notification-card">
+                <div class="notification-topline">
+                  <span class="type-label">{{ etiquetaTipo(item.tipo) }}</span>
+                  <span class="status" [class]="'status status--' + item.estado.toLowerCase()">{{ etiquetaEstado(item.estado) }}</span>
+                </div>
+                <h3>{{ item.asunto }}</h3>
+                <p class="recipient"><span class="material-symbols-outlined">mail</span>{{ item.destinatario }}</p>
+                <div class="notification-meta">
+                  <span><small>PROGRAMADO</small>{{ formatearFecha(item.fechaProgramada) }}</span>
+                  @if (item.fechaEnvio) { <span><small>ENVIADO</small>{{ formatearFecha(item.fechaEnvio) }}</span> }
+                </div>
+                @if (item.ultimoError) { <p class="error-detail">{{ item.ultimoError }}</p> }
+                @if (item.estado === 'FALLIDO') {
+                  <button class="retry-action" type="button" (click)="reintentar(item)" [disabled]="reintentandoId() === item.id">
+                    <span class="material-symbols-outlined">replay</span>
+                    {{ reintentandoId() === item.id ? 'Reintentando…' : 'Reintentar envío' }}
+                  </button>
+                }
+              </article>
+            }
+          </div>
+        }
+      </section>
+    </div>
+  }
+</section>

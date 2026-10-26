@@ -508,6 +508,8 @@ Resources:
               Value: 'false'
             - Name: SMTP_FROM
               Value: !Ref SesFrom
+            - Name: NOTIFICACIONES_SCHEDULER_ENABLED
+              Value: 'true'
             - Name: RECUPERACION_CLAVE_EXPIRACION_MINUTOS
               Value: '30'
             - Name: RECUPERACION_CLAVE_INTERVALO_SOLICITUD_SEGUNDOS

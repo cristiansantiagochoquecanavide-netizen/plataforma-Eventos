@@ -54,7 +54,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: ProfilePage(session: session)));
 
     expect(find.text('Hola, Ana'), findsOneWidget);
-    expect(find.text('Datos personales'), findsOneWidget);
+    expect(find.text('Tus datos, siempre al día'), findsOneWidget);
     expect(find.text('Actualizar clave'), findsOneWidget);
   });
 
@@ -91,19 +91,27 @@ void main() {
       email: 'carlos@eventos.local',
       roles: ['PARTICIPANTE'],
     );
-    await session.uiPrivileges.load(() async => {
-      'componentes': {
-        'events.search.menu': {'estadosPermitidos': ['VISIBLE']},
-        'inscriptions.list': {'estadosPermitidos': ['VISIBLE']},
-        'profile.menu': {'estadosPermitidos': ['VISIBLE']},
+    await session.uiPrivileges.load(
+      () async => {
+        'componentes': {
+          'events.search.menu': {
+            'estadosPermitidos': ['VISIBLE'],
+          },
+          'inscriptions.list': {
+            'estadosPermitidos': ['VISIBLE'],
+          },
+          'profile.menu': {
+            'estadosPermitidos': ['VISIBLE'],
+          },
+        },
       },
-    });
+    );
 
     await tester.pumpWidget(MaterialApp(home: HomeShell(session: session)));
 
     expect(find.text('Eventos'), findsWidgets);
-    expect(find.text('Inscripciones'), findsOneWidget);
-    expect(find.text('Mi Perfil'), findsOneWidget);
+    expect(find.text('Entradas'), findsOneWidget);
+    expect(find.text('Perfil'), findsOneWidget);
     expect(find.text('Ayuda'), findsOneWidget);
   });
 
@@ -173,11 +181,15 @@ void main() {
     tester,
   ) async {
     final session = SessionController(ApiClient('http://localhost:8080/api'));
-    await session.uiPrivileges.load(() async => {
-      'componentes': {
-        'event.summary': {'estadosPermitidos': ['VISIBLE']},
+    await session.uiPrivileges.load(
+      () async => {
+        'componentes': {
+          'event.summary': {
+            'estadosPermitidos': ['VISIBLE'],
+          },
+        },
       },
-    });
+    );
     final event = EventModel(
       id: 5,
       name: 'Hackathon Innovacion',

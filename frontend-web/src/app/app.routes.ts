@@ -16,6 +16,7 @@ import {
   administradorGuard,
   reportesGuard,
   asistenciasGuard,
+  notificacionesGuard,
   permisoGuard,
 } from './core/guards';
 import { InicioSesionComponent } from './features/auth/inicio-sesion.component';
@@ -63,6 +64,7 @@ export const routes: Routes = [
       { path: 'usuarios', loadComponent: () => import('./features/usuarios/usuarios.component').then((m) => m.UsuariosComponent), canActivate: [usuariosGuard] },
       { path: 'participantes', loadComponent: () => import('./features/participantes/participantes.component').then((m) => m.ParticipantesComponent), canActivate: [participantesGuard] },
       { path: 'asistencias', loadComponent: () => import('./features/asistencias/asistencias.component').then((m) => m.AsistenciasComponent), canActivate: [asistenciasGuard] },
+      { path: 'notificaciones', loadComponent: () => import('./features/notificaciones/notificaciones.component').then((m) => m.NotificacionesComponent), canActivate: [notificacionesGuard] },
       { path: 'grupos', loadComponent: () => import('./features/grupos/grupos.component').then((m) => m.GruposComponent), canActivate: [administradorGuard] },
       {
         path: 'privilegios-ui',

@@ -95,5 +95,12 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
     @EntityGraph(attributePaths = {"categoria", "espacio", "responsables", "responsables.roles"})
     List<Evento> findByOrganizacionIdAndEstadoNotOrderByFechaInicioAsc(Long organizacionId, EstadoEvento estado);
 
+    @Query("select e from Evento e left join fetch e.espacio left join fetch e.categoria "
+            + "where e.fechaInicio >= :desde and e.fechaInicio <= :hasta "
+            + "and e.estado <> com.plataformaeventos.eventos.modelo.EstadoEvento.CANCELADO "
+            + "and e.organizacion is not null order by e.fechaInicio asc")
+    List<Evento> findUpcomingForReminders(@Param("desde") OffsetDateTime desde,
+                                          @Param("hasta") OffsetDateTime hasta);
+
     boolean existsByCategoriaId(Long idCategoria);
 }

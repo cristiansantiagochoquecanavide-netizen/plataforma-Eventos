@@ -37,6 +37,12 @@ brevo:
   from-email: ${BREVO_FROM_EMAIL:}
   from-name: ${BREVO_FROM_NAME:Plataforma de eventos}
 
+notificaciones:
+  scheduler:
+    enabled: ${NOTIFICACIONES_SCHEDULER_ENABLED:false}
+    intervalo-ms: ${NOTIFICACIONES_INTERVALO_MS:60000}
+    inicio-ms: ${NOTIFICACIONES_INICIO_MS:20000}
+
 server:
   port: ${PUERTO_BACKEND:8080}
 

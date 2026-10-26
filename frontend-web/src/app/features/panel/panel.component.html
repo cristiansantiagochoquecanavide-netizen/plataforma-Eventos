@@ -39,6 +39,9 @@
         <a routerLink="/eventos" routerLinkActive="active" [appUiPrivilegeVisible]="'events.menu'">Eventos</a>
         <a routerLink="/categorias" routerLinkActive="active" [appUiPrivilegeVisible]="'categories.menu'">Categorias</a>
       }
+      @if (sesion.puedeGestionarNotificaciones()) {
+        <a routerLink="/notificaciones" routerLinkActive="active">Notificaciones y recordatorios</a>
+      }
       @if (sesion.tieneAccesoEventos() || sesion.puedeVerParticipantes() || sesion.esAdministrador()) {
         <a routerLink="/reportes" routerLinkActive="active">Reportes y estadísticas</a>
       }

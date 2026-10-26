@@ -57,6 +57,15 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
 
     List<Inscripcion> findByEventoIdAndOrganizacionId(Long evento, Long organizacionId);
 
+    @Query("select i from Inscripcion i join fetch i.participante p join fetch i.evento e "
+            + "left join fetch e.categoria left join fetch e.espacio "
+            + "where i.evento.id = :evento and i.organizacion.id = :org "
+            + "and e.organizacion.id = :org "
+            + "and i.estado = com.plataformaeventos.inscripciones.modelo.EstadoInscripcion.CONFIRMADA "
+            + "order by i.id asc")
+    List<Inscripcion> findConfirmedByEventoAndOrganizacion(@Param("evento") Long evento,
+                                                            @Param("org") Long organizacionId);
+
     long countByParticipanteIdAndOrganizacionId(Long idParticipante, Long organizacionId);
     long countByParticipanteIdAndOrganizacionIdAndEstado(Long idParticipante, Long organizacionId, EstadoInscripcion estado);
 

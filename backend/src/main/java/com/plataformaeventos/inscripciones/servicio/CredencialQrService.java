@@ -62,6 +62,18 @@ public class CredencialQrService {
             throw new IllegalStateException("Solo las inscripciones confirmadas pueden emitir una credencial QR");
         }
 
+        return construirCredencial(inscripcion, participante);
+    }
+
+    @Transactional(readOnly = true)
+    public CredencialDigitalRespuesta emitirPara(Inscripcion inscripcion) {
+        if (inscripcion.getEstado() != EstadoInscripcion.CONFIRMADA) {
+            throw new IllegalStateException("Solo las inscripciones confirmadas pueden emitir una credencial QR");
+        }
+        return construirCredencial(inscripcion, inscripcion.getParticipante());
+    }
+
+    private CredencialDigitalRespuesta construirCredencial(Inscripcion inscripcion, Usuario participante) {
         Instant expira = Instant.now().plusSeconds(expiracionHoras * 3600);
         Long tenantId = inscripcion.getOrganizacion() != null ? inscripcion.getOrganizacion().getId()
                 : inscripcion.getEvento().getOrganizacion() == null ? null : inscripcion.getEvento().getOrganizacion().getId();

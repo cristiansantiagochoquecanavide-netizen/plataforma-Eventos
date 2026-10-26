@@ -106,4 +106,5 @@ export const bitacoraGuard = permisoGuard((s) => s.puedeVerBitacora());
 export const miembrosGuard = permisoGuard((s) => s.puedeGestionarMiembros());
 export const participantesGuard = permisoGuard((s) => s.puedeVerParticipantes());
 export const asistenciasGuard = permisoGuard((s) => s.puedeRegistrarAsistencia());
+export const notificacionesGuard = permisoGuard((s) => s.puedeGestionarNotificaciones());
 export const reportesGuard = permisoGuard((s) => s.tieneAccesoEventos() || s.puedeVerParticipantes() || s.esAdministrador());

@@ -16,6 +16,8 @@ import com.plataformaeventos.inscripciones.repositorio.InscripcionRepository;
 import com.plataformaeventos.usuarios.modelo.Usuario;
 import com.plataformaeventos.usuarios.repositorio.UsuarioRepository;
 import com.plataformaeventos.organizaciones.modelo.Organizacion;
+import com.plataformaeventos.notificaciones.servicio.NotificacionEventoService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +36,7 @@ public class InscripcionService {
     private final EventoRepository eventoRepository;
     private final UsuarioRepository usuarioRepository;
     private final AsistenciaRepository asistenciaRepository;
+    private final NotificacionEventoService notificaciones;
 
     public InscripcionService(
             InscripcionRepository inscripcionRepository,
@@ -41,10 +44,22 @@ public class InscripcionService {
             UsuarioRepository usuarioRepository,
             AsistenciaRepository asistenciaRepository
     ) {
+        this(inscripcionRepository, eventoRepository, usuarioRepository, asistenciaRepository, null);
+    }
+
+    @Autowired
+    public InscripcionService(
+            InscripcionRepository inscripcionRepository,
+            EventoRepository eventoRepository,
+            UsuarioRepository usuarioRepository,
+            AsistenciaRepository asistenciaRepository,
+            NotificacionEventoService notificaciones
+    ) {
         this.inscripcionRepository = inscripcionRepository;
         this.eventoRepository = eventoRepository;
         this.usuarioRepository = usuarioRepository;
         this.asistenciaRepository = asistenciaRepository;
+        this.notificaciones = notificaciones;
     }
 
     @Transactional
@@ -78,14 +93,18 @@ public class InscripcionService {
             String nuevoCodigo = generarCodigoQr(idEvento, participante.getId());
             existente.reactivar(nuevoCodigo);
             if (organizacion != null) existente.asignarOrganizacion(organizacion);
-            return InscripcionRespuesta.desdeEntidad(inscripcionRepository.save(existente));
+            Inscripcion guardada = inscripcionRepository.save(existente);
+            if (notificaciones != null && organizacion != null) notificaciones.programarConfirmacion(guardada, organizacion);
+            return InscripcionRespuesta.desdeEntidad(guardada);
         }
 
         validarCuposDisponibles(evento, organizacion);
         String codigoQr = generarCodigoQr(idEvento, participante.getId());
         Inscripcion nuevaInscripcion = new Inscripcion(evento, participante, codigoQr);
         if (organizacion != null) nuevaInscripcion.asignarOrganizacion(organizacion);
-        return InscripcionRespuesta.desdeEntidad(inscripcionRepository.save(nuevaInscripcion));
+        Inscripcion guardada = inscripcionRepository.save(nuevaInscripcion);
+        if (notificaciones != null && organizacion != null) notificaciones.programarConfirmacion(guardada, organizacion);
+        return InscripcionRespuesta.desdeEntidad(guardada);
     }
 
     @Transactional(readOnly = true)
@@ -143,6 +162,7 @@ public class InscripcionService {
         }
 
         inscripcion.cancelar();
+        if (notificaciones != null && organizacion != null) notificaciones.cancelarPendientesInscripcion(inscripcion, organizacion);
         return InscripcionRespuesta.desdeEntidad(inscripcionRepository.save(inscripcion));
     }
 
