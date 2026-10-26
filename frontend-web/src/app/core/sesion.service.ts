@@ -148,6 +148,7 @@ export class SesionService {
   puedeVerBitacora() { return this.esAdministrador() || this.tienePermiso('BITACORA_VER'); }
   puedeGestionarMiembros() { return this.usuario()?.perfilOrganizacionActiva?.administrador ?? false; }
   puedeVerParticipantes() { return this.esAdministrador() || this.tieneAlgunPermiso(['PARTICIPANTE_VER', 'USUARIO_VER', 'INSCRIPCION_VER', 'INSCRIPCION_VER_TODAS']); }
+  puedeVerCredencialesPropias() { return this.tienePermiso('INSCRIPCION_VER_PROPIAS'); }
   puedeGestionarParticipantes() { return this.esAdministrador() || this.tieneAlgunPermiso(['PARTICIPANTE_GESTIONAR', 'USUARIO_CAMBIAR_ESTADO']); }
   tieneAccesoParticipantes() { return this.puedeVerParticipantes(); }
 

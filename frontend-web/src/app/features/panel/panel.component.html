@@ -8,6 +8,9 @@
         <a class="saas-return" routerLink="/saas/organizaciones">← Volver a consola SaaS</a>
       }
       <a routerLink="/perfil" routerLinkActive="active" [appUiPrivilegeVisible]="'profile.menu'">Mi perfil</a>
+      @if (sesion.puedeVerCredencialesPropias()) {
+        <a routerLink="/mis-credenciales" routerLinkActive="active">Mis credenciales QR</a>
+      }
       @if (sesion.tieneAccesoUsuarios()) {
         <a routerLink="/usuarios" routerLinkActive="active" [appUiPrivilegeVisible]="'users.menu'">Usuarios</a>
       }

@@ -2011,6 +2011,64 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
     }
   }
 
+  Future<void> _mostrarCredencial(InscripcionModel inscripcion) async {
+    CredentialModel? credential;
+    var offline = false;
+    try {
+      credential = await widget.session.obtenerCredencial(inscripcion.idInscripcion);
+    } catch (error) {
+      if (error is ApiException && error.status != null && error.status! < 500) {
+        rethrow;
+      }
+      credential = await widget.session.credencialOffline(inscripcion.idInscripcion);
+      offline = credential != null;
+    }
+    if (!mounted) return;
+    if (offline && credential != null && DateTime.now().isAfter(credential.expiraEn)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('La credencial guardada ya venció. Conéctate para emitir un QR vigente.')),
+      );
+      return;
+    }
+    if (credential == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo emitir ni encontrar una credencial guardada para esta inscripción.')),
+      );
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(offline ? 'Credencial guardada · sin conexión' : 'Credencial digital'),
+        content: SizedBox(
+          width: 300,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(credential!.nombreEvento, textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              Text('${credential.nombreParticipante} · ${credential.categoria}',
+                textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted)),
+              const SizedBox(height: 16),
+              Image.memory(base64Decode(credential.qrPngBase64), width: 220, height: 220,
+                errorBuilder: (_, _, _) => const Icon(Icons.qr_code_2, size: 180)),
+              const SizedBox(height: 8),
+              Text('Válido hasta ${_formatDate(credential.expiraEn)}',
+                style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+              if (offline) const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text('Credencial almacenada de forma segura. Verifica su vigencia al recuperar conexión.',
+                  textAlign: TextAlign.center, style: TextStyle(fontSize: 11)),
+              ),
+            ],
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cerrar'))],
+      ),
+    );
+  }
+
   String _formatDate(DateTime date) =>
       '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
 
@@ -2339,7 +2397,9 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      ins.codigoQr,
+                                      isConfirmada
+                                          ? 'Credencial QR firmada disponible'
+                                          : 'Credencial anulada',
                                       style: TextStyle(
                                         fontFamily: 'monospace',
                                         fontWeight: FontWeight.w600,
@@ -2376,6 +2436,15 @@ class _MyInscriptionsPageState extends State<MyInscriptionsPage> {
                             ),
                             if (isConfirmada) ...[
                               const SizedBox(height: 12),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: FilledButton.icon(
+                                  onPressed: () => _mostrarCredencial(ins),
+                                  icon: const Icon(Icons.qr_code_2_rounded),
+                                  label: const Text('Ver mi credencial QR'),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
                               UiEnabledBuilder(
                                 service: widget.session.uiPrivileges,
                                 privilege: 'inscriptions.cancel',
@@ -2965,6 +3034,38 @@ class SessionController extends ChangeNotifier {
         _api.listarMisInscripciones(tokens, organizationId: organizationId),
   );
 
+  Future<CredentialModel> obtenerCredencial(int idInscripcion) async {
+    final organizationId = activeOrganization?.id;
+    final credential = await _authorized(
+      (tokens, organizationId) => _api.obtenerCredencial(
+        tokens,
+        idInscripcion,
+        organizationId: organizationId,
+      ),
+    );
+    if (organizationId != null) {
+      await _storage.write(
+        key: 'wallet-credencial-$organizationId-$idInscripcion',
+        value: jsonEncode(credential.toJson()),
+      );
+    }
+    return credential;
+  }
+
+  Future<CredentialModel?> credencialOffline(int idInscripcion) async {
+    final organizationId = activeOrganization?.id;
+    if (organizationId == null) return null;
+    final raw = await _storage.read(
+      key: 'wallet-credencial-$organizationId-$idInscripcion',
+    );
+    if (raw == null) return null;
+    try {
+      return CredentialModel.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<InscripcionModel> cancelarInscripcion(int idInscripcion) =>
       _authorized(
         (tokens, organizationId) => _api.cancelarInscripcion(
@@ -3235,6 +3336,21 @@ class ApiClient {
         .toList();
   }
 
+  Future<CredentialModel> obtenerCredencial(
+    SessionTokens tokens,
+    int idInscripcion, {
+    int? organizationId,
+  }) async {
+    final response = await _get(
+      '/inscripciones/$idInscripcion/credencial',
+      tokens,
+      organizationId: organizationId,
+    );
+    return CredentialModel.fromJson(
+      _data(response) as Map<String, dynamic>,
+    );
+  }
+
   Future<InscripcionModel> cancelarInscripcion(
     SessionTokens tokens,
     int idInscripcion, {
@@ -3421,6 +3537,54 @@ class EventModel {
         ? categoryName
         : 'GENERAL';
   }
+}
+
+class CredentialModel {
+  const CredentialModel({
+    required this.idInscripcion,
+    required this.nombreParticipante,
+    required this.nombreEvento,
+    required this.categoria,
+    required this.fechaEvento,
+    required this.lugar,
+    required this.token,
+    required this.qrPngBase64,
+    required this.expiraEn,
+  });
+
+  final int idInscripcion;
+  final String nombreParticipante;
+  final String nombreEvento;
+  final String categoria;
+  final DateTime fechaEvento;
+  final String lugar;
+  final String token;
+  final String qrPngBase64;
+  final DateTime expiraEn;
+
+  Map<String, dynamic> toJson() => {
+    'idInscripcion': idInscripcion,
+    'nombreParticipante': nombreParticipante,
+    'nombreEvento': nombreEvento,
+    'categoria': categoria,
+    'fechaEvento': fechaEvento.toIso8601String(),
+    'lugar': lugar,
+    'token': token,
+    'qrPngBase64': qrPngBase64,
+    'expiraEn': expiraEn.toIso8601String(),
+  };
+
+  factory CredentialModel.fromJson(Map<String, dynamic> json) => CredentialModel(
+    idInscripcion: json['idInscripcion'] as int,
+    nombreParticipante: json['nombreParticipante'] as String,
+    nombreEvento: json['nombreEvento'] as String,
+    categoria: json['categoria'] as String,
+    fechaEvento: DateTime.parse(json['fechaEvento'] as String),
+    lugar: json['lugar'] as String,
+    token: json['token'] as String,
+    qrPngBase64: json['qrPngBase64'] as String,
+    expiraEn: DateTime.parse(json['expiraEn'] as String),
+  );
 }
 
 class InscripcionModel {

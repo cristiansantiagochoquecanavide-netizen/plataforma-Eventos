@@ -3,6 +3,8 @@ package com.plataformaeventos.inscripciones.controlador;
 import com.plataformaeventos.inscripciones.dto.DisponibilidadEventoRespuesta;
 import com.plataformaeventos.inscripciones.dto.InscripcionRespuesta;
 import com.plataformaeventos.inscripciones.dto.ParticipanteInscritoRespuesta;
+import com.plataformaeventos.inscripciones.dto.CredencialDigitalRespuesta;
+import com.plataformaeventos.inscripciones.servicio.CredencialQrService;
 import com.plataformaeventos.inscripciones.servicio.InscripcionService;
 import com.plataformaeventos.organizaciones.servicio.ContextoOrganizacion;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,10 +34,12 @@ import java.util.List;
 public class InscripcionController {
 
     private final InscripcionService inscripcionService;
+    private final CredencialQrService credencialQrService;
     private final ContextoOrganizacion contextoOrganizacion;
 
-    public InscripcionController(InscripcionService inscripcionService, ContextoOrganizacion contextoOrganizacion) {
+    public InscripcionController(InscripcionService inscripcionService, CredencialQrService credencialQrService, ContextoOrganizacion contextoOrganizacion) {
         this.inscripcionService = inscripcionService;
+        this.credencialQrService = credencialQrService;
         this.contextoOrganizacion = contextoOrganizacion;
     }
 
@@ -59,6 +63,18 @@ public class InscripcionController {
     @ApiResponse(responseCode = "200", description = "Listado de inscripciones del usuario")
     public ResponseEntity<List<InscripcionRespuesta>> listarMisInscripciones(Authentication autenticacion, HttpServletRequest request) {
         return ResponseEntity.ok(inscripcionService.listarMisInscripciones(autenticacion.getName(), contextoOrganizacion.resolver(autenticacion, request)));
+    }
+
+    @GetMapping("/{idInscripcion}/credencial")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'INSCRIPCION_VER_PROPIAS')")
+    @Operation(summary = "Emitir credencial digital firmada con QR para una inscripción propia (CU21)")
+    @ApiResponse(responseCode = "200", description = "Credencial firmada generada")
+    @ApiResponse(responseCode = "400", description = "La inscripción no está confirmada", content = @Content)
+    @ApiResponse(responseCode = "404", description = "Inscripción no encontrada", content = @Content)
+    public ResponseEntity<CredencialDigitalRespuesta> credencial(
+            @PathVariable Long idInscripcion, Authentication autenticacion, HttpServletRequest request) {
+        return ResponseEntity.ok(credencialQrService.emitir(idInscripcion, autenticacion.getName(),
+                contextoOrganizacion.resolver(autenticacion, request)));
     }
 
     @PatchMapping("/{idInscripcion}/cancelar")

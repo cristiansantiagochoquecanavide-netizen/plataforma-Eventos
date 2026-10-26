@@ -51,6 +51,7 @@ export const routes: Routes = [
     canActivate: [autenticacionGuard],
     children: [
       { path: 'perfil', component: PerfilComponent },
+      { path: 'mis-credenciales', loadComponent: () => import('./features/credenciales/credenciales.component').then((m) => m.CredencialesComponent) },
       { path: 'ayuda', component: AyudaComponent },
       { path: 'consulta-eventos', component: ConsultaEventosComponent, canActivate: [consultaEventosGuard] },
       { path: 'eventos', loadComponent: () => import('./features/eventos/eventos.component').then((m) => m.EventosComponent), canActivate: [eventosGuard] },

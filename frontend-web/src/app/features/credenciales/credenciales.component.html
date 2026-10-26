@@ -1,0 +1,39 @@
+<section class="credentials-page">
+  <header class="page-heading">
+    <div><p class="eyebrow">ACCESO PERSONAL · CU21</p><h1>Mis credenciales</h1>
+      <p>Tu QR firmado es personal y temporal. Preséntalo en el acceso del evento.</p></div>
+    <span class="security-mark">HMAC<br><b>SHA-256</b></span>
+  </header>
+
+  @if (error()) { <p class="notice" role="alert">{{ error() }}</p> }
+  <div class="credential-layout">
+    <section class="event-list" aria-label="Inscripciones confirmadas">
+      <h2>Eventos inscritos</h2>
+      @for (item of inscripciones(); track item.idInscripcion) {
+        <article class="event-row" [class.inactive]="item.estado !== 'CONFIRMADA'">
+          <div class="event-date">{{ item.fechaInicioEvento | date:'dd MMM':'':'es' }}</div>
+          <div class="event-info"><h3>{{ item.nombreEvento }}</h3><p>{{ item.categoriaEvento }} · {{ item.lugarEvento }}</p>
+            <span [class.ok]="item.estado === 'CONFIRMADA'">{{ item.estado }}</span></div>
+          <button type="button" [disabled]="cargando() || item.estado !== 'CONFIRMADA'" (click)="emitir(item.idInscripcion)">
+            {{ item.estado === 'CONFIRMADA' ? 'Ver QR' : 'No disponible' }}
+          </button>
+        </article>
+      } @empty { <p class="empty">Todavía no tienes inscripciones en esta organización.</p> }
+    </section>
+
+    <section class="pass-panel" aria-live="polite">
+      @if (cargando()) { <div class="loading"><span></span>Firmando tu credencial…</div> }
+      @else if (credencial(); as card) {
+        <div class="pass-top"><span>PLATAFORMA DE EVENTOS</span><span class="pass-dot"></span></div>
+        <p class="eyebrow">CREDENCIAL DIGITAL</p>
+        <h2>{{ card.nombreParticipante }}</h2><h3>{{ card.nombreEvento }}</h3>
+        <div class="pass-meta"><span><small>CATEGORÍA</small>{{ card.categoria }}</span><span><small>FECHA</small>{{ card.fechaEvento | date:'d MMM y, HH:mm':'':'es' }}</span></div>
+        <div class="qr-frame"><img [src]="'data:image/png;base64,' + card.qrPngBase64" alt="Código QR firmado de acceso" /></div>
+        <p class="qr-hint">Cada emisión crea un QR firmado que vence {{ card.expiraEn | date:'d MMM, HH:mm':'':'es' }}.</p>
+        <button class="download" type="button" (click)="descargar()">Descargar QR PNG</button>
+      } @else {
+        <div class="empty-pass"><span class="ticket">✳</span><h2>Tu acceso empieza aquí</h2><p>Elige una inscripción confirmada para emitir un QR criptográfico asociado a tu identidad y organización.</p></div>
+      }
+    </section>
+  </div>
+</section>

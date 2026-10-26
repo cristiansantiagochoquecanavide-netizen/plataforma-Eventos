@@ -93,6 +93,9 @@ seguridad:
     secreto: ${JWT_SECRET}
     acceso-expiracion-minutos: ${JWT_ACCESO_EXPIRACION_MINUTOS:15}
     refresco-expiracion-dias: ${JWT_REFRESH_EXPIRACION_DIAS:7}
+  qr:
+    clave: ${QR_HMAC_SECRET:${JWT_SECRET}}
+    expiracion-horas: ${QR_EXPIRACION_HORAS:24}
   cors:
     origenes: ${CORS_ORIGENES:http://localhost:4200}
   recuperacion:

@@ -25,6 +25,9 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
 
     Optional<Inscripcion> findByIdAndParticipanteId(Long idInscripcion, Long idParticipante);
 
+    @Query("SELECT i FROM Inscripcion i JOIN FETCH i.participante u JOIN FETCH i.evento e LEFT JOIN FETCH e.categoria LEFT JOIN FETCH e.espacio WHERE i.id = :id AND i.participante.id = :usuario AND (:org IS NULL OR i.organizacion.id = :org)")
+    Optional<Inscripcion> findCredentialByIdAndParticipant(@Param("id") Long id, @Param("usuario") Long usuario, @Param("org") Long organizacionId);
+
     @Query("select i from Inscripcion i where i.id = :id and i.participante.id = :usuario and i.organizacion.id = :org")
     Optional<Inscripcion> findByIdAndParticipanteIdAndOrganizacionId(@Param("id") Long id, @Param("usuario") Long usuario, @Param("org") Long org);
 
