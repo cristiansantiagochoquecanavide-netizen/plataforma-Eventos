@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'core/theme/app_theme.dart';
 import 'core/ui_privileges/ui_privilege_service.dart';
 import 'core/ui_privileges/ui_privilege_widgets.dart';
+import 'features/asistencia/qr_attendance_page.dart';
 
 const _apiUrl = String.fromEnvironment(
   'API_URL',
@@ -974,81 +975,50 @@ class MobileHelpPage extends StatelessWidget {
   }
 }
 
-class AttendancePage extends StatefulWidget {
+class AttendancePage extends StatelessWidget {
   const AttendancePage({required this.session, super.key});
   final SessionController session;
 
-  @override
-  State<AttendancePage> createState() => _AttendancePageState();
-}
-
-class _AttendancePageState extends State<AttendancePage> {
-  final _idInscripcion = TextEditingController();
-  bool _sending = false;
-  String? _error;
-  AttendanceModel? _attendance;
-
-  String _formatDate(DateTime value) {
-    final date = value.toLocal();
-    String twoDigits(int part) => part.toString().padLeft(2, '0');
-    return '${twoDigits(date.day)}/${twoDigits(date.month)}/${date.year} ${twoDigits(date.hour)}:${twoDigits(date.minute)}';
-  }
-
-  @override
-  void dispose() {
-    _idInscripcion.dispose();
-    super.dispose();
-  }
-
-  Future<void> _checkIn() async {
-    final id = int.tryParse(_idInscripcion.text.trim());
-    if (id == null || id < 1) {
-      setState(() => _error = 'Ingresa un ID de inscripción válido.');
-      return;
-    }
-    setState(() { _sending = true; _error = null; _attendance = null; });
+  Future<Map<String, dynamic>> _validateQr(String codigoQr) async {
     try {
-      final response = await widget.session.registrarAsistencia(id);
-      if (mounted) setState(() => _attendance = response);
+      return await session.validarCodigoQr(codigoQr);
     } on ApiException catch (error) {
-      final message = switch (error.status) {
+      throw QrCheckInException(_mensajeAsistencia(error, validarQr: true));
+    }
+  }
+
+  Future<Map<String, dynamic>> _registerAttendance(int idInscripcion) async {
+    try {
+      final response = await session.registrarAsistencia(idInscripcion);
+      return {
+        'participante': response.participante,
+        'nombreEvento': response.nombreEvento,
+        'fechaHora': response.fechaHora.toIso8601String(),
+        'nombreRegistradoPor': response.nombreRegistradoPor,
+      };
+    } on ApiException catch (error) {
+      throw QrCheckInException(_mensajeAsistencia(error));
+    }
+  }
+
+  String _mensajeAsistencia(ApiException error, {bool validarQr = false}) =>
+      switch (error.status) {
         401 => 'Tu sesión expiró. Inicia sesión nuevamente.',
-        403 => 'No tienes permiso para registrar asistencias.',
-        404 => 'No se puede registrar la asistencia.',
+        403 => 'No tienes permiso para registrar asistencias en este evento.',
+        404 => validarQr
+            ? 'El código QR no corresponde a una inscripción válida.'
+            : 'No se puede registrar la asistencia.',
         409 => 'Esta asistencia ya fue registrada.',
-        400 => 'No se puede registrar la asistencia.',
+        400 => 'La inscripción no está confirmada o el evento no está habilitado.',
         _ => error.status != null && error.status! >= 500
-            ? 'No fue posible registrar la asistencia. Intenta nuevamente.'
+            ? 'No fue posible completar el control de acceso. Intenta nuevamente.'
             : error.message,
       };
-      if (mounted) setState(() => _error = message);
-    } finally {
-      if (mounted) setState(() => _sending = false);
-    }
-  }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Registrar asistencia')),
-    body: ListView(padding: const EdgeInsets.all(20), children: [
-      const Text('Ingresa el ID de inscripción validado por el proceso de acceso.', style: TextStyle(color: AppColors.muted)),
-      const SizedBox(height: 16),
-      TextField(controller: _idInscripcion, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'ID de inscripción', prefixIcon: Icon(Icons.confirmation_number_outlined))),
-      const SizedBox(height: 12),
-      FilledButton.icon(onPressed: _sending ? null : _checkIn, icon: _sending ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.how_to_reg_rounded), label: Text(_sending ? 'Registrando...' : 'Registrar asistencia')),
-      if (_error != null) ...[const SizedBox(height: 16), Text(_error!, key: const Key('attendance-error'), style: const TextStyle(color: AppColors.danger))],
-      if (_attendance != null) ...[
-        const SizedBox(height: 20),
-        Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Asistencia registrada correctamente.', style: TextStyle(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 12),
-          Text('Participante: ${_attendance!.participante}'),
-          Text('Evento: ${_attendance!.nombreEvento}'),
-          Text('Fecha y hora: ${_formatDate(_attendance!.fechaHora)}'),
-          Text('Registrado por: ${_attendance!.nombreRegistradoPor}'),
-        ]))),
-      ],
-    ]),
+  Widget build(BuildContext context) => QrAttendancePage(
+    validateQr: _validateQr,
+    registerAttendance: _registerAttendance,
   );
 }
 
@@ -2998,6 +2968,10 @@ class SessionController extends ChangeNotifier {
     (tokens, organizationId) => _api.registrarAsistencia(tokens, idInscripcion, organizationId: organizationId),
   );
 
+  Future<Map<String, dynamic>> validarCodigoQr(String codigoQr) => _authorized(
+    (tokens, organizationId) => _api.validarCodigoQr(tokens, codigoQr, organizationId: organizationId),
+  );
+
   Future<void> restore() async {
     final raw = await _storage.read(key: 'sesion');
     if (raw == null) return;
@@ -3260,6 +3234,11 @@ class ApiClient {
   Future<AttendanceModel> registrarAsistencia(SessionTokens tokens, int idInscripcion, {int? organizationId}) async {
     final response = await _send('POST', '/asistencias/check-in', tokens, body: {'idInscripcion': idInscripcion}, organizationId: organizationId);
     return AttendanceModel.fromJson(_data(response) as Map<String, dynamic>);
+  }
+
+  Future<Map<String, dynamic>> validarCodigoQr(SessionTokens tokens, String codigoQr, {int? organizationId}) async {
+    final response = await _send('POST', '/asistencias/validar-qr', tokens, body: {'codigoQr': codigoQr}, organizationId: organizationId);
+    return _data(response) as Map<String, dynamic>;
   }
 
   Future<SessionTokens> login(String email, String password) async {

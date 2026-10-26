@@ -36,4 +36,4 @@ La tabla guarda una única asistencia por inscripción con restricción `UNIQUE`
 
 ## Integración con CU22
 
-CU22 valida el QR y obtiene el `idInscripcion` asociado. Luego llama a este endpoint enviando únicamente ese identificador. CU23 no recibe ni interpreta códigos QR, tokens ni datos de participante desde el cliente; vuelve a cargar y validar la inscripción persistida.
+CU22 valida el QR con `POST /api/asistencias/validar-qr`, obtiene el `idInscripcion` asociado y muestra participante/evento al staff. CU22 no registra la entrada. Después de la confirmación del staff, el cliente llama a este endpoint enviando únicamente ese identificador. CU23 no recibe ni interpreta códigos QR ni datos de participante desde el cliente; vuelve a cargar y validar la inscripción persistida.

@@ -39,6 +39,10 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
 
     Optional<Inscripcion> findByEventoIdAndParticipanteId(Long idEvento, Long idParticipante);
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select i from Inscripcion i where i.codigoQr = :codigoQr and i.organizacion.id = :org")
+    Optional<Inscripcion> findByCodigoQrAndOrganizacionId(@Param("codigoQr") String codigoQr, @Param("org") Long organizacionId);
+
     boolean existsByEventoIdAndParticipanteIdAndEstado(Long idEvento, Long idParticipante, EstadoInscripcion estado);
 
     long countByEventoIdAndEstado(Long idEvento, EstadoInscripcion estado);
