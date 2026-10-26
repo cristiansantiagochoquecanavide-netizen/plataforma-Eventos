@@ -55,6 +55,7 @@ public class SeguridadConfiguracion {
                         .accessDeniedHandler(manejadorAccesoDenegado))
                 .authorizeHttpRequests(autorizacion -> autorizacion
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/ws-aforo").permitAll()
                          .requestMatchers("/api/salud", "/actuator/health", "/swagger-ui/**", "/swagger-ui.html", "/api-docs/**")
                          .permitAll()
                          .requestMatchers("/api/saas/planes", "/api/saas/altas/**", "/api/saas/stripe/webhook")

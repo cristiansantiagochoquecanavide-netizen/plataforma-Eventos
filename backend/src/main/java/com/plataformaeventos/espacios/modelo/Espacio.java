@@ -13,6 +13,7 @@ import com.plataformaeventos.organizaciones.modelo.Organizacion;
 import java.time.OffsetDateTime;
 
 @Entity
+@jakarta.persistence.EntityListeners(com.plataformaeventos.aforo.CambiosAforoListener.class)
 @Table(name = "espacio")
 public class Espacio {
 

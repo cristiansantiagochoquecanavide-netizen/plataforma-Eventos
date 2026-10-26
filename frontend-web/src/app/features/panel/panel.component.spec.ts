@@ -46,6 +46,9 @@ class SesionServiceStub {
   puedeGestionarAsignacionesStaff = jasmine.createSpy('puedeGestionarAsignacionesStaff').and.returnValue(false);
   puedeVerAsignacionesStaff = jasmine.createSpy('puedeVerAsignacionesStaff').and.returnValue(false);
   puedeRegistrarAsistencia = jasmine.createSpy('puedeRegistrarAsistencia').and.returnValue(false);
+  puedeConsultarAsistencia = jasmine.createSpy('puedeConsultarAsistencia').and.returnValue(false);
+  puedeVerCredencialesPropias = jasmine.createSpy('puedeVerCredencialesPropias').and.returnValue(false);
+  puedeVerHistorialParticipacion = jasmine.createSpy('puedeVerHistorialParticipacion').and.returnValue(false);
   cerrar = jasmine.createSpy('cerrar');
 }
 

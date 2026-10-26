@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
+@jakarta.persistence.EntityListeners(com.plataformaeventos.aforo.CambiosAforoListener.class)
 @Table(name = "evento")
 public class Evento {
 
