@@ -10,6 +10,7 @@ import org.hibernate.generator.EventType;
 import java.time.OffsetDateTime;
 
 @Entity
+@EntityListeners(com.plataformaeventos.aforo.CambiosAforoListener.class)
 @Table(name = "asistencia", uniqueConstraints =
         @UniqueConstraint(name = "uq_asistencia_inscripcion", columnNames = "id_inscripcion"))
 public class Asistencia {

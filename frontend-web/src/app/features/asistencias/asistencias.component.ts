@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AsistenciasService } from './servicios/asistencias.service';
 import { Asistencia, InscripcionElegible } from './modelos/asistencia.modelo';
@@ -15,6 +15,9 @@ import { obtenerMensajeError } from '../../core/mensajes-error';
 export class AsistenciasComponent implements OnInit {
   readonly inscripciones = signal<InscripcionElegible[]>([]);
   readonly seleccionada = signal<number | null>(null);
+  readonly inscripcionSeleccionada = computed(() =>
+    this.inscripciones().find((item) => item.idInscripcion === this.seleccionada()) ?? null,
+  );
   readonly asistencia = signal<Asistencia | null>(null);
   readonly cargando = signal(false);
   readonly enviando = signal(false);
@@ -38,7 +41,13 @@ export class AsistenciasComponent implements OnInit {
     if (id === null || this.enviando()) return;
     this.enviando.set(true); this.error.set(''); this.asistencia.set(null);
     this.servicio.registrar(id).subscribe({
-      next: (response) => { this.asistencia.set(response); this.enviando.set(false); },
+      next: (response) => {
+        this.asistencia.set(response);
+        this.inscripciones.update((items) => items.map((item) => item.idInscripcion === response.idInscripcion
+          ? { ...item, asistenciaRegistrada: true, fechaAsistencia: response.fechaHora }
+          : item));
+        this.enviando.set(false);
+      },
       error: (err) => { this.error.set(this.mensaje(err)); this.enviando.set(false); },
     });
   }

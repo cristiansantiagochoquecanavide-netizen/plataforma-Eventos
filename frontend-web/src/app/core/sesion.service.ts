@@ -150,6 +150,7 @@ export class SesionService {
   puedeGestionarAsignacionesStaff() { return this.tienePermiso('ASIGNACION_STAFF_GESTIONAR'); }
   puedeVerAsignacionesStaff() { return this.puedeGestionarAsignacionesStaff() || this.puedeCrearPostulacionesStaff(); }
   puedeRegistrarAsistencia() { return this.tienePermiso('ASISTENCIA_REGISTRAR'); }
+  puedeConsultarAsistencia() { return this.esAdministradorSaas() || this.tienePermiso('ASISTENCIA_CONSULTAR'); }
   puedeVerBitacora() { return this.esAdministrador() || this.tienePermiso('BITACORA_VER'); }
   puedeGestionarMiembros() { return this.usuario()?.perfilOrganizacionActiva?.administrador ?? false; }
   puedeVerParticipantes() { return this.esAdministrador() || this.tieneAlgunPermiso(['PARTICIPANTE_VER', 'USUARIO_VER', 'INSCRIPCION_VER', 'INSCRIPCION_VER_TODAS']); }

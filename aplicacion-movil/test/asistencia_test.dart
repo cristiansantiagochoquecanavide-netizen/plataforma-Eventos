@@ -1,14 +1,61 @@
 import 'dart:async';
+
 import 'package:aplicacion_movil/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 class _SessionFalsa extends SessionController {
   _SessionFalsa() : super(ApiClient('http://localhost'));
+  Future<Map<String, dynamic>> Function(String)? validar;
   Future<AttendanceModel> Function(int)? registrar;
+
+  @override
+  Future<Map<String, dynamic>> validarCodigoQr(String codigoQr) =>
+      validar!(codigoQr);
+
   @override
   Future<AttendanceModel> registrarAsistencia(int idInscripcion) =>
       registrar!(idInscripcion);
+}
+
+class _FakeScannerPlatform extends MobileScannerPlatform {
+  final StreamController<BarcodeCapture> _barcodes =
+      StreamController<BarcodeCapture>.broadcast();
+
+  @override
+  Stream<BarcodeCapture?> get barcodesStream => _barcodes.stream;
+
+  @override
+  Stream<TorchState> get torchStateStream =>
+      Stream.value(TorchState.unavailable);
+
+  @override
+  Stream<double> get zoomScaleStateStream => Stream.value(1);
+
+  @override
+  Future<MobileScannerViewAttributes> start(StartOptions startOptions) async =>
+      const MobileScannerViewAttributes(
+        cameraDirection: CameraFacing.back,
+        currentTorchMode: TorchState.unavailable,
+        size: Size(280, 280),
+        numberOfCameras: 1,
+      );
+
+  @override
+  Widget buildCameraView() => const ColoredBox(color: Colors.black);
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  Future<void> toggleTorch() async {}
+
+  void scan(String value) =>
+      _barcodes.add(BarcodeCapture(barcodes: [Barcode(rawValue: value)]));
+
+  @override
+  Future<void> dispose() => _barcodes.close();
 }
 
 void main() {
@@ -43,58 +90,80 @@ void main() {
     expect(user.permissions, contains('ASISTENCIA_REGISTRAR'));
   });
 
-  testWidgets('carga formulario y muestra detalle con fecha recibida', (
-    tester,
-  ) async {
-    final session = _SessionFalsa()..registrar = (_) async => respuesta;
-    await tester.pumpWidget(
-      MaterialApp(home: AttendancePage(session: session)),
-    );
-    expect(find.byType(FilledButton), findsOneWidget);
-    await tester.enterText(find.byType(TextField), '22');
-    await tester.tap(find.byType(FilledButton));
-    await tester.pumpAndSettle();
-    expect(find.text('Asistencia registrada correctamente.'), findsOneWidget);
-    expect(find.textContaining('Eva Rojas'), findsOneWidget);
-    expect(find.textContaining('25/10/2026'), findsOneWidget);
-  });
-
-  for (final testCase in <(int, String)>[
-    (401, 'Tu sesión expiró. Inicia sesión nuevamente.'),
-    (409, 'Esta asistencia ya fue registrada.'),
-    (403, 'No tienes permiso para registrar asistencias.'),
-    (404, 'No se puede registrar la asistencia.'),
-    (400, 'No se puede registrar la asistencia.'),
-    (500, 'No fue posible registrar la asistencia. Intenta nuevamente.'),
-  ]) {
-    testWidgets('muestra mensaje de HTTP ${testCase.$1}', (tester) async {
+  testWidgets(
+    'valida el QR y confirma asistencia con la respuesta del backend',
+    (tester) async {
+      final scanner = _FakeScannerPlatform();
+      MobileScannerPlatform.instance = scanner;
       final session = _SessionFalsa()
-        ..registrar = (_) async =>
-            throw ApiException('error interno', testCase.$1);
+        ..validar = (codigoQr) async {
+          expect(codigoQr, 'qr-token-valido');
+          return {
+            'idInscripcion': 22,
+            'participante': 'Eva Rojas',
+            'nombreEvento': 'Foro local',
+          };
+        }
+        ..registrar = (_) async => respuesta;
       await tester.pumpWidget(
         MaterialApp(home: AttendancePage(session: session)),
       );
-      await tester.enterText(find.byType(TextField), '22');
-      await tester.tap(find.byType(FilledButton));
       await tester.pumpAndSettle();
-      expect(find.text(testCase.$2), findsOneWidget);
-    });
-  }
+      expect(find.text('Control de acceso'), findsOneWidget);
+      scanner.scan('qr-token-valido');
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Eva Rojas'), findsOneWidget);
+      expect(find.text('Confirmar y registrar asistencia'), findsOneWidget);
+      await tester.tap(find.text('Confirmar y registrar asistencia'));
+      await tester.pumpAndSettle();
+      expect(find.text('Asistencia registrada correctamente'), findsOneWidget);
+      expect(find.textContaining('Eva Rojas'), findsOneWidget);
+      expect(find.textContaining('25/10/2026'), findsOneWidget);
+    },
+  );
 
-  testWidgets('deshabilita el envío mientras espera la respuesta', (
+  testWidgets('muestra un error de validación y permite volver a escanear', (
     tester,
   ) async {
-    final completer = Completer<AttendanceModel>();
-    final session = _SessionFalsa()..registrar = (_) => completer.future;
+    final scanner = _FakeScannerPlatform();
+    MobileScannerPlatform.instance = scanner;
+    final session = _SessionFalsa();
+    session.validar = (_) async => throw const ApiException('No válido', 404);
+    session.registrar = (_) async => respuesta;
     await tester.pumpWidget(
       MaterialApp(home: AttendancePage(session: session)),
     );
-    await tester.enterText(find.byType(TextField), '22');
-    await tester.tap(find.byType(FilledButton));
-    await tester.pump();
-    final button = tester.widget<FilledButton>(find.byType(FilledButton));
-    expect(button.onPressed, isNull);
-    completer.complete(respuesta);
     await tester.pumpAndSettle();
+    scanner.scan('qr-token-invalido');
+    await tester.pumpAndSettle();
+    expect(
+      find.text('El código QR no corresponde a una inscripción válida.'),
+      findsOneWidget,
+    );
+    expect(find.text('Volver a escanear'), findsOneWidget);
+  });
+
+  testWidgets('informa check-in duplicado y conserva la inscripción validada', (
+    tester,
+  ) async {
+    final scanner = _FakeScannerPlatform();
+    MobileScannerPlatform.instance = scanner;
+    final session = _SessionFalsa();
+    session.validar = (_) async => {
+      'idInscripcion': 22,
+      'participante': 'Eva Rojas',
+      'nombreEvento': 'Foro local',
+    };
+    session.registrar = (_) async => throw const ApiException('Repetido', 409);
+    await tester.pumpWidget(
+      MaterialApp(home: AttendancePage(session: session)),
+    );
+    await tester.pumpAndSettle();
+    scanner.scan('qr-token-valido');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirmar y registrar asistencia'));
+    await tester.pumpAndSettle();
+    expect(find.text('Esta asistencia ya fue registrada.'), findsOneWidget);
+    expect(find.text('Inscripción validada'), findsOneWidget);
   });
 }

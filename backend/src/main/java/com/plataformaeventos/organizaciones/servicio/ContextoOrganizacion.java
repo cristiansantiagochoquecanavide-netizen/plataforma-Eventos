@@ -26,8 +26,10 @@ public class ContextoOrganizacion {
         this.suscripciones = suscripciones;
     }
     public Organizacion resolver(Authentication auth, HttpServletRequest request) {
+        return resolverCabecera(auth, request.getHeader(CABECERA));
+    }
+    public Organizacion resolverCabecera(Authentication auth, String valor) {
         if (auth == null || !auth.isAuthenticated()) throw new ExcepcionNoAutorizado("Se requiere autenticacion");
-        String valor = request.getHeader(CABECERA);
         Organizacion org = valor == null || valor.isBlank() ? organizaciones.findBySlug("principal").orElseThrow(() -> new ExcepcionNoAutorizado("Organizacion principal no encontrada")) : organizaciones.findById(parsear(valor)).orElseThrow(() -> new ExcepcionNoAutorizado("Organizacion no encontrada"));
         if (!"ACTIVA".equalsIgnoreCase(org.getEstado())) throw new ExcepcionNoAutorizado("La organizacion se encuentra inactiva");
         if (!esSaas(auth) && suscripciones != null && !suscripciones.tieneAccesoActivo(org.getId(), OffsetDateTime.now())) {
@@ -39,6 +41,12 @@ public class ContextoOrganizacion {
     public boolean tieneAutoridad(Authentication auth, HttpServletRequest request, String permiso) {
         try { return auth != null && resolver(auth, request) != null && (esSaas(auth) || membresias.tienePermisoActivo(auth.getName(), resolver(auth, request).getId(), permiso)); }
         catch (RuntimeException ex) { return false; }
+    }
+    public boolean tieneAutoridadEnOrganizacion(Authentication auth, String organizacion, String permiso) {
+        try {
+            var org = resolverCabecera(auth, organizacion);
+            return esSaas(auth) || membresias.tienePermisoActivo(auth.getName(), org.getId(), permiso);
+        } catch (RuntimeException ex) { return false; }
     }
     public boolean esAdministrador(Authentication auth, HttpServletRequest request) {
         try { return auth != null && (esSaas(auth) || membresias.esAdministradorActivo(auth.getName(), resolver(auth, request).getId())); }

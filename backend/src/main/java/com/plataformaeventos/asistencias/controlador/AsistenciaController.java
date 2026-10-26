@@ -2,7 +2,9 @@ package com.plataformaeventos.asistencias.controlador;
 
 import com.plataformaeventos.asistencias.dto.AsistenciaRespuesta;
 import com.plataformaeventos.asistencias.dto.InscripcionElegibleAsistenciaRespuesta;
+import com.plataformaeventos.asistencias.dto.InscripcionQrValidadaRespuesta;
 import com.plataformaeventos.asistencias.dto.RegistrarAsistenciaSolicitud;
+import com.plataformaeventos.asistencias.dto.ValidarCodigoQrSolicitud;
 import com.plataformaeventos.asistencias.servicio.AsistenciaService;
 import com.plataformaeventos.organizaciones.servicio.ContextoOrganizacion;
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,6 +38,15 @@ public class AsistenciaController {
                                                          HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(asistencias.registrar(
                 solicitud.idInscripcion(), autenticacion.getName(), contexto.resolver(autenticacion, request)));
+    }
+
+    @PostMapping("/validar-qr")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'ASISTENCIA_REGISTRAR')")
+    public ResponseEntity<InscripcionQrValidadaRespuesta> validarQr(@Valid @RequestBody ValidarCodigoQrSolicitud solicitud,
+                                                                      Authentication autenticacion,
+                                                                      HttpServletRequest request) {
+        return ResponseEntity.ok(asistencias.validarCodigoQr(
+                solicitud.codigoQr(), autenticacion.getName(), contexto.resolver(autenticacion, request)));
     }
 
     @GetMapping("/inscripciones-elegibles")

@@ -27,9 +27,9 @@ class MigracionesFase5Test {
                     .toList();
         }
 
-        assertThat(nombres).hasSize(34);
+        assertThat(nombres).hasSize(35);
         assertThat(nombres.stream().map(MigracionesFase5Test::version).toList())
-                .containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34);
+                .containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35);
         assertThat(version(nombres.get(13))).isEqualTo(14);
         assertThat(version(nombres.get(14))).isEqualTo(15);
         assertThat(version(nombres.get(15))).isEqualTo(16);
@@ -51,19 +51,21 @@ class MigracionesFase5Test {
         assertThat(version(nombres.get(31))).isEqualTo(32);
         assertThat(version(nombres.get(32))).isEqualTo(33);
         assertThat(version(nombres.get(33))).isEqualTo(34);
+        assertThat(version(nombres.get(34))).isEqualTo(35);
         assertThat(nombres.get(21)).isEqualTo("V22__distinguir_administrador_saas.sql");
         assertThat(nombres.get(29)).isEqualTo("V30__asignar_evento_ver_a_participante_y_staff.sql");
         assertThat(nombres.get(30)).isEqualTo("V31__alta_saas_checkout_stripe.sql");
         assertThat(nombres.get(31)).isEqualTo("V32__permitir_null_en_tokens_verificacion_alta_saas.sql");
         assertThat(nombres.get(32)).isEqualTo("V33__crear_registro_asistencia.sql");
-        assertThat(nombres.get(33)).isEqualTo("V34__crear_notificaciones_eventos.sql");
+        assertThat(nombres.get(33)).isEqualTo("V34__consulta_aforo.sql");
+        assertThat(nombres.get(34)).isEqualTo("V35__crear_notificaciones_eventos.sql");
     }
 
     @Test
-    @DisplayName("V34 crea el outbox de notificaciones de eventos con deduplicación tenant-aware")
-    void v34CreaOutboxDeNotificacionesTenantAware() throws IOException {
+    @DisplayName("V35 crea el outbox de notificaciones de eventos con deduplicación tenant-aware")
+    void v35CreaOutboxDeNotificacionesTenantAware() throws IOException {
         String migracion = Files.readString(new ClassPathResource(
-                "db/migration/V34__crear_notificaciones_eventos.sql").getFile().toPath());
+                "db/migration/V35__crear_notificaciones_eventos.sql").getFile().toPath());
 
         assertThat(migracion).contains("CREATE TABLE notificaciones_eventos");
         assertThat(migracion).contains("FOREIGN KEY (id_inscripcion, id_organizacion)");

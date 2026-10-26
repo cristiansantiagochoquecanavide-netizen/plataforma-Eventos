@@ -21,4 +21,4 @@ Usuario: StaffEventos@gmail.com
 Clave: Staff123
 ```
 
-Abrir **Registrar asistencia**, seleccionar una de las tres inscripciones y pulsar **Registrar asistencia**.
+Abrir **Registrar asistencia**, seleccionar una de las tres inscripciones, revisar participante y evento y pulsar **Confirmar y registrar asistencia**.

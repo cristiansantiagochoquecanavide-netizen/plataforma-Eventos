@@ -65,6 +65,9 @@
       @if (sesion.puedeRegistrarAsistencia()) {
         <a routerLink="/asistencias" routerLinkActive="active">Registrar asistencia</a>
       }
+      @if (sesion.puedeConsultarAsistencia()) {
+        <a routerLink="/aforo" routerLinkActive="active">Asistencia y aforo en vivo</a>
+      }
     </nav>
     <button class="logout" type="button" (click)="cerrarSesion()">Cerrar sesion</button>
   </aside>
