@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+  body {
+    background-color: #ffffff;
+    padding: 24px 28px;
+    display: inline-block;
+  }
+  .doc-title {
+    color: #1a4971;
+    font-size: 23px;
+    font-weight: 500;
+    margin-bottom: 14px;
+    letter-spacing: -0.2px;
+  }
+  .jira-container {
+    background-color: #181b20;
+    border: 1px solid #333942;
+    border-radius: 4px;
+    width: 1280px;
+    overflow: hidden;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+  }
+  /* Header columns */
+  .jira-header {
+    background-color: #16191d;
+    border-bottom: 1px solid #2d333b;
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #8b949e;
+    user-select: none;
+  }
+  /* Sprint section bars */
+  .sprint-bar {
+    display: flex;
+    align-items: center;
+    padding: 7px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border-bottom: 1px solid #262b32;
+    cursor: pointer;
+  }
+  .sprint-bar.collapsed {
+    background-color: #181c22;
+    color: #8b949e;
+  }
+  .sprint-bar.expanded {
+    background-color: #1d2a44;
+    color: #e6edf3;
+    border-top: 1px solid #2d3d5f;
+    border-bottom: 1px solid #243454;
+  }
+  .sprint-bar .arrow {
+    margin-right: 8px;
+    font-size: 10px;
+  }
+  .sprint-bar .plus {
+    margin-left: 6px;
+    color: #8b949e;
+    font-weight: 400;
+    font-size: 13px;
+  }
+  /* Row styles */
+  .jira-row {
+    display: flex;
+    align-items: center;
+    padding: 7px 12px;
+    font-size: 12px;
+    color: #c9d1d9;
+    border-bottom: 1px solid #21262d;
+    background-color: #16191e;
+  }
+  .jira-row:hover {
+    background-color: #1c2128;
+  }
+  /* Columns sizing */
+  .col-check { width: 30px; display: flex; align-items: center; justify-content: center; }
+  .col-exp { width: 18px; color: #6e7681; font-size: 10px; }
+  .col-activity { width: 410px; display: flex; align-items: center; gap: 7px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .col-assignee { width: 175px; display: flex; align-items: center; gap: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .col-reporter { width: 140px; display: flex; align-items: center; gap: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .col-priority { width: 95px; display: flex; align-items: center; gap: 5px; font-size: 11px; }
+  .col-status { width: 105px; }
+  .col-resolution { width: 75px; color: #8b949e; font-size: 11px; }
+  .col-created { width: 120px; color: #8b949e; font-size: 11px; }
+  .col-updated { width: 120px; color: #8b949e; font-size: 11px; }
+  .col-due { width: 65px; color: #8b949e; font-size: 11px; }
+
+  /* Checkbox */
+  .chk {
+    width: 13px;
+    height: 13px;
+    border: 1px solid #484f58;
+    border-radius: 2px;
+    background-color: transparent;
+  }
+  /* Story Icon */
+  .story-icon {
+    width: 14px;
+    height: 14px;
+    background-color: #36b37e;
+    border-radius: 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .story-icon svg {
+    width: 9px;
+    height: 9px;
+    fill: #ffffff;
+  }
+  /* Issue Key (Resolved/Strikethrough) */
+  .issue-key {
+    color: #58a6ff;
+    text-decoration: line-through;
+    font-weight: 500;
+    font-size: 11.5px;
+    letter-spacing: -0.1px;
+    margin-right: 4px;
+    flex-shrink: 0;
+  }
+  .issue-summary {
+    color: #c9d1d9;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* Avatars */
+  .avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    color: #ffffff;
+    font-size: 9.5px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .av-cc { background-color: #0b66e4; } /* Cervantes Roberto Carlos */
+  .av-em { background-color: #d9381e; } /* Espinoza Matteo */
+  .av-ka { background-color: #1f883d; } /* Kevin Ariel Aranibar */
+  .av-cs { background-color: #5b45b0; } /* Choque Cristian */
+  .av-rj { background-color: #008272; } /* Justiniano Raul */
+  .av-ca { background-color: #0e7090; } /* Carvallo Carlos */
+  .av-sm { background-color: #2da44e; } /* SCRUM MASTER */
+
+  .member-name {
+    color: #c9d1d9;
+    font-size: 11.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .reporter-name {
+    color: #8b949e;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+
+  /* Priority icons */
+  .prio-high {
+    color: #e5534b;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .prio-highest {
+    color: #e5534b;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* Status badge */
+  .status-badge {
+    background-color: #193826;
+    border: 1px solid #2ea043;
+    color: #3fb950;
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .status-badge .caret {
+    font-size: 8px;
+    color: #3fb950;
+  }
+
+  /* Scrollbar at bottom */
+  .jira-scroll-track {
+    background-color: #16191d;
+    height: 12px;
+    border-top: 1px solid #21262d;
+    padding: 2px 4px;
+    display: flex;
+    align-items: center;
+  }
+  .jira-scroll-bar {
+    background-color: #333942;
+    height: 6px;
+    border-radius: 3px;
+    width: 60%;
+  }
+</style>
+</head>
+<body>
+
+<div class="doc-title">8. Scrum TaskBoard(Backlog, to, do, doing, done )</div>
+
+<div class="jira-container">
+  <!-- Header Table -->
+  <div class="jira-header">
+    <div class="col-check"><div class="chk"></div></div>
+    <div class="col-exp"></div>
+    <div class="col-activity">&gt; Actividad</div>
+    <div class="col-assignee">Persona asignada</div>
+    <div class="col-reporter">Informador</div>
+    <div class="col-priority">Prioridad</div>
+    <div class="col-status">Estado</div>
+    <div class="col-resolution">Resolución</div>
+    <div class="col-created">Creada</div>
+    <div class="col-updated">Actualizada</div>
+    <div class="col-due">Fecha c...</div>
+  </div>
+
+  <!-- Collapsed Sprint 1 -->
+  <div class="sprint-bar collapsed">
+    <span class="arrow">&#9658;</span> Sprint 1 - Gestión y Organización de Eventos <span class="plus">+</span>
+  </div>
+
+  <!-- Collapsed Sprint 2 -->
+  <div class="sprint-bar collapsed">
+    <span class="arrow">&#9658;</span> Sprint 2 - Participantes, Inscripciones y Staff <span class="plus">+</span>
+  </div>
+
+  <!-- Expanded Sprint 3 -->
+  <div class="sprint-bar expanded">
+    <span class="arrow">&#9660;</span> Sprint 3 - Control de Acceso, Asistencia y Aforo <span class="plus">+</span>
+  </div>
+
+  <!-- ROW CU21 -->
+  <div class="jira-row">
+    <div class="col-check"><div class="chk"></div></div>
+    <div class="col-exp">&gt;</div>
+    <div class="col-activity">
+      <span class="story-icon"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></span>
+      <span class="issue-key">SCRUM-42</span>
+      <span class="issue-summary">CU21 - Generar y visualizar credencial digital con QR</span>
+    </div>
+    <div class="col-assignee">
+      <div class="avatar av-ka">KA</div>
+      <span class="member-name">Kevin Ariel Aranibar P...</span>
+    </div>
+    <div class="col-reporter">
+      <div class="avatar av-sm">SM</div>
+      <span class="reporter-name">SCRUM MASTER</span>
+    </div>
+    <div class="col-priority">
+      <span class="prio-high">&#9650; High</span>
+    </div>
+    <div class="col-status">
+      <span class="status-badge">Finalizado <span class="caret">&#9660;</span></span>
+    </div>
+    <div class="col-resolution">Listo</div>
+    <div class="col-created">12 oct 2026, 14:10</div>
+    <div class="col-updated">24 oct 2026, 18:30</div>
+    <div class="col-due">Ninguno</div>
+  </div>
+
+  <!-- ROW CU22 -->
+  <div class="jira-row">
+    <div class="col-check"><div class="chk"></div></div>
+    <div class="col-exp">&gt;</div>
+    <div class="col-activity">
+      <span class="story-icon"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></span>
+      <span class="issue-key">SCRUM-43</span>
+      <span class="issue-summary">CU22 - Escanear y validar código QR</span>
+    </div>
+    <div class="col-assignee">
+      <div class="avatar av-em">EM</div>
+      <span class="member-name">Espinoza Matteo</span>
+    </div>
+    <div class="col-reporter">
+      <div class="avatar av-sm">SM</div>
+      <span class="reporter-name">SCRUM MASTER</span>
+    </div>
+    <div class="col-priority">
+      <span class="prio-highest">&#8648; Highest</span>
+    </div>
+    <div class="col-status">
+      <span class="status-badge">Finalizado <span class="caret">&#9660;</span></span>
+    </div>
+    <div class="col-resolution">Listo</div>
+    <div class="col-created">12 oct 2026, 14:12</div>
+    <div class="col-updated">24 oct 2026, 18:32</div>
+    <div class="col-due">Ninguno</div>
+  </div>
+
+  <!-- ROW CU23 -->
+  <div class="jira-row">
+    <div class="col-check"><div class="chk"></div></div>
+    <div class="col-exp">&gt;</div>
+    <div class="col-activity">
+      <span class="story-icon"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></span>
+      <span class="issue-key">SCRUM-44</span>
+      <span class="issue-summary">CU23 - Registrar asistencia (Check-in)</span>
+    </div>
+    <div class="col-assignee">
+      <div class="avatar av-cc">CC</div>
+      <span class="member-name">Cervantes Arancibia ...</span>
+    </div>
+    <div class="col-reporter">
+      <div class="avatar av-sm">SM</div>
+      <span class="reporter-name">SCRUM MASTER</span>
+    </div>
+    <div class="col-priority">
+      <span class="prio-high">&#9650; High</span>
+    </div>
+    <div class="col-status">
+      <span class="status-badge">Finalizado <span class="caret">&#9660;</span></span>
+    </div>
+    <div class="col-resolution">Listo</div>
+    <div class="col-created">12 oct 2026, 14:15</div>
+    <div class="col-updated">24 oct 2026, 18:35</div>
+    <div class="col-due">Ninguno</div>
+  </div>
+
+  <!-- ROW CU24 -->
+  <div class="jira-row">
+    <div class="col-check"><div class="chk"></div></div>
+    <div class="col-exp">&gt;</div>
+    <div class="col-activity">
+      <span class="story-icon"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></span>
+      <span class="issue-key">SCRUM-45</span>
+      <span class="issue-summary">CU24 - Consultar asistencia y aforo en tiempo real</span>
+    </div>
+    <div class="col-assignee">
+      <div class="avatar av-cs">CS</div>
+      <span class="member-name">Choque Canavides C...</span>
+    </div>
+    <div class="col-reporter">
+      <div class="avatar av-sm">SM</div>
+      <span class="reporter-name">SCRUM MASTER</span>
+    </div>
+    <div class="col-priority">
+      <span class="prio-high">&#9650; High</span>
+    </div>
+    <div class="col-status">
+      <span class="status-badge">Finalizado <span class="caret">&#9660;</span></span>
+    </div>
+    <div class="col-resolution">Listo</div>
+    <div class="col-created">12 oct 2026, 14:18</div>
+    <div class="col-updated">24 oct 2026, 18:40</div>
+    <div class="col-due">Ninguno</div>
+  </div>
+
+  <!-- ROW CU25 -->
+  <div class="jira-row">
+    <div class="col-check"><div class="chk"></div></div>
+    <div class="col-exp">&gt;</div>
+    <div class="col-activity">
+      <span class="story-icon"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></span>
+      <span class="issue-key">SCRUM-46</span>
+      <span class="issue-summary">CU25 - Gestionar recordatorios y notificaciones</span>
+    </div>
+    <div class="col-assignee">
+      <div class="avatar av-rj">RJ</div>
+      <span class="member-name">Raul Rodrigo Justinia...</span>
+    </div>
+    <div class="col-reporter">
+      <div class="avatar av-sm">SM</div>
+      <span class="reporter-name">SCRUM MASTER</span>
+    </div>
+    <div class="col-priority">
+      <span class="prio-highest">&#8648; Highest</span>
+    </div>
+    <div class="col-status">
+      <span class="status-badge">Finalizado <span class="caret">&#9660;</span></span>
+    </div>
+    <div class="col-resolution">Listo</div>
+    <div class="col-created">12 oct 2026, 14:20</div>
+    <div class="col-updated">24 oct 2026, 18:42</div>
+    <div class="col-due">Ninguno</div>
+  </div>
+
+  <!-- ROW CU27 -->
+  <div class="jira-row">
+    <div class="col-check"><div class="chk"></div></div>
+    <div class="col-exp">&gt;</div>
+    <div class="col-activity">
+      <span class="story-icon"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></span>
+      <span class="issue-key">SCRUM-47</span>
+      <span class="issue-summary">CU27 - Consultar historial de participación</span>
+    </div>
+    <div class="col-assignee">
+      <div class="avatar av-ca">CA</div>
+      <span class="member-name">Carvallo Carlos</span>
+    </div>
+    <div class="col-reporter">
+      <div class="avatar av-sm">SM</div>
+      <span class="reporter-name">SCRUM MASTER</span>
+    </div>
+    <div class="col-priority">
+      <span class="prio-high">&#9650; High</span>
+    </div>
+    <div class="col-status">
+      <span class="status-badge">Finalizado <span class="caret">&#9660;</span></span>
+    </div>
+    <div class="col-resolution">Listo</div>
+    <div class="col-created">12 oct 2026, 14:22</div>
+    <div class="col-updated">24 oct 2026, 18:45</div>
+    <div class="col-due">Ninguno</div>
+  </div>
+
+  <!-- Bottom Scrollbar Mock -->
+  <div class="jira-scroll-track">
+    <div class="jira-scroll-bar"></div>
+  </div>
+</div>
+
+</body>
+</html>

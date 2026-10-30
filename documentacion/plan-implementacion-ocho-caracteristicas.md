@@ -18,7 +18,7 @@ La decisión inicial de administración manual sin pasarela descrita abajo queda
 ### Decisiones confirmadas para el alcance
 
 - Reportes: se implementarán CSV actual, Excel/XLSX, HTML, PDF y envío por correo.
-- SaaS: en esta etapa la administración de plan, vigencia y estado será manual; no se conectará una pasarela de pago.
+- SaaS: decisión inicial de administración manual (supersedida); el piloto usa Stripe Checkout y webhooks según `documentacion/onboarding-saas-stripe.md`.
 - Bitácora: el objetivo es una llave única bajo control del desarrollador. Custodia, recuperación y el límite de confianza frente a administradores cloud deben quedar diseñados y verificados antes de procesar datos históricos.
 - Custodia confirmada: la llave del desarrollador debe llegar al backend como secreto de runtime; nunca almacenarse en Git ni PostgreSQL. La migración debe conservar lectura/recifrado de registros con KMS del esquema anterior antes de retirar ese acceso.
 - Siguen pendientes de definición la política de backup (retención, RPO/RTO) y la asignación formal de casos de uso a Web/Móvil.

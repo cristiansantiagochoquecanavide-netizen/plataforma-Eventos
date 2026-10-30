@@ -3,7 +3,7 @@
 ## Alcance y objetivos provisionales
 
 - Ambiente local: backup PostgreSQL bajo demanda, custom-format, checksum SHA-256 y restore a una base nueva e aislada.
-- Objetivos acordados para AWS/RDS: retención de backups automáticos de 7 días, ventana UTC `03:00-04:00`, RPO objetivo ≤ 5 minutos y RTO objetivo ≤ 4 horas. Son objetivos a medir en un ensayo, no garantías de AWS ni niveles de servicio ya demostrados.
+- AWS/RDS en el plan gratuito limita la retención automática a 1 día; la plantilla usa ese máximo y ventana UTC `03:00-04:00`. RPO/RTO deben medirse en un ensayo; snapshots manuales previos a actualizaciones se retienen aparte.
 - CloudFormation queda preparado; estos cambios no despliegan ni modifican AWS.
 - Los archivos de backup pueden contener datos personales o payload de bitácora. La carpeta local `backups/` está excluida de Git; mantenerla en almacenamiento protegido y eliminar copias según la política aprobada.
 
@@ -40,7 +40,7 @@ docker compose exec base-datos dropdb --if-exists -U $env:POSTGRES_USER restore_
 
 ## AWS/RDS
 
-- RDS configura backups automáticos con retención de 7 días, almacenamiento cifrado y una ventana UTC definida en `infra/aws/cloudformation.yml`.
+- RDS configura backups automáticos con retención de 1 día en el plan gratuito, almacenamiento cifrado y una ventana UTC definida en `infra/aws/cloudformation.yml`.
 - Para una prueba futura, restaurar snapshot/PITR a una instancia temporal nueva, verificar health y aislamiento, medir RPO/RTO y eliminar el recurso temporal solo después de validar su identificador.
 - No ejecutar restauración, despliegue ni cambios en AWS productivo sin autorización específica.
 

@@ -125,11 +125,19 @@ Las consultas y escrituras de eventos, categorias, convocatorias, inscripciones,
 
 `SAAS_ADMINISTRADOR` es un rol global guardado en `usuario_rol` y se emite como authority para proteger la administracion de roles y permisos globales (`/roles` y `/permisos`). `ADMINISTRADOR` sigue existiendo como rol de membresia en `usuario_organizacion_rol`: permite administrar miembros y operaciones dentro del tenant activo, pero no habilita administracion global SaaS.
 
-`GET /autenticacion/usuario-actual` mantiene `roles` y `permisos` como perfil global del usuario. Si la solicitud incluye `X-Organization-Id` y el usuario tiene una membresia activa en ese tenant, agrega `perfilOrganizacionActiva` con `idOrganizacion`, roles tenant, permisos tenant y `administrador`. Si no hay membresia activa, el campo queda ausente/nulo; el cliente no debe inventar permisos tenant desde roles globales.
+`GET /autenticacion/usuario-actual` mantiene `roles` y `permisos` como perfil global del usuario. Si la solicitud incluye `X-Organization-Id` y el usuario tiene una membresia activa en ese tenant, agrega `perfilOrganizacionActiva` con `idOrganizacion`, roles tenant, permisos tenant y `administrador`. Si el usuario tiene el rol global `SAAS_ADMINISTRADOR` pero no una membresia en la organizacion seleccionada, devuelve un perfil administrativo virtual para esa solicitud (sin crear una membresia persistida), coherente con el bypass global de `ContextoOrganizacion`. Los demas usuarios sin membresia reciben el campo ausente/nulo.
+
+`GET /organizaciones/mias` devuelve las membresias activas propias para usuarios normales y todas las organizaciones activas para `SAAS_ADMINISTRADOR`, para permitir cambiar el contexto SaaS sin limitarse a `principal`.
 
 El inicializador asigna `SAAS_ADMINISTRADOR` al `ADMIN_CORREO` configurado y mantiene su membresia `ADMINISTRADOR` en la organizacion `principal` para las operaciones tenant. No se puede asignar `SAAS_ADMINISTRADOR` desde los flujos de membresia de organizacion.
 
 Credenciales demo/locales del administrador SaaS: `ADMIN_CORREO=admin@eventos.local` y `ADMIN_CLAVE` segun el entorno local. Las credenciales de organizadores demo listadas abajo son administradores del tenant, no administradores SaaS.
+
+## Visibilidad de modulos y privilegios de interfaz
+
+La politica efectiva de `/componentes-ui/actual/privilegios` parte de los permisos del perfil de la organizacion activa; no requiere que cada usuario pertenezca a un grupo UI para ver sus modulos autorizados. Los permisos de grupos pueden reducir estados de interfaz (por ejemplo, dejar un formulario visible pero de solo lectura), pero no pueden ampliar permisos del backend. La administracion global de roles se basa exclusivamente en `SAAS_ADMINISTRADOR`; `ROL_VER` tenant no habilita ese modulo.
+
+El backend sigue siendo la autoridad para cada operacion: ocultar o habilitar controles en la interfaz no sustituye `@PreAuthorize` ni la validacion del tenant.
 
 ## Demo multi-tenant local
 

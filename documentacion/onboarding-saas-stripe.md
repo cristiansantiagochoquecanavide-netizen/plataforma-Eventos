@@ -9,6 +9,28 @@
 - Los eventos de webhook se guardan con ID único para deduplicación. Pagos fallidos suspenden la suscripción; cancelación definitiva la vence. Se guarda el tiempo del último evento Stripe aplicado para ignorar eventos de estado antiguos.
 - Si el Checkout expira o se cancela, el enlace de verificación se puede reutilizar durante siete días para intentar de nuevo. El pago completado no queda condicionado a la página de éxito del navegador.
 
+## Consola del administrador SaaS
+
+- `/saas/organizaciones` es la consola global, separada del panel operativo de cada tenant. Está reservada a `SAAS_ADMINISTRADOR` y lista organizaciones con búsqueda, filtros, paginación, cantidad de miembros activos y resumen de suscripción.
+- Desde el directorio el administrador puede abrir una organización para entrar a su contexto de gestión, o desactivar/reactivar su acceso operativo. La organización `principal` está protegida contra desactivación.
+- Los cambios de plan y los estados de cobro siguen siendo responsabilidad de Stripe/webhook; el directorio SaaS los muestra en modo consulta y no ofrece edición manual de facturación.
+- `/saas/roles` conserva la administración global de roles. El panel de eventos, usuarios, recursos y participantes solo se muestra al entrar explícitamente al contexto de una organización.
+
+## Fuente única de planes y suscripciones
+
+- `CatalogoPlanesSaasService` es la fuente de verdad para códigos, precios y límites; el frontend siempre carga `GET /api/saas/planes` y no mantiene planes/precios alternativos.
+- Stripe Checkout es el único flujo de cobro. El backend crea la sesión; el navegador solo redirige al URL hospedado por Stripe.
+- Los webhooks Stripe firmados son la única vía para cambiar automáticamente el estado de una suscripción pagada. No existe edición manual del plan/estado desde el frontend.
+- La interfaz de éxito es informativa y nunca concede acceso. La activación depende de los eventos validados por el backend.
+
+## Consola de administración SaaS
+
+- `/saas/organizaciones` es una consola separada del espacio operativo de cada empresa. Solo la puede abrir `SAAS_ADMINISTRADOR`.
+- El directorio de `/api/saas/organizaciones` tiene búsqueda, filtro y paginación; muestra organización, cantidad de membresías activas y un resumen de plan/suscripción de solo lectura.
+- El administrador puede abrir el panel de un tenant o desactivar/reactivar su acceso organizacional. La organización técnica `principal` está protegida para no inhabilitar el espacio de control.
+- La consola no modifica manualmente planes ni estados de cobro. Stripe/webhook sigue siendo la autoridad de suscripción; el cambio de estado organizacional es una suspensión operativa independiente.
+- Al iniciar sesión, una cuenta `SAAS_ADMINISTRADOR` entra directamente a esta consola. Para tareas de operación selecciona **Abrir** en una organización; el panel tenant ofrece retorno a la consola SaaS.
+
 ## Rutas
 
 Frontend público:
@@ -36,6 +58,26 @@ STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 URL_FRONTEND_WEB=http://localhost:4200
 ```
+
+### Correos locales de verificación con Brevo
+
+El correo de alta SaaS puede enviarse mediante la API transaccional de Brevo. Esto acepta la API key de Brevo; no requiere una clave SMTP. Añade a `.env` (archivo local ignorado por Git):
+
+```text
+BREVO_API_KEY=xkeysib-...
+BREVO_FROM_EMAIL=verificado@tu-dominio.com
+BREVO_FROM_NAME=Plataforma de eventos
+```
+
+`BREVO_FROM_EMAIL` debe estar verificado en Brevo. Al definir `BREVO_API_KEY`, los correos de verificación, activación y confirmación del alta SaaS usan Brevo; el resto de los correos continúa usando el SMTP configurado (`SMTP_*`). Si la API key se deja vacía, el correo SaaS conserva el envío SMTP actual (Mailpit en desarrollo).
+
+Recrea solo el backend para aplicar la configuración:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --no-deps --force-recreate backend
+```
+
+No pegues la API key en el código, documentación, capturas ni mensajes; mantenla solo en `.env`.
 
 El correo debe estar conectado a Mailpit o a otro servidor SMTP de prueba para recibir verificación y activación. `STRIPE_SUCCESS_URL` y `STRIPE_CANCEL_URL` son opcionales; sus valores predeterminados apuntan a las rutas del frontend local.
 

@@ -32,7 +32,7 @@ Esta actualización prevalece sobre las cifras y notas históricas de verificaci
 Decisiones confirmadas por el usuario para orientar las fases:
 
 - Reportes: incluir Excel/XLSX, HTML, PDF y envío por correo, además del CSV actual.
-- SaaS: administración manual de planes/estado/vigencia en esta etapa; sin pasarela de cobro real.
+- SaaS: decisión histórica de administración manual (supersedida); el piloto integra Stripe Checkout/webhooks, pendiente de prueba end-to-end con credenciales de prueba.
 - Bitácora: objetivo de llave bajo control del desarrollador; falta diseñar y verificar custodia, recuperación y amenaza frente a administradores de la infraestructura antes del backfill.
 - Sin autorización para desplegar o modificar AWS productivo, procesar pagos reales, ejecutar backfill productivo o hacer restauraciones destructivas.
 

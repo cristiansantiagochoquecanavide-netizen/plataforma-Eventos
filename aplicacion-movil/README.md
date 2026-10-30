@@ -19,6 +19,6 @@ La aplicacion compila con Android SDK 37 por compatibilidad con `flutter_secure_
 
 ## Recuperacion de clave local
 
-El backend envía los mensajes a Mailpit, disponible en `http://localhost:8025`, y acepta una solicitud por cuenta cada 60 segundos. El enlace `eventos://recuperar-clave?token=...` abre la pantalla de restablecimiento en Android y precarga el token. Si el sistema no puede abrir el enlace, la pantalla `Olvide mi clave` permite pegar el token incluido en el correo.
+El backend envía los mensajes transaccionales a través de Brevo y acepta una solicitud por cuenta cada 60 segundos. El enlace `eventos://recuperar-clave?token=...` abre la pantalla de restablecimiento en Android y precarga el token. Si el sistema no puede abrir el enlace, la pantalla `Olvide mi clave` permite pegar el token incluido en el correo.
 
 El esquema `eventos://` es solo para desarrollo. Produccion debe usar Android App Links HTTPS con un dominio verificado.
