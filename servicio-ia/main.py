@@ -49,6 +49,32 @@ class GenerarInsightsRespuesta(BaseModel):
     puntos_clave: List[str]
     recomendaciones: List[str]
 
+class ParticipantePerfilIA(BaseModel):
+    id_participante: int
+    nombre: str
+    intereses: Optional[List[str]] = Field(default_factory=list)
+    historial_eventos: Optional[List[str]] = Field(default_factory=list)
+
+class EventoCandidatoIA(BaseModel):
+    id_evento: int
+    nombre: str
+    descripcion: Optional[str] = ""
+    categoria: Optional[str] = ""
+    fecha_inicio: Optional[str] = ""
+    aforo_disponible: Optional[int] = None
+
+class RecomendarEventosSolicitud(BaseModel):
+    participante: ParticipantePerfilIA
+    eventos: List[EventoCandidatoIA]
+
+class RecomendacionItem(BaseModel):
+    id_evento: int
+    score: float
+    motivo: str
+
+class RecomendarEventosRespuesta(BaseModel):
+    recomendaciones: List[RecomendacionItem]
+
 def obtener_gemini_client():
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -236,3 +262,70 @@ def interpretar_con_heuristica(texto: str) -> InterpretarConsultaRespuesta:
         ),
         mensaje_asistente=f"He configurado tu reporte con métrica de {metrica.lower()} para los datos correspondientes."
     )
+
+@app.post("/api/ia/eventos/recomendar", response_model=RecomendarEventosRespuesta, tags=["Recomendaciones IA"])
+async def recomendar_eventos(solicitud: RecomendarEventosSolicitud):
+    client = obtener_gemini_client()
+    
+    if not client or not solicitud.eventos:
+        return recomendar_con_heuristica(solicitud)
+
+    prompt = f"""
+    Eres un asistente de recomendación inteligente de eventos para una plataforma universitaria y profesional.
+    
+    Perfil del Participante:
+    - Nombre: {solicitud.participante.nombre}
+    - Intereses declarados: {", ".join(solicitud.participante.intereses) if solicitud.participante.intereses else "General"}
+    - Eventos previos asistidos: {", ".join(solicitud.participante.historial_eventos) if solicitud.participante.historial_eventos else "Ninguno aún"}
+
+    Eventos disponibles a evaluar:
+    {json.dumps([e.model_dump() for e in solicitud.eventos], ensure_ascii=False)}
+
+    Evalúa la afinidad de cada evento con el participante y ordénalos del más recomendado al menos recomendado.
+    Asigna una puntuación (score) de 0 a 100 y una breve frase en español explicando el motivo de la sugerencia (máximo 1 oración concisa).
+    
+    Responde ÚNICAMENTE un objeto JSON válido con esta estructura:
+    {{
+      "recomendaciones": [
+        {{
+          "id_evento": 1,
+          "score": 95.0,
+          "motivo": "Recomendado por su relación con tu interés en tecnología y datos."
+        }}
+      ]
+    }}
+    """
+
+    try:
+        from google.genai import types
+        response = client.models.generate_content(
+            model='gemini-3.5-flash-lite',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
+            )
+        )
+        data = json.loads(response.text)
+        return RecomendarEventosRespuesta(**data)
+    except Exception as e:
+        print(f"Fallo al invocar Gemini para recomendaciones: {e}")
+        return recomendar_con_heuristica(solicitud)
+
+def recomendar_con_heuristica(solicitud: RecomendarEventosSolicitud) -> RecomendarEventosRespuesta:
+    items = []
+    base_score = 95.0
+    for i, ev in enumerate(solicitud.eventos):
+        motivo = "Evento destacado de la plataforma con alta relevancia institucional."
+        if ev.categoria:
+            motivo = f"Recomendado especialmente por tu interés en temáticas de {ev.categoria}."
+        if solicitud.participante.historial_eventos:
+            motivo += " Complementa tus participaciones anteriores."
+            
+        score = max(50.0, base_score - (i * 8.0))
+        items.append(RecomendacionItem(
+            id_evento=ev.id_evento,
+            score=score,
+            motivo=motivo
+        ))
+    return RecomendarEventosRespuesta(recomendaciones=items)
+

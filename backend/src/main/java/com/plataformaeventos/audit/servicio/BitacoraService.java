@@ -62,6 +62,8 @@ public class BitacoraService {
     public Page<BitacoraRespuesta> listar(Long organizacion, String modulo, String entidad, String accion,
                                  Boolean exito, Long actor, OffsetDateTime desde, OffsetDateTime hasta,
                                  Pageable pageable) {
+        OffsetDateTime fDesde = desde != null ? desde : OffsetDateTime.of(1970, 1, 1, 0, 0, 0, 0, java.time.ZoneOffset.UTC);
+        OffsetDateTime fHasta = hasta != null ? hasta : OffsetDateTime.of(3000, 1, 1, 0, 0, 0, 0, java.time.ZoneOffset.UTC);
         return repositorio.buscar(
                 organizacion,
                 indiceService.token(organizacion, "modulo", modulo), indiceService.normalizar(modulo),
@@ -69,7 +71,7 @@ public class BitacoraService {
                 indiceService.token(organizacion, "accion", accion), indiceService.normalizar(accion),
                 indiceService.token(organizacion, "exito", exito), exito,
                 indiceService.token(organizacion, "actor", actor), actor,
-                desde, hasta, ordenarSoloPorMetadatos(pageable)
+                fDesde, fHasta, ordenarSoloPorMetadatos(pageable)
         ).map(this::respuestaAutorizada);
     }
 

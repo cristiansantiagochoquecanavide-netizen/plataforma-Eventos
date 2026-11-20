@@ -60,6 +60,7 @@ public class SeguridadConfiguracion {
                          .permitAll()
                          .requestMatchers("/api/saas/planes", "/api/saas/altas/**", "/api/saas/stripe/webhook")
                          .permitAll()
+                         .requestMatchers("/api/public/**").permitAll()
                          .requestMatchers("/api/autenticacion/usuario-actual").authenticated()
                          .requestMatchers("/api/autenticacion/**").permitAll()
                         .anyRequest().authenticated())

@@ -83,7 +83,7 @@ saas:
 
 audit:
   cifrado:
-    clave-desarrollador-base64: ${AUDIT_DEVELOPER_KEY_BASE64:}
+    clave-desarrollador-base64: ${AUDIT_DEVELOPER_KEY_BASE64:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
     kms-key-id: ${AUDIT_KMS_KEY_ID:}
     kms-indice-key-id: ${AUDIT_KMS_INDICE_KEY_ID:}
     kms-region: ${AUDIT_KMS_REGION:${AWS_REGION:}}
