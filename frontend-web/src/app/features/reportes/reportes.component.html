@@ -1,256 +1,1702 @@
-<section class="page-heading">
-  <div class="heading-row">
-    <div>
-      <p class="eyebrow">Métricas, Análisis y Exportación</p>
-      <h1>Centro de Reportes y Estadísticas</h1>
-      <p>Generación de informes ejecutivos, descarga en múltiples formatos (Excel, PDF, CSV, HTML) y envíos directos.</p>
-    </div>
+<!-- ENCABEZADO LIMPIO -->
+<section class="rep-header">
+  <div>
+    <p class="eyebrow">Inteligencia y Reportería</p>
+    <h1>Centro de Reportes</h1>
+    <p class="rep-subtitle">Generá informes ejecutivos por voz, texto o desde el catálogo y exportalos en PDF o Excel.</p>
+  </div>
+
+  <div class="rep-stats-strip">
+    <button type="button" class="stat-pill" (click)="seleccionarCatalogo('eventos')">
+      <span class="stat-num">{{ eventos().length }}</span>
+      <span class="stat-lbl">Eventos</span>
+    </button>
+    <button type="button" class="stat-pill" (click)="seleccionarCatalogo('participantes')">
+      <span class="stat-num">{{ totalParticipantes() }}</span>
+      <span class="stat-lbl">Participantes</span>
+    </button>
+    <button type="button" class="stat-pill" (click)="seleccionarCatalogo('espacios')">
+      <span class="stat-num">{{ espacios().length }}</span>
+      <span class="stat-lbl">Espacios</span>
+    </button>
+    <button type="button" class="stat-pill" (click)="seleccionarCatalogo('recursos')">
+      <span class="stat-num">{{ recursos().length }}</span>
+      <span class="stat-lbl">Recursos</span>
+    </button>
+    <button type="button" class="stat-pill" (click)="seleccionarCatalogo('convocatorias')">
+      <span class="stat-num">{{ convocatorias().length }}</span>
+      <span class="stat-lbl">Convocatorias</span>
+    </button>
   </div>
 </section>
 
-<!-- TARJETAS KPI RESUMEN -->
-<section class="kpi-grid">
-  <div class="kpi-card">
-    <div class="kpi-icon blue">👥</div>
-    <div class="kpi-info">
-      <span class="kpi-value">{{ totalParticipantes() }}</span>
-      <span class="kpi-label">Participantes Registrados</span>
-    </div>
+<!-- BARRA PRINCIPAL: ASISTENTE DE REPORTES POR VOZ Y TEXTO -->
+<section class="voice-hero">
+  <div class="voice-hero-top">
+    <span class="voice-badge">Asistente de Reportes IA</span>
+    <span class="voice-hint">Dictá o escribí cualquier pedido y armamos un informe formal listo para descargar</span>
   </div>
-  <div class="kpi-card">
-    <div class="kpi-icon green">📅</div>
-    <div class="kpi-info">
-      <span class="kpi-value">{{ eventos().length }}</span>
-      <span class="kpi-label">Eventos en Organización</span>
-    </div>
+
+  <div class="voice-bar">
+    <button
+      type="button"
+      class="btn-mic"
+      [class.listening]="vozService.escuchando()"
+      (click)="toggleMicrofono()"
+      [title]="vozService.escuchando() ? 'Detener dictado y generar informe' : 'Dictar reporte por voz'"
+    >
+      <span class="mic-dot" [class.pulse]="vozService.escuchando()"></span>
+      <span>{{ vozService.escuchando() ? 'Escuchando...' : 'Dictar por voz' }}</span>
+    </button>
+
+    <input
+      type="text"
+      class="voice-input"
+      [(ngModel)]="consultaTextoIa"
+      (keyup.enter)="generarReportePorVoz()"
+      placeholder='Ej: "Reporte de eventos publicados con su ocupación" o "Inventario de recursos disponibles"...'
+    />
+
+    <button
+      type="button"
+      class="btn-generate"
+      (click)="generarReportePorVoz()"
+      [disabled]="generandoReporteIa() || !consultaTextoIa.trim()"
+    >
+      @if (generandoReporteIa()) {
+        <span class="spinner"></span> Generando...
+      } @else {
+        Generar Informe
+      }
+    </button>
   </div>
-  <div class="kpi-card">
-    <div class="kpi-icon purple">📢</div>
-    <div class="kpi-info">
-      <span class="kpi-value">{{ convocatorias().length }}</span>
-      <span class="kpi-label">Convocatorias de Staff</span>
-    </div>
+
+  @if (vozService.error()) {
+    <div class="voice-error" role="alert">{{ vozService.error() }}</div>
+  }
+
+  <div class="suggestions-strip">
+    <span class="sug-label">Pedidos rápidos:</span>
+    @for (sug of consultasSugeridas; track sug) {
+      <button type="button" class="sug-chip" (click)="seleccionarSugerencia(sug)">
+        {{ sug }}
+      </button>
+    }
   </div>
 </section>
 
-<!-- NAVEGACIÓN POR PESTAÑAS -->
-<nav class="report-tabs">
+<!-- SELECTOR DE MODO (3 NIVELES DE REPORTERÍA) -->
+<nav class="mode-switch">
   <button
     type="button"
-    class="tab-btn"
-    [class.active]="pestanaActiva() === 'participantes'"
-    (click)="cambiarPestana('participantes')"
+    class="mode-btn"
+    [class.active]="modoActivo() === 'ia'"
+    (click)="cambiarModo('ia')"
   >
-    <span class="icon">👥</span>
-    <span>Reporte de Participantes e Inscripciones</span>
+    Informe Inteligente (Voz / IA)
   </button>
   <button
     type="button"
-    class="tab-btn"
-    [class.active]="pestanaActiva() === 'eventos'"
-    (click)="cambiarPestana('eventos')"
+    class="mode-btn"
+    [class.active]="modoActivo() === 'analitico'"
+    (click)="cambiarModo('analitico')"
   >
-    <span class="icon">📅</span>
-    <span>Resumen de Eventos y Capacidad</span>
+    Dashboard Analítico
   </button>
   <button
     type="button"
-    class="tab-btn"
-    [class.active]="pestanaActiva() === 'convocatorias'"
-    (click)="cambiarPestana('convocatorias')"
+    class="mode-btn"
+    [class.active]="modoActivo() === 'catalogo'"
+    (click)="cambiarModo('catalogo')"
   >
-    <span class="icon">📢</span>
-    <span>Convocatorias y Personal</span>
-  </button>
-  <button
-    type="button"
-    class="tab-btn tab-ia"
-    [class.active]="pestanaActiva() === 'ia'"
-    (click)="cambiarPestana('ia')"
-  >
-    <span class="icon">✨</span>
-    <span>Reporte con Voz & Gemini IA</span>
+    Catálogo de Reportes Rápidos
   </button>
 </nav>
 
-<!-- PESTAÑA 1: REPORTE CONFIGURABLE DE PARTICIPANTES -->
-@if (pestanaActiva() === 'participantes') {
-  <section class="card config-card" [attr.aria-busy]="procesandoReporte()">
-    <div class="card-header">
-      <div>
-        <h2>Configuración del Reporte de Participantes</h2>
-        <p class="text-muted">Personaliza filtros, columnas, ordenamiento y exporta en el formato que prefieras.</p>
-      </div>
-    </div>
-
-    <!-- Filtros de Datos -->
-    <div class="filters-row">
-      <div class="form-group flex-2">
-        <label for="rep-busqueda">Búsqueda rápida</label>
-        <input
-          id="rep-busqueda"
-          type="text"
-          [ngModel]="busqueda()"
-          (ngModelChange)="busqueda.set($event); vistaPreviaReporte.set(null)"
-          placeholder="Nombre, apellido o correo..."
-        />
-      </div>
-
-      <div class="form-group flex-1">
-        <label for="rep-evento">Evento</label>
-        <select
-          id="rep-evento"
-          [ngModel]="eventoFiltro()"
-          (ngModelChange)="eventoFiltro.set($event); vistaPreviaReporte.set(null)"
-        >
-          <option [ngValue]="null">Todos los eventos</option>
-          @for (evento of eventos(); track evento.id) {
-            <option [ngValue]="evento.id">{{ evento.nombre }}</option>
+<!-- ========================================================= -->
+<!-- MODO 1: INFORME EJECUTIVO GENERADO POR VOZ / IA           -->
+<!-- ========================================================= -->
+@if (modoActivo() === 'ia') {
+  @if (generandoReporteIa()) {
+    <section class="dossier-card loading-state">
+      <div class="loader-ring"></div>
+      <h3>Construyendo tu informe ejecutivo...</h3>
+      <p>Analizando los datos reales de la organización y estructurando indicadores, tabla y conclusiones.</p>
+    </section>
+  } @else if (reporteIa(); as rep) {
+    <section class="dossier-card">
+      <!-- Barra superior del informe con descarga directa PDF / XLSX -->
+      <div class="dossier-toolbar">
+        <div class="dossier-title-block">
+          <div class="dossier-tags">
+            <span class="tag-type">{{ rep.tipo_reporte }}</span>
+            <span class="tag-period">{{ rep.periodo }}</span>
+          </div>
+          <h2>{{ rep.titulo }}</h2>
+          @if (rep.subtitulo) {
+            <p class="dossier-sub">{{ rep.subtitulo }}</p>
           }
-        </select>
-      </div>
+        </div>
 
-      <div class="form-group flex-1">
-        <label for="rep-estado">Estado del participante</label>
-        <select
-          id="rep-estado"
-          [ngModel]="estadoFiltro()"
-          (ngModelChange)="estadoFiltro.set($event); vistaPreviaReporte.set(null)"
-        >
-          <option value="TODOS">Todos</option>
-          <option value="ACTIVO">Activos</option>
-          <option value="INACTIVO">Inactivos</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Selector de Columnas -->
-    <div class="columns-selector-section">
-      <div class="columns-header">
-        <span class="columns-title">Columnas visibles ({{ columnasReporte().length }}/{{ columnasDisponibles.length }})</span>
-        <div class="columns-actions">
-          <button type="button" class="btn-link" (click)="seleccionarTodasColumnas()">Seleccionar todas</button>
-          <span class="divider">·</span>
-          <button type="button" class="btn-link" (click)="restablecerColumnas()">Restablecer</button>
+        <div class="export-actions">
+          <button
+            type="button"
+            class="btn-pdf"
+            (click)="exportarReporteIa('PDF')"
+            [disabled]="exportando() !== null"
+          >
+            {{ exportando() === 'PDF' ? 'Generando PDF...' : 'Exportar PDF' }}
+          </button>
+          <button
+            type="button"
+            class="btn-xlsx"
+            (click)="exportarReporteIa('XLSX')"
+            [disabled]="exportando() !== null"
+          >
+            {{ exportando() === 'XLSX' ? 'Generando Excel...' : 'Exportar Excel (.xlsx)' }}
+          </button>
         </div>
       </div>
-      <div class="checkbox-grid">
-        @for (col of columnasDisponibles; track col.id) {
-          <label class="custom-checkbox">
-            <input
-              type="checkbox"
-              [checked]="columnasReporte().includes(col.id)"
-              (change)="alternarColumnaReporte(col.id, $any($event.target).checked)"
-            />
-            <span>{{ col.nombre }}</span>
-          </label>
+
+      <!-- Resumen Ejecutivo -->
+      @if (rep.resumen_ejecutivo) {
+        <div class="summary-callout">
+          <span class="section-kicker">Resumen Ejecutivo</span>
+          <p>{{ rep.resumen_ejecutivo }}</p>
+        </div>
+      }
+
+      <!-- KPIs del Informe -->
+      @if (rep.kpis && rep.kpis.length) {
+        <div class="dossier-kpis">
+          @for (kpi of rep.kpis; track kpi.etiqueta) {
+            <div class="dossier-kpi">
+              <span class="dk-label">{{ kpi.etiqueta }}</span>
+              <strong class="dk-val">{{ kpi.valor }}</strong>
+              @if (kpi.detalle) {
+                <span class="dk-det">{{ kpi.detalle }}</span>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Gráfico Horizontal Limpio (si existen datos numéricos) -->
+      @if (barrasGraficoIa().length) {
+        <div class="chart-section">
+          <span class="section-kicker">{{ rep.grafico_titulo || 'Comparativa Visual' }}</span>
+          <div class="hbar-list">
+            @for (item of barrasGraficoIa(); track item.etiqueta) {
+              <div class="hbar-row">
+                <span class="hbar-name" [title]="item.etiqueta">{{ item.etiqueta }}</span>
+                <div class="hbar-track">
+                  <div class="hbar-fill" [class.negativo]="item.negativo" [style.width.%]="item.anchoPct"></div>
+                </div>
+                <span class="hbar-val">{{ item.extra }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Tabla Estructurada de Datos -->
+      @if (rep.columnas && rep.columnas.length) {
+        <div class="table-section">
+          <div class="table-section-head">
+            <span class="section-kicker">Datos de Respaldo</span>
+            <span class="row-count">{{ rep.filas.length }} registros</span>
+          </div>
+          <div class="table-scroll">
+            <table class="clean-table">
+              <thead>
+                <tr>
+                  @for (col of rep.columnas; track col) {
+                    <th>{{ col }}</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (fila of rep.filas; track $index) {
+                  <tr>
+                    @for (celda of fila; track $index) {
+                      <td>{{ celda }}</td>
+                    }
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td [attr.colspan]="rep.columnas.length" class="empty-cell">
+                      No se encontraron registros para el criterio solicitado.
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+
+      <!-- Conclusiones y Recomendaciones -->
+      @if ((rep.conclusiones && rep.conclusiones.length) || (rep.recomendaciones && rep.recomendaciones.length)) {
+        <div class="insights-grid">
+          @if (rep.conclusiones && rep.conclusiones.length) {
+            <div class="insight-box">
+              <span class="section-kicker">Hallazgos y Conclusiones</span>
+              <ul>
+                @for (c of rep.conclusiones; track c) {
+                  <li>{{ c }}</li>
+                }
+              </ul>
+            </div>
+          }
+          @if (rep.recomendaciones && rep.recomendaciones.length) {
+            <div class="insight-box accent">
+              <span class="section-kicker">Recomendaciones Accionables</span>
+              <ul>
+                @for (r of rep.recomendaciones; track r) {
+                  <li>{{ r }}</li>
+                }
+              </ul>
+            </div>
+          }
+        </div>
+      }
+    </section>
+  }
+}
+
+<!-- ========================================================= -->
+<!-- MODO 2: DASHBOARD ANALÍTICO (RADIOGRAFÍA 360° POR EVENTO) -->
+<!-- ========================================================= -->
+@if (modoActivo() === 'analitico') {
+  <section class="dossier-card analytics-shell">
+    <!-- SUB-NAVEGADOR: RADIOGRAFÍA INDIVIDUAL VS. COMPARADOR ESTRATÉGICO -->
+    <div class="submode-switch">
+      <button
+        type="button"
+        class="submode-btn"
+        [class.active]="submodoAnalitico() === 'concierto'"
+        (click)="cambiarSubmodoAnalitico('concierto')"
+      >
+        Radiografía por Evento (360°)
+      </button>
+      <button
+        type="button"
+        class="submode-btn"
+        [class.active]="submodoAnalitico() === 'comparador'"
+        (click)="cambiarSubmodoAnalitico('comparador')"
+      >
+        Comparador de Eventos y Rentabilidad por Segmento
+      </button>
+    </div>
+
+    <!-- VISTA A: COMPARADOR ESTRATÉGICO DE EVENTOS Y PORTAFOLIO -->
+    @if (submodoAnalitico() === 'comparador') {
+      <div class="comparator-panel">
+        <div class="comparator-panel-head">
+          <div>
+            <span class="section-kicker">Herramienta Estratégica de Inversión y Dirección</span>
+            <h3>Matriz de Rentabilidad y Comparación de Eventos por Segmento</h3>
+            <p class="analytics-sub">
+              Comparativa entre volumen de asistentes convocados y margen neto real. Permite identificar de inmediato qué eventos son <strong>Pilares de Flujo (Cash Cows)</strong> y cuáles requieren optimización de costos.
+            </p>
+          </div>
+          <button
+            type="button"
+            class="btn-ghost"
+            (click)="cargarFinanzas()"
+            [disabled]="cargandoFinanzas()"
+          >
+            {{ cargandoFinanzas() ? 'Actualizando...' : 'Actualizar datos' }}
+          </button>
+        </div>
+
+        @if (comparadorConciertos(); as comp) {
+          <!-- Tarjetas KPI consolidadas por segmento/género -->
+          <div class="comp-kpis-grid">
+            @for (kpi of comp.kpisGeneros; track kpi.genero) {
+              <div class="comp-kpi-card" [style.border-left-color]="kpi.color">
+                <span class="comp-kpi-genre" [style.color]="kpi.color">{{ kpi.genero }}</span>
+                <strong class="comp-kpi-roi" [style.color]="kpi.totalNeto >= 0 ? '#059669' : '#e11d48'">
+                  {{ (kpi.roiProm >= 0 ? '+' : '') + (kpi.roiProm | number: '1.1-1') }}% ROI Promedio
+                </strong>
+                <div class="comp-kpi-meta">
+                  <span>Ganancia Neta: <strong>{{ (kpi.totalNeto >= 0 ? '+' : '') + (kpi.totalNeto | number: '1.0-0') }} Bs</strong></span>
+                  <small>{{ kpi.totalBoletos | number }} entradas en {{ kpi.count }} evento(s)</small>
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Matriz de Cuadrante (Scatter / Bubble Plot) y Tabla de Decisión -->
+          <div class="matrix-layout">
+            <div class="matrix-graph-card">
+              <div class="mgc-head">
+                <h4>Matriz de Cuadrante: Asistencia vs. Margen Neto</h4>
+                <p>El tamaño de la burbuja refleja la facturación bruta de cada evento.</p>
+              </div>
+
+              <div class="svg-scatter-box">
+                <svg viewBox="0 0 820 265">
+                  <!-- Zona Ganancia / Superávit -->
+                  <rect x="65" y="16" width="725" [attr.height]="comp.ejes.yZero - 16" fill="rgba(16, 185, 129, 0.04)" rx="4"/>
+                  <!-- Zona Pérdida / Déficit -->
+                  @if (comp.ejes.tieneNegativos) {
+                    <rect x="65" [attr.y]="comp.ejes.yZero" width="725" [attr.height]="232 - comp.ejes.yZero" fill="rgba(239, 68, 68, 0.06)" rx="4"/>
+                  }
+                  
+                  <!-- Línea Cero de Equilibrio -->
+                  <line x1="65" [attr.y1]="comp.ejes.yZero" x2="786" [attr.y2]="comp.ejes.yZero" stroke="#f43f5e" stroke-width="1.5" stroke-dasharray="4,3"/>
+                  <text x="791" [attr.y]="comp.ejes.yZero + 3" fill="#f43f5e" font-size="9" font-weight="bold">0 Bs</text>
+
+                  <!-- Ejes -->
+                  <line x1="65" y1="16" x2="65" y2="232" stroke="#cbd5e1" stroke-width="1.5"/>
+                  <line x1="65" y1="232" x2="790" y2="232" stroke="#cbd5e1" stroke-width="1.5"/>
+
+                  <!-- Escalas Eje Y Dinámicas -->
+                  <text x="58" y="34" fill="#64748b" font-size="9" text-anchor="end">{{ comp.ejes.yMaxLabel }}</text>
+                  <text x="58" [attr.y]="comp.ejes.yMidY" fill="#64748b" font-size="9" text-anchor="end">{{ comp.ejes.yMidLabel }}</text>
+                  @if (comp.ejes.tieneNegativos) {
+                    <text x="58" y="226" fill="#ef4444" font-size="9" text-anchor="end">{{ comp.ejes.yNegLabel }}</text>
+                  }
+
+                  <!-- Escalas Eje X Dinámicas -->
+                  @for (xt of comp.ejes.xTicks; track xt.x) {
+                    <text [attr.x]="xt.x" y="249" fill="#64748b" font-size="9" text-anchor="middle">{{ xt.label }}</text>
+                  }
+
+                  <!-- 1. Capa de Círculos y Valores Internos -->
+                  @for (c of comp.items; track c.idEvento) {
+                    <g (click)="seleccionarEventoAnalitico(c.idEvento)" style="cursor: pointer;">
+                      <title>{{ c.nombre }}&#10;Segmento: {{ c.genero }}&#10;Entradas: {{ c.inscripcionesConfirmadas | number }}&#10;Margen Neto: {{ c.balanceCompacto }} Bs&#10;ROI: {{ c.roi | number: '1.1-1' }}%</title>
+                      <circle
+                        [attr.cx]="c.cx"
+                        [attr.cy]="c.cy"
+                        [attr.r]="c.radio"
+                        [attr.fill]="c.colorGenero"
+                        fill-opacity="0.76"
+                        [attr.stroke]="c.colorGenero"
+                        stroke-width="2"
+                      />
+                      <text
+                        [attr.x]="c.cx"
+                        [attr.y]="c.cy + 3"
+                        fill="#ffffff"
+                        font-size="8"
+                        font-weight="bold"
+                        text-anchor="middle"
+                      >
+                        {{ c.balanceCompacto }}
+                      </text>
+                    </g>
+                  }
+
+                  <!-- 2. Capa Superior de Etiquetas con Cápsula Anti-Colisión -->
+                  @for (c of comp.items; track c.idEvento) {
+                    <g (click)="seleccionarEventoAnalitico(c.idEvento)" style="cursor: pointer;">
+                      <title>{{ c.nombre }}&#10;Segmento: {{ c.genero }}&#10;Entradas: {{ c.inscripcionesConfirmadas | number }}&#10;Margen Neto: {{ c.balanceCompacto }} Bs&#10;ROI: {{ c.roi | number: '1.1-1' }}%</title>
+                      <rect
+                        [attr.x]="c.pillX"
+                        [attr.y]="c.pillY"
+                        [attr.width]="c.pillW"
+                        height="15"
+                        rx="4"
+                        fill="rgba(255, 255, 255, 0.93)"
+                        [attr.stroke]="c.colorGenero"
+                        stroke-opacity="0.45"
+                        stroke-width="1"
+                      />
+                      <text
+                        [attr.x]="c.labelX"
+                        [attr.y]="c.labelY"
+                        fill="#0f172a"
+                        font-size="8.8"
+                        font-weight="700"
+                        text-anchor="middle"
+                      >
+                        {{ c.nombreCorto }}
+                      </text>
+                    </g>
+                  }
+                </svg>
+              </div>
+            </div>
+
+            <!-- Tabla de Veredicto Ejecutivo -->
+            <div class="matrix-table-card">
+              <div class="mgc-head">
+                <h4>Veredicto de Portafolio para Dirección</h4>
+                <p>Haz clic en cualquier evento para abrir su radiografía 360° individual.</p>
+              </div>
+
+              <div class="table-scroll">
+                <table class="clean-table">
+                  <thead>
+                    <tr>
+                      <th>Evento</th>
+                      <th>Segmento</th>
+                      <th>Entradas</th>
+                      <th>Margen Neto</th>
+                      <th>ROI</th>
+                      <th>Veredicto</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (ev of comp.items; track ev.idEvento) {
+                      <tr>
+                        <td><strong>{{ ev.nombre }}</strong></td>
+                        <td>
+                          <span class="cir-tag" [style.background]="ev.colorGenero + '22'" [style.color]="ev.colorGenero">
+                            {{ ev.genero }}
+                          </span>
+                        </td>
+                        <td>{{ ev.inscripcionesConfirmadas | number }}</td>
+                        <td [style.color]="ev.balanceNeto >= 0 ? '#059669' : '#e11d48'" style="font-weight: 700;">
+                          {{ (ev.balanceNeto >= 0 ? '+' : '') + (ev.balanceNeto | number: '1.0-0') }} Bs
+                        </td>
+                        <td><strong>{{ ev.roi | number: '1.1-1' }}%</strong></td>
+                        <td>
+                          <span class="tag-verdict" [ngClass]="ev.veredictoClase">
+                            {{ ev.veredicto }}
+                          </span>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            class="btn-ghost"
+                            style="padding: 4px 8px; font-size: 0.78rem;"
+                            (click)="seleccionarEventoAnalitico(ev.idEvento)"
+                          >
+                            Auditar →
+                          </button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         }
       </div>
-    </div>
+    }
 
-    <!-- Opciones de Generación y Formato -->
-    <div class="generate-bar">
-      <div class="options-group">
-        <div class="form-group inline">
-          <label>Ordenar por</label>
-          <select [ngModel]="ordenarReporte()" (ngModelChange)="ordenarReporte.set($event); vistaPreviaReporte.set(null)">
-            @for (col of columnasDisponibles; track col.id) {
-              <option [ngValue]="col.id">{{ col.nombre }}</option>
+    <!-- VISTA B: RADIOGRAFÍA INDIVIDUAL POR CONCIERTO -->
+    @if (submodoAnalitico() === 'concierto') {
+      <!-- Barra de selección de concierto -->
+      <div class="catalog-toolbar">
+        <div class="simple-filters">
+          <label>
+            Seleccionar Evento a Auditar
+            <select
+              [ngModel]="eventoAnaliticoId() ?? ''"
+              (ngModelChange)="seleccionarEventoAnalitico($event)"
+            >
+              <option value="">-- Elegí un evento para abrir su radiografía 360° --</option>
+              @for (ev of resumenFinanciero()?.detalleEventos ?? []; track ev.idEvento) {
+                <option [value]="ev.idEvento">
+                  {{ ev.nombre }} ({{ ev.estado }} · {{ ev.situacion }})
+                </option>
+              }
+            </select>
+          </label>
+          @if (eventoAnaliticoId()) {
+            <button
+              type="button"
+              class="btn-ghost"
+              (click)="seleccionarEventoAnalitico(null)"
+            >
+              ← Cambiar evento
+            </button>
+          }
+          <button
+            type="button"
+            class="btn-ghost"
+            (click)="cargarFinanzas()"
+            [disabled]="cargandoFinanzas()"
+          >
+            {{ cargandoFinanzas() ? 'Actualizando...' : 'Actualizar datos' }}
+          </button>
+        </div>
+
+        @if (radiografiaEvento()) {
+          <div class="export-actions">
+            <button
+              type="button"
+              class="btn-pdf"
+              (click)="exportarRadiografiaEvento('PDF')"
+              [disabled]="exportando() !== null"
+            >
+              {{ exportando() === 'PDF' ? 'Generando PDF...' : 'Exportar Radiografía PDF' }}
+            </button>
+            <button
+              type="button"
+              class="btn-xlsx"
+              (click)="exportarRadiografiaEvento('XLSX')"
+              [disabled]="exportando() !== null"
+            >
+              {{ exportando() === 'XLSX' ? 'Generando Excel...' : 'Exportar Excel (.xlsx)' }}
+            </button>
+          </div>
+        }
+      </div>
+
+      @if (cargandoFinanzas()) {
+        <p style="text-align: center; padding: 36px; color: var(--muted);">Cargando datos de eventos...</p>
+      } @else if (!radiografiaEvento()) {
+        <!-- ESTADO INICIAL: SELECTOR DE CONCIERTO (SIN MEZCLAR EVENTOS) -->
+        <div class="event-picker-stage">
+          <div class="eps-head">
+            <span class="section-kicker">Vista de Dueño / Dirección Ejecutiva</span>
+            <h3>Seleccioná un evento para abrir su Radiografía 360° de Rentabilidad y Operación</h3>
+            <p>Elegí cualquiera de los eventos de tu organización para inspeccionar su punto de equilibrio, boletería por categoría, recursos consumidos, asistencia real en puerta y cobertura de staff.</p>
+          </div>
+
+          <div class="event-picker-grid">
+            @for (ev of resumenFinanciero()?.detalleEventos ?? []; track ev.idEvento) {
+              <button
+                type="button"
+                class="event-picker-card"
+                (click)="seleccionarEventoAnalitico(ev.idEvento)"
+              >
+                <div class="epc-top">
+                  <span class="epc-state">{{ ev.estado }}</span>
+                  <span class="status-pill" [class.success]="ev.situacion === 'SUPERAVIT'" [class.danger]="ev.situacion === 'DEFICIT'">
+                    {{ ev.situacion }}
+                  </span>
+                </div>
+                <strong class="epc-title">{{ ev.nombre }}</strong>
+                <span class="epc-venue">{{ ev.nombreEspacio || 'Recinto asignado' }} · Aforo: {{ ev.aforo | number }} pers.</span>
+                <div class="epc-metrics">
+                  <div>
+                    <small>Boletos vendidos</small>
+                    <strong>{{ ev.inscripcionesConfirmadas | number }}</strong>
+                  </div>
+                  <div>
+                    <small>Resultado Neto</small>
+                    <strong [style.color]="ev.balanceNeto >= 0 ? '#059669' : '#e11d48'">
+                      {{ (ev.balanceNeto >= 0 ? '+' : '') + (ev.balanceNeto | number: '1.0-0') }} Bs
+                    </strong>
+                  </div>
+                </div>
+                <span class="epc-cta">Abrir radiografía y gráficas →</span>
+              </button>
             }
-          </select>
+          </div>
+        </div>
+      } @else if (radiografiaEvento(); as rad) {
+        <!-- CABECERA DEL CONCIERTO SELECCIONADO -->
+        <div class="rad-hero">
+          <div>
+            <div class="dossier-tags">
+              <span class="tag-type">{{ rad.estado }}</span>
+              <span class="tag-period">{{ rad.nombreEspacio }} · Aforo: {{ rad.aforo | number }} plazas</span>
+            </div>
+            <h2>{{ rad.nombre }}</h2>
+          </div>
+          <div class="rad-hero-status">
+            <span class="roi-badge">ROI: {{ rad.roi | number: '1.1-1' }}%</span>
+            <span class="status-pill" [class.success]="rad.situacion === 'SUPERAVIT'" [class.danger]="rad.situacion === 'DEFICIT'">
+              {{ rad.situacion }}
+            </span>
+          </div>
         </div>
 
-        <div class="form-group inline">
-          <label>Dirección</label>
-          <select [ngModel]="ascendenteReporte()" (ngModelChange)="ascendenteReporte.set($event); vistaPreviaReporte.set(null)">
-            <option [ngValue]="true">Ascendente (A-Z)</option>
-            <option [ngValue]="false">Descendente (Z-A)</option>
-          </select>
+        <!-- ========================================================= -->
+        <!-- BLOQUE 1: TERMÓMETRO FINANCIERO Y PUNTO DE EQUILIBRIO     -->
+        <!-- ========================================================= -->
+        <div class="analytics-panel">
+          <div class="analytics-panel-head">
+            <div>
+              <span class="section-kicker">1. Termómetro Financiero y Punto de Equilibrio (Break-Even)</span>
+              <h3>Cascada de Margen y Umbral de Supervivencia</h3>
+              <p class="analytics-sub">Flujo de deducción desde los ingresos brutos de taquilla hasta el margen neto limpio.</p>
+            </div>
+          </div>
+
+          <div class="dossier-kpis" style="margin-bottom: 18px;">
+            <div class="dossier-kpi">
+              <span class="dk-label">Ingresos de Taquilla</span>
+              <strong class="dk-val" style="color: #059669;">{{ rad.ingresos | number: '1.2-2' }} Bs</strong>
+              <span class="dk-det">Ticket promedio: {{ rad.ticketPromedio | number: '1.2-2' }} Bs</span>
+            </div>
+            <div class="dossier-kpi">
+              <span class="dk-label">Costo Total Producción</span>
+              <strong class="dk-val" style="color: #e11d48;">{{ rad.costosTotales | number: '1.2-2' }} Bs</strong>
+              <span class="dk-det">Cobertura lograda: {{ rad.coberturaCostosPct }}%</span>
+            </div>
+            <div class="dossier-kpi">
+              <span class="dk-label">Utilidad / Pérdida Neta</span>
+              <strong class="dk-val" [style.color]="rad.balanceNeto >= 0 ? '#059669' : '#e11d48'">
+                {{ (rad.balanceNeto >= 0 ? '+' : '') + (rad.balanceNeto | number: '1.2-2') }} Bs
+              </strong>
+              <span class="dk-det">Retorno (ROI): {{ rad.roi | number: '1.1-1' }}%</span>
+            </div>
+            <div class="dossier-kpi">
+              <span class="dk-label">Punto de Equilibrio (Break-Even)</span>
+              <strong class="dk-val" style="color: #0284c7;">{{ rad.boletosEquilibrio | number }} boletos</strong>
+              <span class="dk-det" [style.color]="rad.diferenciaBoletosEquilibrio >= 0 ? '#059669' : '#e11d48'">
+                {{ rad.diferenciaBoletosEquilibrio >= 0 ? ('+' + (rad.diferenciaBoletosEquilibrio | number) + ' bol. sobre equilibrio') : ((rad.diferenciaBoletosEquilibrio | number) + ' bol. debajo del equilibrio') }}
+              </span>
+            </div>
+          </div>
+
+          <!-- GRÁFICO DE CASCADA FINANCIERA (WATERFALL SVG) -->
+          <div class="tier-chart-box" style="margin-bottom: 18px;">
+            <div class="tcb-header">
+              <span class="tcb-title">Cascada de Deducción: Ingresos Brutos → Costos → Margen Neto</span>
+              <span class="badge-roi" [style.color]="rad.balanceNeto >= 0 ? '#059669' : '#e11d48'">
+                {{ rad.situacion }} (ROI: {{ rad.roi | number: '1.1-1' }}%)
+              </span>
+            </div>
+
+            <div class="svg-scatter-box" style="height: 310px; background: #ffffff;">
+              <svg viewBox="0 0 820 265">
+                <!-- Línea Cero de Flotación Dinámica -->
+                <line x1="45" [attr.y1]="rad.cascadaFinanciera.wfZeroY" x2="785" [attr.y2]="rad.cascadaFinanciera.wfZeroY" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5,4"/>
+                <text x="36" [attr.y]="rad.cascadaFinanciera.wfZeroY + 4" fill="#64748b" font-size="11" font-weight="bold" text-anchor="end">0</text>
+
+                <!-- Líneas guía conectoras de cascada -->
+                <line x1="195" [attr.y1]="rad.cascadaFinanciera.wfIngresosY" x2="255" [attr.y2]="rad.cascadaFinanciera.wfEspacioY" stroke="#cbd5e1" stroke-width="1.2" stroke-dasharray="3,3"/>
+                <line x1="375" [attr.y1]="rad.cascadaFinanciera.wfEspacioY + rad.cascadaFinanciera.wfEspacioH" x2="435" [attr.y2]="rad.cascadaFinanciera.wfRecursosY" stroke="#cbd5e1" stroke-width="1.2" stroke-dasharray="3,3"/>
+                <line x1="555" [attr.y1]="rad.cascadaFinanciera.wfRecursosY + rad.cascadaFinanciera.wfRecursosH" x2="615" [attr.y2]="rad.balanceNeto >= 0 ? rad.cascadaFinanciera.wfNetoY : rad.cascadaFinanciera.wfNetoY + rad.cascadaFinanciera.wfNetoH" stroke="#cbd5e1" stroke-width="1.2" stroke-dasharray="3,3"/>
+
+                <!-- Barra 1: Ingresos Brutos -->
+                <rect
+                  x="75"
+                  [attr.y]="rad.cascadaFinanciera.wfIngresosY"
+                  width="120"
+                  [attr.height]="rad.cascadaFinanciera.wfIngresosH"
+                  rx="7"
+                  fill="#10b981"
+                />
+                <text x="135" [attr.y]="rad.cascadaFinanciera.wfIngresosY - 9" fill="#047857" font-size="13" font-weight="bold" text-anchor="middle">
+                  {{ rad.cascadaFinanciera.ingresosTxt }} Bs
+                </text>
+                <text x="135" y="236" fill="#475569" font-size="12.5" font-weight="600" text-anchor="middle">Ingresos Brutos</text>
+
+                <!-- Barra 2: Costo Recinto -->
+                <rect
+                  x="255"
+                  [attr.y]="rad.cascadaFinanciera.wfEspacioY"
+                  width="120"
+                  [attr.height]="rad.cascadaFinanciera.wfEspacioH || 3"
+                  rx="6"
+                  fill="#f59e0b"
+                />
+                <text x="315" [attr.y]="rad.cascadaFinanciera.wfEspacioY - 9" fill="#b45309" font-size="13" font-weight="bold" text-anchor="middle">
+                  {{ rad.cascadaFinanciera.espacioTxt }} Bs
+                </text>
+                <text x="315" y="236" fill="#475569" font-size="12.5" font-weight="600" text-anchor="middle">Alquiler Recinto</text>
+
+                <!-- Barra 3: Técnica y Recursos -->
+                <rect
+                  x="435"
+                  [attr.y]="rad.cascadaFinanciera.wfRecursosY"
+                  width="120"
+                  [attr.height]="rad.cascadaFinanciera.wfRecursosH || 3"
+                  rx="6"
+                  fill="#ef4444"
+                />
+                <text x="495" [attr.y]="rad.cascadaFinanciera.wfRecursosY - 9" fill="#b91c1c" font-size="13" font-weight="bold" text-anchor="middle">
+                  {{ rad.cascadaFinanciera.recursosTxt }} Bs
+                </text>
+                <text x="495" y="236" fill="#475569" font-size="12.5" font-weight="600" text-anchor="middle">Producción Técnica</text>
+
+                <!-- Barra 4: Margen Neto Limpio -->
+                <rect
+                  x="615"
+                  [attr.y]="rad.cascadaFinanciera.wfNetoY"
+                  width="125"
+                  [attr.height]="rad.cascadaFinanciera.wfNetoH"
+                  rx="7"
+                  [attr.fill]="rad.balanceNeto >= 0 ? '#6366f1' : '#e11d48'"
+                />
+                <text x="677" [attr.y]="rad.cascadaFinanciera.netoLabelY" [attr.fill]="rad.balanceNeto >= 0 ? '#4338ca' : '#be123c'" font-size="14" font-weight="800" text-anchor="middle">
+                  {{ rad.cascadaFinanciera.netoTxt }} Bs
+                </text>
+                <text x="677" y="236" [attr.fill]="rad.balanceNeto >= 0 ? '#4338ca' : '#be123c'" font-size="12.5" font-weight="700" text-anchor="middle">Margen Limpio</text>
+                <text x="677" y="254" [attr.fill]="rad.balanceNeto >= 0 ? '#059669' : '#e11d48'" font-size="11.5" font-weight="700" text-anchor="middle">
+                  ROI: {{ (rad.roi >= 0 ? '+' : '') + (rad.roi | number: '1.1-1') }}%
+                </text>
+              </svg>
+            </div>
+          </div>
+
+          <div class="fcc-bars">
+            <div class="fcc-bar-row">
+              <span class="fcc-lbl">Ingresos Taquilla</span>
+              <div class="fcc-track">
+                <div class="fcc-fill inc" [style.width.%]="rad.anchoIngresosPct"></div>
+              </div>
+              <strong class="fcc-val inc-txt">+{{ rad.ingresos | number: '1.2-2' }} Bs</strong>
+            </div>
+            <div class="fcc-bar-row">
+              <span class="fcc-lbl">Costo de Equilibrio</span>
+              <div class="fcc-track">
+                <div class="fcc-fill cost" [style.width.%]="rad.anchoCostosPct"></div>
+              </div>
+              <span class="fcc-val cost-txt">-{{ rad.costosTotales | number: '1.2-2' }} Bs ({{ rad.boletosEquilibrio | number }} bol.)</span>
+            </div>
+            <div class="fcc-bar-row">
+              <span class="fcc-lbl">Margen Neto</span>
+              <div class="fcc-track">
+                <div
+                  class="fcc-fill"
+                  [class.net-pos]="rad.balanceNeto >= 0"
+                  [class.net-neg]="rad.balanceNeto < 0"
+                  [style.width.%]="rad.anchoBalancePct"
+                ></div>
+              </div>
+              <strong class="fcc-val" [class.inc-txt]="rad.balanceNeto >= 0" [class.cost-txt]="rad.balanceNeto < 0">
+                {{ (rad.balanceNeto >= 0 ? '+' : '') + (rad.balanceNeto | number: '1.2-2') }} Bs
+              </strong>
+            </div>
+          </div>
         </div>
 
-        <div class="form-group inline format-select">
-          <label>Formato</label>
-          <select [ngModel]="formatoReporte()" (ngModelChange)="formatoReporte.set($event)">
-            <option value="XLSX">📊 Excel (.xlsx)</option>
-            <option value="PDF">📑 Documento (.pdf)</option>
-            <option value="CSV">📄 Archivo (.csv)</option>
-            <option value="HTML">🌐 Página (.html)</option>
-          </select>
+        <!-- ========================================================= -->
+        <!-- BLOQUE 2: BOLETERÍA MULTICATEGORÍA (GRÁFICO DE BARRAS)    -->
+        <!-- ========================================================= -->
+        <div class="analytics-panel">
+          <div class="analytics-panel-head">
+            <div>
+              <span class="section-kicker">2. Desempeño de Boletería por Categoría</span>
+              <h3>Gráfico de Barras: Cupo Habilitado vs. Boletos Vendidos</h3>
+              <p class="analytics-sub">Comparación visual directa entre la capacidad por zona y el agotamiento real de taquilla.</p>
+            </div>
+            <div class="tier-legend">
+              <span class="legend-item"><i class="dot tier-general"></i> General</span>
+              <span class="legend-item"><i class="dot tier-vip"></i> VIP</span>
+              <span class="legend-item"><i class="dot tier-svip"></i> Super VIP</span>
+            </div>
+          </div>
+
+          @if (rad.tiers.length) {
+            <!-- GRÁFICO DE BARRAS AGRUPADAS POR ZONA -->
+            <div class="tier-chart-box">
+              <div class="tcb-header">
+                <span class="tcb-title">Comparativa de Volumen por Zona (General vs VIP vs Super VIP)</span>
+                <div class="tcb-legend">
+                  <span class="tcb-legend-item"><span class="tcb-sample-bar cupo"></span> Cupo Habilitado</span>
+                  <span class="tcb-legend-item"><span class="tcb-sample-bar vendido"></span> Boletos Vendidos</span>
+                </div>
+              </div>
+
+              <div class="grouped-bars-stage">
+                @for (t of rad.tiers; track t.categoria) {
+                  <div class="tier-col-group">
+                    <div class="tier-bars-pair">
+                      <!-- Barra 1: Cupo Habilitado (Gris transparente con borde) -->
+                      <div class="tbar-container" [title]="'Cupo Habilitado: ' + (t.cupoMaximo | number) + ' boletos'">
+                        <div class="tbar-fill cupo" [style.height.%]="t.alturaCupoPct">
+                          <span class="tbar-num">{{ t.cupoMaximo | number }}</span>
+                        </div>
+                      </div>
+                      <!-- Barra 2: Boletos Vendidos (Color vibrante de la categoría) -->
+                      <div class="tbar-container" [title]="'Vendidos: ' + (t.cantidadVendida | number) + ' boletos'">
+                        <div class="tbar-fill vendido" [ngClass]="t.colorClase" [style.height.%]="t.alturaVendidaPct">
+                          <span class="tbar-num">{{ t.cantidadVendida | number }}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="tier-col-label">
+                      <span class="tbr-badge" [ngClass]="t.colorClase">{{ t.categoria }}</span>
+                      <strong class="tcol-sub">{{ t.subtotal | number: '1.0-0' }} Bs</strong>
+                      <span class="tcol-pct" [style.color]="t.pctCupoAgotado >= 99 ? '#059669' : '#0284c7'">
+                        {{ t.pctCupoAgotado }}% agotado
+                      </span>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Proporción de Recaudación del Ingreso Total (Barra Continua) -->
+            <div style="margin-top: 24px; margin-bottom: 14px;">
+              <span class="section-kicker" style="font-size: 0.75rem;">Aporte de Cada Zona a la Recaudación Total</span>
+              <div class="stacked-bar" title="Composición del ingreso por categoría">
+                @for (t of rad.tiers; track t.categoria) {
+                  <div
+                    class="stacked-seg"
+                    [ngClass]="t.colorClase"
+                    [style.width.%]="t.pctIngresosEvento"
+                    [title]="t.categoria + ': ' + (t.subtotal | number: '1.2-2') + ' Bs (' + t.pctIngresosEvento + '% del ingreso)'"
+                  ></div>
+                }
+              </div>
+            </div>
+
+            <!-- Medidores y Tarjetas Detalladas por Categoría -->
+            <div class="tier-detail-grid">
+              @for (t of rad.tiers; track t.categoria) {
+                <div class="tier-detail-card" [ngClass]="t.colorClase">
+                  <div class="tdc-head">
+                    <div>
+                      <span class="tbr-badge" [ngClass]="t.colorClase">{{ t.categoria }}</span>
+                      <span class="tdc-price">{{ t.precioUnitario | number: '1.2-2' }} Bs por boleto</span>
+                    </div>
+                    <strong class="tdc-subtotal">{{ t.subtotal | number: '1.2-2' }} Bs</strong>
+                  </div>
+
+                  <!-- Medidor 1: Agotamiento de zona -->
+                  <div class="tdc-meter">
+                    <div class="tdc-meter-lbl">
+                      <span>Agotamiento de zona ({{ t.cantidadVendida | number }} / {{ t.cupoMaximo | number }} bol.)</span>
+                      <strong>{{ t.pctCupoAgotado }}% vendido</strong>
+                    </div>
+                    <div class="tbr-track">
+                      <div class="tbr-fill" [ngClass]="t.colorClase" [style.width.%]="t.pctCupoAgotado"></div>
+                    </div>
+                  </div>
+
+                  <!-- Medidor 2: Peso en la recaudación del concierto -->
+                  <div class="tdc-meter">
+                    <div class="tdc-meter-lbl">
+                      <span>Aporte al ingreso ({{ t.pctBoletosEvento }}% del volumen)</span>
+                      <strong>{{ t.pctIngresosEvento }}% del dinero</strong>
+                    </div>
+                    <div class="tbr-track">
+                      <div class="tbr-fill" [ngClass]="t.colorClase" [style.width.%]="t.pctIngresosEvento"></div>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="empty-tier-note">Sin boletos vendidos registrados para este evento.</p>
+          }
+        </div>
+
+      <!-- ========================================================= -->
+      <!-- BLOQUE 3: RADIOGRAFÍA DE COSTOS Y RECURSOS USADOS         -->
+      <!-- ========================================================= -->
+      <div class="analytics-panel">
+        <div class="analytics-panel-head">
+          <div>
+            <span class="section-kicker">3. Radiografía de Costos y Recursos Técnicos Usados</span>
+            <h3>Dona de Distribución del Presupuesto ({{ rad.costosTotales | number: '1.2-2' }} Bs)</h3>
+            <p class="analytics-sub">Desglose de la inversión en el recinto ({{ rad.pctEspacio }}%) frente al equipamiento técnico asignado ({{ rad.pctRecursos }}%).</p>
+          </div>
+        </div>
+
+        <!-- GRÁFICO DE DONA DE COSTOS SVG + LEYENDA HTML COMPLETA -->
+        <div class="tier-chart-box" style="margin-bottom: 20px;">
+          <div class="donut-layout">
+            <div class="donut-svg-container">
+              <svg viewBox="0 0 200 200">
+                <g transform="translate(100, 100)">
+                  @if (rad.segmentosDona.length) {
+                    @for (seg of rad.segmentosDona; track seg.nombre) {
+                      <circle
+                        r="68"
+                        fill="transparent"
+                        [attr.stroke]="seg.color"
+                        stroke-width="30"
+                        [attr.stroke-dasharray]="seg.dasharray"
+                        [attr.stroke-dashoffset]="seg.dashoffset"
+                      />
+                    }
+                  } @else {
+                    <circle
+                      r="68"
+                      fill="transparent"
+                      stroke="#cbd5e1"
+                      stroke-width="24"
+                      stroke-dasharray="6,4"
+                    />
+                  }
+                  <text x="0" y="-4" fill="#0f172a" font-size="16" font-weight="800" text-anchor="middle">
+                    {{ rad.costosCompacto }}
+                  </text>
+                  <text x="0" y="15" fill="#64748b" font-size="10" font-weight="600" text-anchor="middle">
+                    {{ rad.costosTotales > 0 ? 'Bs Total' : 'Sin costos' }}
+                  </text>
+                </g>
+              </svg>
+            </div>
+
+            <div class="donut-legend-list">
+              @if (rad.segmentosDona.length) {
+                @for (seg of rad.segmentosDona; track seg.nombre) {
+                  <div class="dl-item">
+                    <span class="dl-dot" [style.background]="seg.color"></span>
+                    <span class="dl-name">{{ seg.nombre }}</span>
+                    <strong class="dl-val">{{ seg.subtotal | number: '1.2-2' }} Bs</strong>
+                    <span class="dl-pct">({{ seg.pctPresupuesto }}%)</span>
+                  </div>
+                }
+              } @else {
+                <p class="empty-tier-note" style="margin: 0;">Este evento no registra costos de alquiler ni recursos asignados.</p>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="tier-bars-grid">
+          @for (item of rad.itemsCosto; track item.nombre) {
+            <div class="cost-item-row">
+              <div class="cir-info">
+                <div class="cir-title-line">
+                  <span class="cir-tag" [class.venue]="item.tipoItem === 'ESPACIO'" [style.color]="item.color" [style.background]="item.color + '22'">
+                    {{ item.codigo }}
+                  </span>
+                  <strong>{{ item.nombre }}</strong>
+                </div>
+                <small>{{ item.detalleCantidad }}</small>
+              </div>
+
+              <div class="tbr-track">
+                <div
+                  class="fcc-fill"
+                  [style.background]="item.color"
+                  [style.width.%]="item.pctPresupuesto"
+                ></div>
+              </div>
+
+              <div class="cir-amount">
+                <strong [style.color]="item.color">{{ item.subtotal | number: '1.2-2' }} Bs</strong>
+                <small>{{ item.pctPresupuesto }}% del gasto</small>
+              </div>
+            </div>
+          }
         </div>
       </div>
 
-      <div class="actions-group">
-        <button
-          type="button"
-          class="secondary-btn"
-          (click)="cargarVistaPreviaReporte()"
-          [disabled]="procesandoReporte() || !columnasReporte().length"
-        >
-          👁️ Actualizar Vista Previa
-        </button>
-        <button
-          type="button"
-          class="primary-btn"
-          (click)="descargarReporte()"
-          [disabled]="procesandoReporte() || !columnasReporte().length"
-        >
-          📥 {{ procesandoReporte() ? 'Generando...' : 'Descargar ' + formatoReporte() }}
-        </button>
-      </div>
-    </div>
+      <!-- ========================================================= -->
+      <!-- BLOQUE 4: EMBUDO DE AFORO, VENTA Y ASISTENCIA REAL (QR)   -->
+      <!-- ========================================================= -->
+      <div class="analytics-panel">
+        <div class="analytics-panel-head">
+          <div>
+            <span class="section-kicker">4. Embudo de Ocupación y Asistencia Real en Puerta (Check-in QR)</span>
+            <h3>Embudo Operativo: Capacidad → Boletos Vendidos → Ingreso Real QR</h3>
+            <p class="analytics-sub">Auditoría de conversión desde el aforo disponible hasta la validación QR real en puerta y tasa de ausentismo (No-Show).</p>
+          </div>
+        </div>
 
-    <!-- Enviar por correo -->
-    <div class="email-section">
-      <div class="email-input-wrap">
-        <span class="email-icon">✉️</span>
-        <input
-          type="email"
-          [ngModel]="correoReporte()"
-          (ngModelChange)="correoReporte.set($event)"
-          placeholder="Enviar copia adjunta a: ejemplo@empresa.com"
-        />
-        <button
-          type="button"
-          class="secondary-btn"
-          (click)="enviarReporte()"
-          [disabled]="procesandoReporte() || !correoReporte().trim() || !columnasReporte().length"
-        >
-          Enviar {{ formatoReporte() }}
-        </button>
+        <!-- GRÁFICO DE EMBUDO OPERATIVO SVG (ESCALABLE PARA AMBOS TENANTS) -->
+        <div class="tier-chart-box" style="margin-bottom: 20px;">
+          <div class="svg-scatter-box" style="height: 220px; background: #ffffff;">
+            <svg viewBox="0 0 500 205">
+              <!-- Nivel 1: Capacidad / Aforo Recinto -->
+              <rect x="40" y="18" width="420" height="32" rx="6" fill="#3b82f6"/>
+              <text x="55" y="38" fill="#ffffff" font-size="11" font-weight="bold">
+                1. Aforo del Recinto: {{ rad.aforo | number }} plazas
+              </text>
+              <text x="446" y="38" fill="#ffffff" font-size="10" font-weight="bold" text-anchor="end">100% Capacidad</text>
+
+              <!-- Nivel 2: Boletos Vendidos -->
+              <rect x="40" y="64" width="420" height="32" rx="6" fill="#f1f5f9"/>
+              <rect x="40" y="64" [attr.width]="rad.funnelVendidosAncho" height="32" rx="6" fill="#10b981"/>
+              @if (rad.funnelVendidosAncho >= 295) {
+                <text x="55" y="84" fill="#ffffff" font-size="11" font-weight="bold">
+                  2. Boletos Vendidos: {{ rad.inscripcionesConfirmadas | number }}
+                </text>
+                <text [attr.x]="40 + rad.funnelVendidosAncho - 12" y="84" fill="#ffffff" font-size="10" font-weight="bold" text-anchor="end">
+                  {{ rad.ocupacionPct }}% ocupación
+                </text>
+              } @else {
+                <text [attr.x]="40 + rad.funnelVendidosAncho + 12" y="84" fill="#047857" font-size="11" font-weight="bold">
+                  2. Boletos Vendidos: {{ rad.inscripcionesConfirmadas | number }} ({{ rad.ocupacionPct }}% ocupación)
+                </text>
+              }
+
+              <!-- Nivel 3: Asistencia Real (Check-in QR) -->
+              <rect x="40" y="110" width="420" height="32" rx="6" fill="#f1f5f9"/>
+              @if (rad.tieneCheckIn) {
+                <rect x="40" y="110" [attr.width]="rad.funnelAsistentesAncho" height="32" rx="6" fill="#06b6d4"/>
+                @if (rad.funnelAsistentesAncho >= 295) {
+                  <text x="55" y="130" fill="#ffffff" font-size="11" font-weight="bold">
+                    3. Ingreso Efectivo QR: {{ rad.asistentesReales | number }} personas
+                  </text>
+                  <text [attr.x]="40 + rad.funnelAsistentesAncho - 12" y="130" fill="#ffffff" font-size="10" font-weight="bold" text-anchor="end">
+                    {{ rad.tasaShowUpPct }}% asistieron
+                  </text>
+                } @else {
+                  <text [attr.x]="40 + rad.funnelAsistentesAncho + 12" y="130" fill="#0e7490" font-size="11" font-weight="bold">
+                    3. Ingreso Efectivo QR: {{ rad.asistentesReales | number }} ({{ rad.tasaShowUpPct }}% show-up)
+                  </text>
+                }
+              } @else {
+                <text x="55" y="130" fill="#64748b" font-size="11" font-weight="600">
+                  3. Ingreso Efectivo QR: Pendiente (Evento en preventa activa)
+                </text>
+              }
+
+              <!-- Nivel 4: Ausentismo (No-Show) -->
+              <rect x="40" y="156" width="420" height="28" rx="6" fill="#fef2f2"/>
+              @if (rad.tieneCheckIn) {
+                <rect x="40" y="156" [attr.width]="rad.funnelNoShowAncho" height="28" rx="6" fill="#ef4444"/>
+                <text [attr.x]="40 + rad.funnelNoShowAncho + 12" y="174" fill="#dc2626" font-size="11" font-weight="bold">
+                  4. Ausentismo (No-Show): {{ rad.noShows | number }} boletos no validados ({{ rad.noShowPct }}%)
+                </text>
+              } @else {
+                <rect x="40" y="156" width="420" height="28" rx="6" fill="#f8fafc" stroke="#e2e8f0"/>
+                <text x="55" y="174" fill="#64748b" font-size="11" font-weight="600">
+                  4. Ausentismo (No-Show): Se calculará al habilitar el control de puertas
+                </text>
+              }
+            </svg>
+          </div>
+        </div>
+
+        <div class="fcc-bars">
+          <div class="fcc-bar-row">
+            <span class="fcc-lbl">1. Aforo Recinto</span>
+            <div class="fcc-track">
+              <div class="fcc-fill cost" style="width: 100%;"></div>
+            </div>
+            <strong class="fcc-val">{{ rad.aforo | number }} plazas (100%)</strong>
+          </div>
+
+          <div class="fcc-bar-row">
+            <span class="fcc-lbl">2. Boletos Vendidos</span>
+            <div class="fcc-track">
+              <div class="fcc-fill net-pos" [style.width.%]="rad.ocupacionPct"></div>
+            </div>
+            <strong class="fcc-val" style="color: #0284c7;">
+              {{ rad.inscripcionesConfirmadas | number }} vendidos ({{ rad.ocupacionPct }}% aforo · {{ rad.boletosDisponibles | number }} libres)
+            </strong>
+          </div>
+
+          <div class="fcc-bar-row">
+            <span class="fcc-lbl">3. Asistentes Reales</span>
+            <div class="fcc-track">
+              <div class="fcc-fill inc" [style.width.%]="rad.tieneCheckIn ? rad.asistenciaSobreAforoPct : 0"></div>
+            </div>
+            @if (rad.tieneCheckIn) {
+              <strong class="fcc-val inc-txt">
+                {{ rad.asistentesReales | number }} en puerta ({{ rad.tasaShowUpPct }}% show-up · {{ rad.noShows | number }} No-Show)
+              </strong>
+            } @else {
+              <span class="fcc-val" style="color: #64748b; font-weight: 600;">
+                Preventa activa (QR el día del evento)
+              </span>
+            }
+          </div>
+        </div>
       </div>
-      <small class="text-muted">El archivo se enviará como adjunto al correo indicado a través del servicio de mensajería del sistema.</small>
-    </div>
+
+      <!-- ========================================================= -->
+      <!-- BLOQUE 5: COBERTURA OPERATIVA Y STAFF DEL CONCIERTO       -->
+      <!-- ========================================================= -->
+      <div class="analytics-panel" style="margin-bottom: 0;">
+        <div class="analytics-panel-head">
+          <div>
+            <span class="section-kicker">5. Fuerza Operativa y Personal del Evento</span>
+            <h3>Dotación de Staff y Voluntarios Requeridos ({{ rad.totalStaffRequerido }} efectivos)</h3>
+            <p class="analytics-sub">Convocatorias operativas asignadas a seguridad, lectura de QR, logística y hospitalidad de este evento.</p>
+          </div>
+        </div>
+
+        @if (rad.convocatoriasEvento.length) {
+          <div class="aforo-grid">
+            @for (conv of rad.convocatoriasEvento; track conv.id) {
+              <div class="aforo-card">
+                <div class="af-top">
+                  <span class="tbr-badge" [class.tier-vip]="conv.tipoPersonal === 'STAFF'" [class.tier-general]="conv.tipoPersonal !== 'STAFF'">
+                    {{ conv.tipoPersonal }}
+                  </span>
+                  <span class="af-pct" [class.high]="conv.estado === 'ABIERTA'">{{ conv.estado }}</span>
+                </div>
+                <strong style="display: block; font-size: 1.15rem; color: #0f172a; margin-bottom: 4px;">
+                  {{ conv.cantidadRequerida }} cupos requeridos
+                </strong>
+                <p style="margin: 0 0 8px; font-size: 0.81rem; color: #475569; line-height: 1.35;">
+                  {{ conv.descripcion }}
+                </p>
+                <div class="af-foot">
+                  <span>Límite: <strong>{{ conv.fechaLimite }}</strong></span>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="empty-tier-note">Este evento no registra convocatorias de personal adicionales.</p>
+        }
+      </div>
+    }
+  }
+  </section>
+}
+
+<!-- ========================================================= -->
+<!-- MODO 3: CATÁLOGO DE REPORTES RÁPIDOS (1 CLIC -> PDF/XLSX) -->
+<!-- ========================================================= -->
+@if (modoActivo() === 'catalogo') {
+  <!-- Tarjetas de selección de reporte -->
+  <section class="catalog-cards">
+    <button
+      type="button"
+      class="cat-card"
+      [class.selected]="catalogoActivo() === 'finanzas'"
+      (click)="seleccionarCatalogo('finanzas')"
+    >
+      <span class="cat-title">Finanzas y Rentabilidad</span>
+      <span class="cat-meta">{{ resumenFinanciero() ? (resumenFinanciero()!.balanceNetoGlobal >= 0 ? '+' : '') + resumenFinanciero()!.balanceNetoGlobal.toFixed(2) + ' Bs' : 'Ingresos y Costos' }}</span>
+    </button>
+
+    <button
+      type="button"
+      class="cat-card"
+      [class.selected]="catalogoActivo() === 'eventos'"
+      (click)="seleccionarCatalogo('eventos')"
+    >
+      <span class="cat-title">Eventos y Capacidad</span>
+      <span class="cat-meta">{{ eventos().length }} registros</span>
+    </button>
+
+    <button
+      type="button"
+      class="cat-card"
+      [class.selected]="catalogoActivo() === 'participantes'"
+      (click)="seleccionarCatalogo('participantes')"
+    >
+      <span class="cat-title">Participantes e Inscripciones</span>
+      <span class="cat-meta">{{ totalParticipantes() }} registros</span>
+    </button>
+
+    <button
+      type="button"
+      class="cat-card"
+      [class.selected]="catalogoActivo() === 'convocatorias'"
+      (click)="seleccionarCatalogo('convocatorias')"
+    >
+      <span class="cat-title">Convocatorias y Staff</span>
+      <span class="cat-meta">{{ convocatorias().length }} registros</span>
+    </button>
+
+    <button
+      type="button"
+      class="cat-card"
+      [class.selected]="catalogoActivo() === 'espacios'"
+      (click)="seleccionarCatalogo('espacios')"
+    >
+      <span class="cat-title">Espacios y Salas</span>
+      <span class="cat-meta">{{ espacios().length }} ambientes</span>
+    </button>
+
+    <button
+      type="button"
+      class="cat-card"
+      [class.selected]="catalogoActivo() === 'recursos'"
+      (click)="seleccionarCatalogo('recursos')"
+    >
+      <span class="cat-title">Inventario de Recursos</span>
+      <span class="cat-meta">{{ recursos().length }} ítems</span>
+    </button>
   </section>
 
-  <!-- VISTA PREVIA INTERACTIVA -->
-  @if (vistaPreviaReporte(); as preview) {
-    <section class="card preview-card">
-      <div class="preview-header">
-        <div>
-          <h3>Vista Previa del Reporte</h3>
-          <p class="text-muted">Mostrando las primeras {{ preview.filas.slice(0, 15).length }} de {{ preview.totalFilas }} filas totales.</p>
+  <!-- REPORTE: FINANZAS Y RENTABILIDAD -->
+  @if (catalogoActivo() === 'finanzas') {
+    <section class="dossier-card">
+      <div class="catalog-toolbar">
+        <div class="simple-filters">
+          <span class="info-summary">
+            Balance neto de la organización: 
+            <strong>{{ resumenFinanciero() ? (resumenFinanciero()!.balanceNetoGlobal.toLocaleString('es-ES', { minimumFractionDigits: 2 })) + ' Bs' : 'Cargando...' }}</strong>
+          </span>
+          <button type="button" class="btn-ghost" (click)="cargarFinanzas()" [disabled]="cargandoFinanzas()">
+            {{ cargandoFinanzas() ? 'Actualizando...' : 'Actualizar datos' }}
+          </button>
         </div>
-        @if (preview.limiteAplicado) {
-          <span class="warning-badge">Límite de 5,000 filas alcanzado</span>
-        }
+
+        <div class="export-actions">
+          <button
+            type="button"
+            class="btn-pdf"
+            (click)="exportarFinanzas('PDF')"
+            [disabled]="exportando() !== null || !resumenFinanciero()"
+          >
+            {{ exportando() === 'PDF' ? 'Generando PDF...' : 'Exportar PDF' }}
+          </button>
+          <button
+            type="button"
+            class="btn-xlsx"
+            (click)="exportarFinanzas('XLSX')"
+            [disabled]="exportando() !== null || !resumenFinanciero()"
+          >
+            {{ exportando() === 'XLSX' ? 'Generando Excel...' : 'Exportar Excel (.xlsx)' }}
+          </button>
+        </div>
       </div>
 
-      <div class="table-wrap">
-        <table>
+      @if (resumenFinanciero(); as fin) {
+        <div class="dossier-kpis">
+          <div class="dossier-kpi">
+            <span class="dk-label">Ingresos Totales</span>
+            <strong class="dk-val" style="color: #059669;">{{ fin.ingresosTotales | number: '1.2-2' }} Bs</strong>
+            <span class="dk-det">Venta de tickets confirmados</span>
+          </div>
+          <div class="dossier-kpi">
+            <span class="dk-label">Costos Operativos</span>
+            <strong class="dk-val" style="color: #e11d48;">{{ fin.costosTotales | number: '1.2-2' }} Bs</strong>
+            <span class="dk-det">Salones y recursos asignados</span>
+          </div>
+          <div class="dossier-kpi">
+            <span class="dk-label">Balance Neto</span>
+            <strong class="dk-val" [style.color]="fin.balanceNetoGlobal >= 0 ? '#059669' : '#e11d48'">
+              {{ (fin.balanceNetoGlobal >= 0 ? '+' : '') + (fin.balanceNetoGlobal | number: '1.2-2') }} Bs
+            </strong>
+            <span class="dk-det">{{ fin.eventosConGanancia }} superávit / {{ fin.eventosConPerdida }} déficit</span>
+          </div>
+          <div class="dossier-kpi">
+            <span class="dk-label">ROI Consolidado</span>
+            <strong class="dk-val" style="color: #0284c7;">{{ fin.roiGlobal | number: '1.1-1' }}%</strong>
+            <span class="dk-det">Rentabilidad sobre el gasto</span>
+          </div>
+        </div>
+
+        <div class="table-scroll">
+          <table class="clean-table">
+            <thead>
+              <tr>
+                <th>Evento</th>
+                <th style="text-align: center;">Boletos</th>
+                <th style="text-align: right;">Ingresos</th>
+                <th style="text-align: right;">Costo Espacio</th>
+                <th style="text-align: right;">Costo Recursos</th>
+                <th style="text-align: right;">Costos Totales</th>
+                <th style="text-align: right;">Balance Neto</th>
+                <th style="text-align: right;">ROI</th>
+                <th style="text-align: center;">Situación</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (ev of fin.detalleEventos; track ev.idEvento) {
+                <tr>
+                  <td>
+                    <div class="fin-event-cell">
+                      <strong>{{ ev.nombre }}</strong>
+                      @if (ev.desgloseEntradas && ev.desgloseEntradas.length > 0) {
+                        <button
+                          type="button"
+                          class="btn-desglose"
+                          (click)="toggleDesgloseEvento(ev.idEvento)"
+                        >
+                          {{ eventoDesgloseAbierto() === ev.idEvento ? 'Ocultar desglose ▴' : 'Ver desglose de boletos ▾' }}
+                        </button>
+                      }
+                    </div>
+                  </td>
+                  <td style="text-align: center;">{{ ev.aforo > 0 ? (ev.inscripcionesConfirmadas | number) + ' / ' + (ev.aforo | number) : (ev.inscripcionesConfirmadas | number) }}</td>
+                  <td style="text-align: right; color: #059669; font-weight: 600;">+{{ ev.ingresos | number: '1.2-2' }} Bs</td>
+                  <td style="text-align: right; color: #64748b;">{{ ev.costoEspacio | number: '1.2-2' }} Bs</td>
+                  <td style="text-align: right; color: #64748b;">{{ ev.costoRecursos | number: '1.2-2' }} Bs</td>
+                  <td style="text-align: right; color: #e11d48;">-{{ ev.costosTotales | number: '1.2-2' }} Bs</td>
+                  <td style="text-align: right; font-weight: 700;" [style.color]="ev.balanceNeto >= 0 ? '#059669' : '#e11d48'">
+                    {{ (ev.balanceNeto >= 0 ? '+' : '') + (ev.balanceNeto | number: '1.2-2') }} Bs
+                  </td>
+                  <td style="text-align: right; font-weight: 600;">{{ ev.roi | number: '1.1-1' }}%</td>
+                  <td style="text-align: center;">
+                    <span class="status-pill" [class.success]="ev.situacion === 'SUPERAVIT'" [class.danger]="ev.situacion === 'DEFICIT'">
+                      {{ ev.situacion }}
+                    </span>
+                  </td>
+                </tr>
+                @if (eventoDesgloseAbierto() === ev.idEvento && ev.desgloseEntradas && ev.desgloseEntradas.length > 0) {
+                  <tr class="desglose-row">
+                    <td colspan="9">
+                      <div class="desglose-box">
+                        <span class="desglose-title">Auditoría de Ingresos por Categoría de Boleto — {{ ev.nombre }}</span>
+                        <table class="desglose-table">
+                          <thead>
+                            <tr>
+                              <th>Categoría</th>
+                              <th style="text-align: right;">Boletos Vendidos</th>
+                              <th style="text-align: right;">Precio Unitario</th>
+                              <th style="text-align: right;">Subtotal Recaudado</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            @for (tier of ev.desgloseEntradas; track tier.categoria) {
+                              <tr>
+                                <td><strong>{{ tier.categoria }}</strong></td>
+                                <td style="text-align: right;">{{ tier.cantidadVendida | number }}</td>
+                                <td style="text-align: right;">{{ tier.precioUnitario | number: '1.2-2' }} Bs</td>
+                                <td style="text-align: right; color: #059669; font-weight: 600;">{{ tier.subtotal | number: '1.2-2' }} Bs</td>
+                              </tr>
+                            }
+                          </tbody>
+                          <tfoot>
+                            <tr>
+                              <td><strong>Total Verificado</strong></td>
+                              <td style="text-align: right;"><strong>{{ ev.inscripcionesConfirmadas | number }}</strong></td>
+                              <td></td>
+                              <td style="text-align: right; color: #059669;"><strong>{{ ev.ingresos | number: '1.2-2' }} Bs</strong></td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              } @empty {
+                <tr>
+                  <td colspan="9" class="empty-cell">No hay eventos para calcular balances financieros.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else if (cargandoFinanzas()) {
+        <p style="text-align: center; padding: 30px; color: var(--muted);">Calculando balances financieros en tiempo real...</p>
+      }
+    </section>
+  }
+
+  <!-- REPORTE: EVENTOS -->
+  @if (catalogoActivo() === 'eventos') {
+    <section class="dossier-card">
+      <div class="catalog-toolbar">
+        <div class="simple-filters">
+          <label>
+            Estado
+            <select [ngModel]="filtroEstadoEvento()" (ngModelChange)="filtroEstadoEvento.set($event)">
+              <option value="TODOS">Todos los estados</option>
+              <option value="PUBLICADO">Publicados</option>
+              <option value="BORRADOR">Borradores</option>
+              <option value="EN_CURSO">En curso</option>
+              <option value="FINALIZADO">Finalizados</option>
+              <option value="CANCELADO">Cancelados</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="export-actions">
+          <button type="button" class="btn-pdf" (click)="exportarEventos('PDF')" [disabled]="exportando() !== null">
+            Exportar PDF
+          </button>
+          <button type="button" class="btn-xlsx" (click)="exportarEventos('XLSX')" [disabled]="exportando() !== null">
+            Exportar Excel (.xlsx)
+          </button>
+        </div>
+      </div>
+
+      <div class="table-scroll">
+        <table class="clean-table">
           <thead>
             <tr>
-              @for (col of preview.columnas; track col) {
-                <th>{{ col }}</th>
-              }
+              <th>Evento</th>
+              <th>Estado</th>
+              <th>Fecha Inicio</th>
+              <th>Aforo Máximo</th>
+              <th>Ubicación</th>
             </tr>
           </thead>
           <tbody>
-            @for (fila of preview.filas.slice(0, 15); track $index) {
+            @for (ev of eventosFiltrados(); track ev.id) {
               <tr>
-                @for (valor of fila; track $index) {
-                  <td>{{ valor }}</td>
+                <td><strong>{{ ev.nombre }}</strong></td>
+                <td><span class="status-pill">{{ ev.estado }}</span></td>
+                <td>{{ ev.fechaInicio ? (ev.fechaInicio | date:'dd/MM/yyyy HH:mm') : '-' }}</td>
+                <td>{{ ev.aforoMaximo ?? 'Ilimitado' }}</td>
+                <td>{{ ev.lugarPrincipal || '-' }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5" class="empty-cell">No hay eventos para este filtro.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+
+  <!-- REPORTE: PARTICIPANTES -->
+  @if (catalogoActivo() === 'participantes') {
+    <section class="dossier-card">
+      <div class="catalog-toolbar">
+        <div class="simple-filters">
+          <label>
+            Buscar
+            <input
+              type="text"
+              [ngModel]="busquedaParticipante()"
+              (ngModelChange)="busquedaParticipante.set($event)"
+              (keyup.enter)="cargarVistaPreviaParticipantes()"
+              placeholder="Nombre o correo..."
+            />
+          </label>
+
+          <label>
+            Evento
+            <select
+              [ngModel]="eventoParticipante()"
+              (ngModelChange)="eventoParticipante.set($event); cargarVistaPreviaParticipantes()"
+            >
+              <option [ngValue]="null">Todos los eventos</option>
+              @for (ev of eventos(); track ev.id) {
+                <option [ngValue]="ev.id">{{ ev.nombre }}</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            Estado
+            <select
+              [ngModel]="estadoParticipante()"
+              (ngModelChange)="estadoParticipante.set($event); cargarVistaPreviaParticipantes()"
+            >
+              <option value="TODOS">Todos</option>
+              <option value="ACTIVO">Activos</option>
+              <option value="INACTIVO">Inactivos</option>
+            </select>
+          </label>
+
+          <label>
+            Detalle
+            <select [ngModel]="perfilColumnas()" (ngModelChange)="aplicarPerfilColumnas($event)">
+              <option value="basico">Vista Básica</option>
+              <option value="inscripciones">Enfoque Inscripciones</option>
+              <option value="completo">Todas las columnas</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="export-actions">
+          <button type="button" class="btn-ghost" (click)="cargarVistaPreviaParticipantes()" [disabled]="cargandoParticipantes()">
+            Actualizar
+          </button>
+          <button type="button" class="btn-pdf" (click)="exportarParticipantes('PDF')" [disabled]="exportando() !== null">
+            Exportar PDF
+          </button>
+          <button type="button" class="btn-xlsx" (click)="exportarParticipantes('XLSX')" [disabled]="exportando() !== null">
+            Exportar Excel (.xlsx)
+          </button>
+        </div>
+      </div>
+
+      <!-- Opciones secundarias colapsables para no recargar la pantalla -->
+      <div class="secondary-toggles">
+        <button type="button" class="link-toggle" (click)="mostrarColumnasAvanzadas.set(!mostrarColumnasAvanzadas())">
+          {{ mostrarColumnasAvanzadas() ? 'Ocultar selector manual de columnas' : 'Personalizar columnas manualmente' }}
+        </button>
+        <span>·</span>
+        <button type="button" class="link-toggle" (click)="mostrarEnvioCorreo.set(!mostrarEnvioCorreo())">
+          {{ mostrarEnvioCorreo() ? 'Ocultar envío por correo' : 'Enviar copia por correo' }}
+        </button>
+      </div>
+
+      @if (mostrarColumnasAvanzadas()) {
+        <div class="collapsible-panel">
+          <div class="cols-grid">
+            @for (col of columnasDisponibles; track col.id) {
+              <label class="col-check">
+                <input
+                  type="checkbox"
+                  [checked]="columnasParticipantes().includes(col.id)"
+                  (change)="alternarColumna(col.id, $any($event.target).checked)"
+                />
+                <span>{{ col.nombre }}</span>
+              </label>
+            }
+          </div>
+        </div>
+      }
+
+      @if (mostrarEnvioCorreo()) {
+        <div class="collapsible-panel email-row">
+          <input
+            type="email"
+            [ngModel]="correoDestino()"
+            (ngModelChange)="correoDestino.set($event)"
+            placeholder="destinatario@organizacion.com"
+          />
+          <select [ngModel]="formatoCorreo()" (ngModelChange)="formatoCorreo.set($event)">
+            <option value="PDF">PDF</option>
+            <option value="XLSX">Excel (.xlsx)</option>
+          </select>
+          <button
+            type="button"
+            class="btn-pdf"
+            (click)="enviarParticipantesPorCorreo()"
+            [disabled]="enviandoCorreo() || !correoDestino().trim()"
+          >
+            {{ enviandoCorreo() ? 'Enviando...' : 'Enviar correo' }}
+          </button>
+        </div>
+      }
+
+      @if (vistaPreviaParticipantes(); as prev) {
+        <div class="table-scroll">
+          <table class="clean-table">
+            <thead>
+              <tr>
+                @for (col of prev.columnas; track col) {
+                  <th>{{ col }}</th>
                 }
               </tr>
+            </thead>
+            <tbody>
+              @for (fila of prev.filas; track $index) {
+                <tr>
+                  @for (celda of fila; track $index) {
+                    <td>{{ celda }}</td>
+                  }
+                </tr>
+              } @empty {
+                <tr>
+                  <td [attr.colspan]="prev.columnas.length" class="empty-cell">No se encontraron participantes.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+  }
+
+  <!-- REPORTE: CONVOCATORIAS -->
+  @if (catalogoActivo() === 'convocatorias') {
+    <section class="dossier-card">
+      <div class="catalog-toolbar">
+        <div class="simple-filters">
+          <label>
+            Estado
+            <select [ngModel]="filtroEstadoConvocatoria()" (ngModelChange)="filtroEstadoConvocatoria.set($event)">
+              <option value="TODOS">Todas</option>
+              <option value="ABIERTA">Abiertas</option>
+              <option value="CERRADA">Cerradas</option>
+              <option value="CANCELADA">Canceladas</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="export-actions">
+          <button type="button" class="btn-pdf" (click)="exportarConvocatorias('PDF')" [disabled]="exportando() !== null">
+            Exportar PDF
+          </button>
+          <button type="button" class="btn-xlsx" (click)="exportarConvocatorias('XLSX')" [disabled]="exportando() !== null">
+            Exportar Excel (.xlsx)
+          </button>
+        </div>
+      </div>
+
+      <div class="table-scroll">
+        <table class="clean-table">
+          <thead>
+            <tr>
+              <th>Evento</th>
+              <th>Tipo de Personal</th>
+              <th>Estado</th>
+              <th>Cupos Requeridos</th>
+              <th>Fecha Límite</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of convocatoriasFiltradas(); track c.id) {
+              <tr>
+                <td><strong>{{ c.nombreEvento }}</strong></td>
+                <td>{{ c.tipoPersonal }}</td>
+                <td><span class="status-pill">{{ c.estado }}</span></td>
+                <td>{{ c.cantidadRequerida }}</td>
+                <td>{{ c.fechaLimite || '-' }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5" class="empty-cell">No hay convocatorias para este filtro.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+
+  <!-- REPORTE: ESPACIOS -->
+  @if (catalogoActivo() === 'espacios') {
+    <section class="dossier-card">
+      <div class="catalog-toolbar">
+        <div class="simple-filters">
+          <span class="info-summary">Capacidad instalada total: <strong>{{ totalCapacidadEspacios() }} personas</strong></span>
+        </div>
+
+        <div class="export-actions">
+          <button type="button" class="btn-pdf" (click)="exportarEspacios('PDF')" [disabled]="exportando() !== null">
+            Exportar PDF
+          </button>
+          <button type="button" class="btn-xlsx" (click)="exportarEspacios('XLSX')" [disabled]="exportando() !== null">
+            Exportar Excel (.xlsx)
+          </button>
+        </div>
+      </div>
+
+      <div class="table-scroll">
+        <table class="clean-table">
+          <thead>
+            <tr>
+              <th>Espacio / Sala</th>
+              <th>Ubicación</th>
+              <th>Capacidad Máxima</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (esp of espacios(); track esp.id) {
+              <tr>
+                <td><strong>{{ esp.nombre }}</strong></td>
+                <td>{{ esp.ubicacion }}</td>
+                <td>{{ esp.capacidad }} personas</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="3" class="empty-cell">No hay espacios registrados.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+
+  <!-- REPORTE: RECURSOS -->
+  @if (catalogoActivo() === 'recursos') {
+    <section class="dossier-card">
+      <div class="catalog-toolbar">
+        <div class="simple-filters">
+          <label>
+            Estado
+            <select [ngModel]="filtroEstadoRecurso()" (ngModelChange)="filtroEstadoRecurso.set($event)">
+              <option value="TODOS">Todos</option>
+              <option value="DISPONIBLE">Disponibles</option>
+              <option value="EN_USO">En uso</option>
+              <option value="MANTENIMIENTO">Mantenimiento</option>
+              <option value="DE_BAJA">De baja</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="export-actions">
+          <button type="button" class="btn-pdf" (click)="exportarRecursos('PDF')" [disabled]="exportando() !== null">
+            Exportar PDF
+          </button>
+          <button type="button" class="btn-xlsx" (click)="exportarRecursos('XLSX')" [disabled]="exportando() !== null">
+            Exportar Excel (.xlsx)
+          </button>
+        </div>
+      </div>
+
+      <div class="table-scroll">
+        <table class="clean-table">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Recurso</th>
+              <th>Tipo</th>
+              <th>Total</th>
+              <th>Disponible</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of recursosFiltrados(); track r.id) {
+              <tr>
+                <td><code>{{ r.codigo }}</code></td>
+                <td><strong>{{ r.nombre }}</strong></td>
+                <td>{{ r.tipo }}</td>
+                <td>{{ r.cantidadTotal }}</td>
+                <td><strong>{{ r.cantidadDisponible }}</strong></td>
+                <td><span class="status-pill">{{ r.estado }}</span></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6" class="empty-cell">No hay recursos registrados.</td></tr>
             }
           </tbody>
         </table>
@@ -258,476 +1704,3 @@
     </section>
   }
 }
-
-<!-- PESTAÑA 2: RESUMEN DE EVENTOS -->
-@if (pestanaActiva() === 'eventos') {
-  <section class="card">
-    <div class="table-header-row">
-      <div>
-        <h2>Eventos y Ocupación</h2>
-        <p class="text-muted">Consolidado general de los eventos registrados en la organización.</p>
-      </div>
-      <div class="table-actions">
-        <select [ngModel]="filtroEstadoEvento()" (ngModelChange)="filtroEstadoEvento.set($event)">
-          <option value="TODOS">Todos los estados</option>
-          <option value="PLANIFICADO">Planificado</option>
-          <option value="PUBLICADO">Publicado</option>
-          <option value="FINALIZADO">Finalizado</option>
-          <option value="CANCELADO">Cancelado</option>
-        </select>
-        <button type="button" class="secondary-btn" (click)="exportarCsvEventos()">
-          📥 Exportar Eventos CSV
-        </button>
-      </div>
-    </div>
-
-    @if (eventosFiltrados().length === 0) {
-      <div class="empty-state">
-        <p>No hay eventos que coincidan con el filtro.</p>
-      </div>
-    } @else {
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Evento</th>
-              <th>Estado</th>
-              <th>Lugar</th>
-              <th>Fecha Inicio</th>
-              <th>Fecha Fin</th>
-              <th>Aforo Máximo</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (evento of eventosFiltrados(); track evento.id) {
-              <tr>
-                <td>#{{ evento.id }}</td>
-                <td><strong>{{ evento.nombre }}</strong></td>
-                <td>
-                  <span class="status-chip">{{ evento.estado }}</span>
-                </td>
-                <td>{{ evento.lugarPrincipal || 'No especificado' }}</td>
-                <td>{{ evento.fechaInicio | date:'short' }}</td>
-                <td>{{ evento.fechaFin | date:'short' }}</td>
-                <td>{{ evento.aforoMaximo ?? 'Ilimitado' }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    }
-  </section>
-}
-
-<!-- PESTAÑA 3: CONVOCATORIAS Y STAFF -->
-@if (pestanaActiva() === 'convocatorias') {
-  <section class="card">
-    <div class="table-header-row">
-      <div>
-        <h2>Convocatorias y Personal Staff</h2>
-        <p class="text-muted">Seguimiento de convocatorias para voluntariado y personal de apoyo.</p>
-      </div>
-      <div class="table-actions">
-        <select [ngModel]="filtroEstadoConvocatoria()" (ngModelChange)="filtroEstadoConvocatoria.set($event)">
-          <option value="TODOS">Todos los estados</option>
-          <option value="ABIERTA">Abierta</option>
-          <option value="CERRADA">Cerrada</option>
-          <option value="CANCELADA">Cancelada</option>
-        </select>
-        <button type="button" class="secondary-btn" (click)="exportarCsvConvocatorias()">
-          📥 Exportar Convocatorias CSV
-        </button>
-      </div>
-    </div>
-
-    @if (convocatoriasFiltradas().length === 0) {
-      <div class="empty-state">
-        <p>No hay convocatorias que coincidan con el filtro.</p>
-      </div>
-    } @else {
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Evento</th>
-              <th>Tipo Personal</th>
-              <th>Estado</th>
-              <th>Requeridos</th>
-              <th>Fecha Límite</th>
-              <th>Descripción</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (convocatoria of convocatoriasFiltradas(); track convocatoria.id) {
-              <tr>
-                <td>#{{ convocatoria.id }}</td>
-                <td><strong>{{ convocatoria.nombreEvento }}</strong></td>
-                <td>{{ convocatoria.tipoPersonal }}</td>
-                <td>
-                  <span class="status-chip" [class.inactive]="convocatoria.estado !== 'ABIERTA'">
-                    {{ convocatoria.estado }}
-                  </span>
-                </td>
-                <td><strong>{{ convocatoria.cantidadRequerida }}</strong></td>
-                <td>{{ convocatoria.fechaLimite | date:'short' }}</td>
-                <td>{{ convocatoria.descripcion }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    }
-  </section>
-}
-
-<!-- PESTAÑA 4: REPORTE PERSONALIZADO CON VOZ & GEMINI IA -->
-@if (pestanaActiva() === 'ia') {
-  <section class="ia-panel-wrapper">
-    <!-- Barra Inteligente de Voz y Texto -->
-    <div class="ia-input-card">
-      <div class="input-row">
-        <!-- Botón de Micrófono -->
-        <button
-          type="button"
-          class="mic-btn"
-          [class.active]="vozService.escuchando()"
-          (click)="toggleMicrofono()"
-          [title]="vozService.escuchando() ? 'Detener y procesar audio' : 'Presiona para dictar tu consulta'"
-        >
-          <span class="mic-icon" [class.pulse]="vozService.escuchando()">🎤</span>
-          <span class="mic-label">
-            {{ vozService.escuchando() ? 'Escuchando...' : 'Dictar' }}
-          </span>
-        </button>
-
-        <!-- Input de Texto Libre -->
-        <div class="input-wrapper">
-          <input
-            type="text"
-            [(ngModel)]="consultaTextoIa"
-            (keyup.enter)="procesarConsultaIa()"
-            placeholder="Escribe o dicta: 'Muéstrame los eventos del último mes con alta ocupación'..."
-          />
-        </div>
-
-        <!-- Botón Consultar -->
-        <button class="btn-primary" (click)="procesarConsultaIa()" [disabled]="procesandoIa() || !consultaTextoIa.trim()">
-          @if (procesandoIa()) {
-            <span class="spinner"></span> Interpretando...
-          } @else {
-            <span>Consultar IA</span>
-          }
-        </button>
-      </div>
-
-      <!-- Alerta de Micrófono / Reconocimiento de Voz -->
-      @if (vozService.error()) {
-        <div class="ia-error-box" role="alert">
-          <span class="error-badge">⚠️ Micrófono:</span>
-          <span class="error-text">{{ vozService.error() }}</span>
-        </div>
-      }
-
-      <!-- Sugerencias Rápidas -->
-      <div class="sugerencias-row">
-        <span class="sugerencias-tag">Sugerencias:</span>
-        @for (sug of consultasSugeridas; track sug) {
-          <button type="button" class="chip-sug" (click)="seleccionarSugerenciaIa(sug)">
-            {{ sug }}
-          </button>
-        }
-      </div>
-
-      <!-- Feedback de la IA -->
-      @if (interpretacionIa()) {
-        <div class="ia-feedback-box">
-          <div class="feedback-badge">✨ Gemini IA</div>
-          <p class="feedback-text">{{ interpretacionIa()?.mensaje_asistente }}</p>
-        </div>
-      }
-    </div>
-
-    <!-- Filtros Estructurados Rápidos -->
-    <div class="filtros-card">
-      <div class="filtros-grid">
-        <div class="filtro-item">
-          <label>Período de tiempo</label>
-          <select [ngModel]="rangoDiasIa()" (ngModelChange)="rangoDiasIa.set($event); cargarMetricasIa()">
-            <option [ngValue]="null">Histórico completo</option>
-            <option [ngValue]="7">Últimos 7 días</option>
-            <option [ngValue]="30">Últimos 30 días</option>
-            <option [ngValue]="90">Últimos 90 días</option>
-            <option [ngValue]="365">Último año</option>
-          </select>
-        </div>
-
-        <div class="filtro-item">
-          <label>Estado del Evento</label>
-          <select [ngModel]="estadoIa()" (ngModelChange)="estadoIa.set($event); cargarMetricasIa()">
-            <option value="">Todos los estados</option>
-            <option value="PUBLICADO">Publicado</option>
-            <option value="EN_CURSO">En Curso</option>
-            <option value="FINALIZADO">Finalizado</option>
-            <option value="BORRADOR">Borrador</option>
-            <option value="CANCELADO">Cancelado</option>
-          </select>
-        </div>
-
-        <div class="filtro-item">
-          <label>Categoría</label>
-          <input
-            type="text"
-            [ngModel]="categoriaIa()"
-            (ngModelChange)="categoriaIa.set($event)"
-            (keyup.enter)="cargarMetricasIa()"
-            placeholder="Filtrar categoría..."
-          />
-        </div>
-
-        <div class="filtro-acciones">
-          <button class="btn-outline" (click)="cargarMetricasIa()">Aplicar Filtros</button>
-          <button class="btn-text" (click)="limpiarFiltrosIa()">Restablecer</button>
-          <button class="btn-secondary" (click)="exportarReporteIaCsv()" [disabled]="!metricasIa()?.detalleEventos?.length">
-            📥 Exportar CSV
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Insights Ejecutivos de Gemini -->
-    @if (insightsIa()) {
-      <div class="insights-banner">
-        <div class="insights-header">
-          <div class="insights-title">
-            <span class="icon-sparkle">💡</span>
-            <h3>Análisis Estratégico & Recomendaciones (Gemini)</h3>
-          </div>
-        </div>
-        <p class="resumen-text">{{ insightsIa()?.resumen_ejecutivo }}</p>
-
-        <div class="insights-columns">
-          <div class="col-insights">
-            <h4>Puntos Clave</h4>
-            <ul>
-              @for (p of insightsIa()?.puntos_clave; track p) {
-                <li>{{ p }}</li>
-              }
-            </ul>
-          </div>
-          <div class="col-insights">
-            <h4>Recomendaciones</h4>
-            <ul>
-              @for (rec of insightsIa()?.recomendaciones; track rec) {
-                <li>{{ rec }}</li>
-              }
-            </ul>
-          </div>
-        </div>
-      </div>
-    }
-
-    <!-- Visualización y Métricas -->
-    @if (metricasIa(); as m) {
-      <div class="kpi-grid-ia">
-        <div class="kpi-card-ia">
-          <span class="kpi-label-ia">Total Eventos</span>
-          <span class="kpi-val-ia">{{ m.totalEventos }}</span>
-          <span class="kpi-sub-ia">{{ m.eventosPublicados }} publicados · {{ m.eventosFinalizados }} finalizados</span>
-        </div>
-
-        <div class="kpi-card-ia">
-          <span class="kpi-label-ia">Inscripciones</span>
-          <span class="kpi-val-ia highlight">{{ m.totalInscripciones }}</span>
-          <span class="kpi-sub-ia">{{ m.inscripcionesConfirmadas }} confirmadas</span>
-        </div>
-
-        <div class="kpi-card-ia">
-          <span class="kpi-label-ia">Capacidad de Espacios</span>
-          <span class="kpi-val-ia">{{ m.capacidadTotalEspacios }}</span>
-          <span class="kpi-sub-ia">Aforo acumulado</span>
-        </div>
-
-        <div class="kpi-card-ia">
-          <span class="kpi-label-ia">Tasa Ocupación</span>
-          <span class="kpi-val-ia accent">{{ m.tasaOcupacionPromedio }}%</span>
-          <span class="kpi-sub-ia">Eficiencia promedio</span>
-        </div>
-      </div>
-
-      <!-- SECCIÓN DE GRÁFICOS VISUALES PROFESIONALES -->
-      <div class="visual-grid-ia">
-        <!-- Gráfico 1: Columnas de Asistencia por Evento -->
-        <div class="card-ia chart-box">
-          <div class="card-header-ia">
-            <div>
-              <h3>Inscritos por Evento</h3>
-              <span class="chart-subtitle">Volumen de participantes confirmados</span>
-            </div>
-            <span class="chart-tag">Barras</span>
-          </div>
-
-          @if (datosGraficoBarras().length === 0) {
-            <div class="empty-chart">
-              <span>📊</span>
-              <p>No hay eventos disponibles para graficar.</p>
-            </div>
-          } @else {
-            <div class="svg-bar-chart-container">
-              <div class="svg-bars-wrapper">
-                @for (item of datosGraficoBarras(); track item.idEvento) {
-                  <div class="bar-col-item" [title]="item.nombre + ': ' + item.inscritos + ' inscritos (' + item.porcentajeLlenado + '% ocupación)'">
-                    <span class="bar-col-val">{{ item.inscritos }}</span>
-                    <div class="bar-col-track">
-                      <div
-                        class="bar-col-fill"
-                        [style.height.%]="item.alturaPct"
-                        [class.col-high]="item.porcentajeLlenado >= 80"
-                        [class.col-medium]="item.porcentajeLlenado >= 40 && item.porcentajeLlenado < 80"
-                      ></div>
-                    </div>
-                    <span class="bar-col-label" [title]="item.nombre">{{ item.nombre }}</span>
-                  </div>
-                }
-              </div>
-            </div>
-          }
-        </div>
-
-        <!-- Gráfico 2: Donut Chart de Distribución por Categoría -->
-        <div class="card-ia chart-box">
-          <div class="card-header-ia">
-            <div>
-              <h3>Distribución por Categoría</h3>
-              <span class="chart-subtitle">Proporción de oferta temática</span>
-            </div>
-            <span class="chart-tag">Dona</span>
-          </div>
-
-          @if (datosDonutCategorias().length === 0) {
-            <div class="empty-chart">
-              <span>🍩</span>
-              <p>Sin categorías registradas.</p>
-            </div>
-          } @else {
-            <div class="donut-chart-container">
-              <svg viewBox="0 0 200 200" class="donut-svg" role="img" aria-label="Gráfico de distribución por categoría">
-                <circle cx="100" cy="100" r="70" class="donut-bg-ring"></circle>
-                @for (d of datosDonutCategorias(); track d.categoria) {
-                  <circle
-                    cx="100"
-                    cy="100"
-                    r="70"
-                    class="donut-segment"
-                    [attr.stroke]="d.color"
-                    [attr.stroke-dasharray]="d.dasharray"
-                    [attr.stroke-dashoffset]="d.dashoffset"
-                  ></circle>
-                }
-                <!-- Centro de la Dona -->
-                <text x="100" y="94" text-anchor="middle" class="donut-center-num">{{ m.totalEventos }}</text>
-                <text x="100" y="112" text-anchor="middle" class="donut-center-lbl">Eventos</text>
-              </svg>
-
-              <!-- Leyenda Inteligente -->
-              <div class="donut-legend">
-                @for (d of datosDonutCategorias(); track d.categoria) {
-                  <div class="legend-item" [title]="d.cantidad + ' eventos (' + d.porcentaje + '%)'">
-                    <span class="legend-dot" [style.background-color]="d.color"></span>
-                    <span class="legend-text">{{ d.categoria }}</span>
-                    <strong class="legend-pct">{{ d.porcentaje }}%</strong>
-                  </div>
-                }
-              </div>
-            </div>
-          }
-        </div>
-      </div>
-
-      <!-- Gráfico 3: Curva de Tendencia y Ocupación Acumulada -->
-      <div class="card-ia chart-box tendencia-card">
-        <div class="card-header-ia">
-          <div>
-            <h3>Evolución y Ritmo de Inscripciones</h3>
-            <span class="chart-subtitle">Historial mensual consolidado</span>
-          </div>
-          <span class="chart-tag">Tendencia Temporal</span>
-        </div>
-
-        @if (!datosGraficoTendencia().puntos) {
-          <div class="empty-chart">
-            <span>📈</span>
-            <p>Se consolidarán los datos temporales conforme se registren eventos en distintos meses.</p>
-          </div>
-        } @else {
-          <div class="trend-chart-wrapper">
-            <svg viewBox="0 0 500 160" class="trend-svg" preserveAspectRatio="none">
-              <!-- Rejilla de Fondo -->
-              <line x1="30" y1="30" x2="470" y2="30" class="grid-line" />
-              <line x1="30" y1="80" x2="470" y2="80" class="grid-line" />
-              <line x1="30" y1="130" x2="470" y2="130" class="grid-line" />
-
-              <!-- Polilínea del Gráfico -->
-              <polyline
-                fill="none"
-                stroke="#6366f1"
-                stroke-width="3.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                [attr.points]="datosGraficoTendencia().puntos"
-              />
-
-              <!-- Puntos de datos y etiquetas -->
-              @for (pt of datosGraficoTendencia().marcas; track pt.mes) {
-                <circle [attr.cx]="pt.x" [attr.cy]="pt.y" r="5" class="trend-point"></circle>
-                <text [attr.x]="pt.x" [attr.y]="pt.y - 10" text-anchor="middle" class="trend-val-label">{{ pt.valor }}</text>
-                <text [attr.x]="pt.x" y="152" text-anchor="middle" class="trend-axis-label">{{ pt.mes }}</text>
-              }
-            </svg>
-          </div>
-        }
-      </div>
-
-      <div class="card-ia table-card-ia">
-        <div class="card-header-ia">
-          <h3>Detalle de Eventos y Métricas</h3>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Evento</th>
-                <th>Categoría</th>
-                <th>Fecha Inicio</th>
-                <th>Estado</th>
-                <th>Aforo</th>
-                <th>Inscritos</th>
-                <th>Ocupación</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (item of m.detalleEventos; track item.idEvento) {
-                <tr>
-                  <td><strong>{{ item.nombre }}</strong></td>
-                  <td>{{ item.categoria }}</td>
-                  <td>{{ item.fechaInicio }}</td>
-                  <td>
-                    <span class="status-chip" [class.inactive]="item.estado !== 'PUBLICADO'">
-                      {{ item.estado }}
-                    </span>
-                  </td>
-                  <td>{{ item.aforoMaximo || 'N/A' }}</td>
-                  <td>{{ item.inscritos }}</td>
-                  <td><strong>{{ item.porcentajeLlenado }}%</strong></td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      </div>
-    }
-  </section>
-}
-
-

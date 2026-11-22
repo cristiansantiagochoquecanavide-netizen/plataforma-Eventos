@@ -32,6 +32,45 @@ export interface ReporteMetricasRespuesta {
   inscripcionesPorMes: { [key: string]: number };
 }
 
+export interface KpiReporte {
+  etiqueta: string;
+  valor: string;
+  detalle?: string;
+}
+
+export interface GraficoItem {
+  etiqueta: string;
+  valor: number;
+  extra?: string;
+}
+
+export interface ReporteEjecutivoIa {
+  titulo: string;
+  subtitulo: string;
+  tipo_reporte: string;
+  periodo: string;
+  resumen_ejecutivo: string;
+  kpis: KpiReporte[];
+  columnas: string[];
+  filas: string[][];
+  conclusiones: string[];
+  recomendaciones: string[];
+  grafico_titulo?: string;
+  grafico_datos?: GraficoItem[];
+}
+
+export interface ExportarReporteDinamicoSolicitud {
+  titulo: string;
+  subtitulo?: string;
+  periodo?: string;
+  resumenEjecutivo?: string;
+  kpis?: KpiReporte[];
+  columnas: string[];
+  filas: string[][];
+  conclusiones?: string[];
+  recomendaciones?: string[];
+}
+
 export interface InterpretacionIaRespuesta {
   intencion: string;
   parametros: {
@@ -50,12 +89,63 @@ export interface InsightsIaRespuesta {
   recomendaciones: string[];
 }
 
+export interface DesgloseEntradaFinanciero {
+  categoria: string;
+  precioUnitario: number;
+  cantidadVendida: number;
+  cupoMaximo?: number;
+  subtotal: number;
+}
+
+export interface RecursoAsignadoFinanciero {
+  codigo: string;
+  nombre: string;
+  tipo: string;
+  cantidadAsignada: number;
+  costoUnitario: number;
+  subtotal: number;
+}
+
+export interface EventoFinancieroItem {
+  idEvento: number;
+  nombre: string;
+  estado: string;
+  nombreEspacio?: string;
+  aforo: number;
+  inscripcionesConfirmadas: number;
+  asistentesReales?: number;
+  ingresos: number;
+  costoEspacio: number;
+  costoRecursos: number;
+  costosTotales: number;
+  balanceNeto: number;
+  roi: number;
+  situacion: 'SUPERAVIT' | 'DEFICIT' | 'EQUILIBRIO';
+  desgloseEntradas?: DesgloseEntradaFinanciero[];
+  desgloseRecursos?: RecursoAsignadoFinanciero[];
+}
+
+export interface ResumenFinancieroRespuesta {
+  ingresosTotales: number;
+  costosTotales: number;
+  balanceNetoGlobal: number;
+  roiGlobal: number;
+  eventosConGanancia: number;
+  eventosConPerdida: number;
+  eventosEnEquilibrio: number;
+  detalleEventos: EventoFinancieroItem[];
+}
+
 @Injectable({
   providedIn: 'root',
 })
 export class ReportesIaService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiUrl}/reportes/personalizados`;
+
+  obtenerBalanceFinanciero(): Observable<ResumenFinancieroRespuesta> {
+    return this.http.get<ResumenFinancieroRespuesta>(`${this.apiUrl}/balance-financiero`);
+  }
 
   obtenerMetricas(
     rangoDias?: number | null,
@@ -73,6 +163,24 @@ export class ReportesIaService {
       params = params.set('categoria', categoria);
     }
     return this.http.get<ReporteMetricasRespuesta>(`${this.apiUrl}/metricas`, { params });
+  }
+
+  generarReporteIa(consulta: string): Observable<ReporteEjecutivoIa> {
+    return this.http.post<ReporteEjecutivoIa>(`${this.apiUrl}/generar-ia`, {
+      consulta,
+      contextoFiltros: {},
+    });
+  }
+
+  exportarDinamico(
+    solicitud: ExportarReporteDinamicoSolicitud,
+    formato: 'PDF' | 'XLSX'
+  ): Observable<Blob> {
+    const params = new HttpParams().set('formato', formato);
+    return this.http.post(`${this.apiUrl}/exportar-dinamico`, solicitud, {
+      params,
+      responseType: 'blob',
+    });
   }
 
   interpretarConsulta(consulta: string, contextoFiltros?: any): Observable<InterpretacionIaRespuesta> {
