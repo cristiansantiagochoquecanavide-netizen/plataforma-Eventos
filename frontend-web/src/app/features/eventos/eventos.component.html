@@ -224,6 +224,56 @@
             </select>
           </label>
 
+          <!-- SECCIÓN: TIPOS DE ENTRADA Y PRECIOS -->
+          <div class="full" style="margin-top: 10px; background: #f8fafc; border: 1px solid var(--line); border-radius: 8px; padding: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <div>
+                <span style="font-weight: 700; font-size: 0.92rem; color: var(--ink);">Tipos de Entrada y Precios (Multicategoría)</span>
+                <small style="display: block; color: var(--muted); font-size: 0.78rem;">Definí entradas gratuitas (0 Bs) o con precio (General, VIP, Super VIP) para el balance de ingresos.</small>
+              </div>
+              <button type="button" style="font-size: 0.8rem; padding: 6px 12px; background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; border-radius: 6px; font-weight: 700; cursor: pointer;" (click)="agregarTipoEntrada()">
+                + Agregar Tipo de Entrada
+              </button>
+            </div>
+
+            <div style="display: grid; gap: 8px;">
+              @for (tipo of tiposEntradaForm(); track $index) {
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 8px; align-items: center; background: #ffffff; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px;">
+                  <label style="margin: 0; font-size: 0.76rem; color: var(--muted);">
+                    Categoría *
+                    @if (tipo.entradasVendidas && tipo.entradasVendidas > 0) {
+                      <span style="color: #059669; font-weight: 700; margin-left: 4px;">({{ tipo.entradasVendidas }} vend.)</span>
+                    }
+                    <input type="text" maxlength="100" [(ngModel)]="tipo.nombre" [ngModelOptions]="{standalone: true}" placeholder="Ej: General, VIP, etc." style="margin-top: 2px;" />
+                  </label>
+                  <label style="margin: 0; font-size: 0.76rem; color: var(--muted);">
+                    Precio (Bs) *
+                    <input type="number" min="0" step="0.5" [(ngModel)]="tipo.precio" [ngModelOptions]="{standalone: true}" placeholder="0" style="margin-top: 2px;" />
+                  </label>
+                  <label style="margin: 0; font-size: 0.76rem; color: var(--muted);">
+                    Cupo Máx *
+                    <input type="number" [min]="tipo.entradasVendidas && tipo.entradasVendidas > 1 ? tipo.entradasVendidas : 1" step="1" [(ngModel)]="tipo.cupoMaximo" [ngModelOptions]="{standalone: true}" placeholder="100" style="margin-top: 2px;" />
+                  </label>
+                  <button
+                    type="button"
+                    style="color: #e11d48; background: transparent; border: none; cursor: pointer; font-size: 1.15rem; padding: 4px 8px; margin-top: 14px;"
+                    [title]="(tipo.entradasVendidas ?? 0) > 0 ? 'No se puede eliminar porque ya tiene ventas' : 'Eliminar categoría'"
+                    (click)="eliminarTipoEntrada($index)"
+                    [disabled]="tiposEntradaForm().length <= 1 || (tipo.entradasVendidas ?? 0) > 0"
+                  >
+                    ✕
+                  </button>
+                </div>
+              }
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 0.78rem;">
+              <span style="color: var(--muted);">Cupos asignados en entradas: <strong>{{ totalCuposEntradas() }}</strong></span>
+              @if (formulario.controls.aforoMaximo.value && totalCuposEntradas() > formulario.controls.aforoMaximo.value!) {
+                <span style="color: #e11d48; font-weight: 700;">Supera el aforo del evento ({{ formulario.controls.aforoMaximo.value }})</span>
+              }
+            </div>
+          </div>
+
           @if (eventoSeleccionado() && puedeAsignarResponsables()) {
             <div class="full" style="margin-top: 8px;" [appUiPrivilegeVisible]="'event.responsibles.assign'">
               <div class="card-title inline-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">

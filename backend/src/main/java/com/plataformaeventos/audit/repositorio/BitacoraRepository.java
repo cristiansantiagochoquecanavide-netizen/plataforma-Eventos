@@ -18,8 +18,8 @@ public interface BitacoraRepository extends Repository<Bitacora, Long> {
         and (:accionIdx is null or (b.indiceAccion = :accionIdx or (b.indiceAccion is null and lower(trim(b.accion)) = :accionNormalizada)))
         and (:exitoIdx is null or (b.indiceExito = :exitoIdx or (b.indiceExito is null and b.exito = :exito)))
         and (:actorIdx is null or (b.indiceActor = :actorIdx or (b.indiceActor is null and b.actor.id = :actor)))
-        and (:desde is null or b.fecha >= :desde)
-        and (:hasta is null or b.fecha < :hasta)
+        and (cast(:desde as OffsetDateTime) is null or b.fecha >= :desde)
+        and (cast(:hasta as OffsetDateTime) is null or b.fecha < :hasta)
         """)
     Page<Bitacora> buscar(@Param("organizacion") Long organizacion,
                           @Param("moduloIdx") String moduloIdx, @Param("moduloNormalizado") String moduloNormalizado,

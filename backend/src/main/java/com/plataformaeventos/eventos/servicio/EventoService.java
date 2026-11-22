@@ -18,13 +18,20 @@ import com.plataformaeventos.roles.modelo.Rol;
 import com.plataformaeventos.usuarios.modelo.EstadoUsuario;
 import com.plataformaeventos.usuarios.modelo.Usuario;
 import com.plataformaeventos.usuarios.repositorio.UsuarioRepository;
+import com.plataformaeventos.eventos.dto.TipoEntradaDTO;
+import com.plataformaeventos.eventos.modelo.TipoEntrada;
+import com.plataformaeventos.eventos.repositorio.TipoEntradaRepository;
+import com.plataformaeventos.inscripciones.modelo.EstadoInscripcion;
+import com.plataformaeventos.inscripciones.repositorio.InscripcionRepository;
 import com.plataformaeventos.organizaciones.modelo.Organizacion;
 import com.plataformaeventos.notificaciones.servicio.NotificacionEventoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -41,6 +48,8 @@ public class EventoService {
     private final UsuarioRepository usuarioRepository;
     private final EspacioRepository espacioRepository;
     private final NotificacionEventoService notificaciones;
+    private final TipoEntradaRepository tipoEntradaRepository;
+    private final InscripcionRepository inscripcionRepository;
 
     public EventoService(
             EventoRepository eventoRepository,
@@ -48,7 +57,17 @@ public class EventoService {
             UsuarioRepository usuarioRepository,
             EspacioRepository espacioRepository
     ) {
-        this(eventoRepository, categoriaRepository, usuarioRepository, espacioRepository, null);
+        this(eventoRepository, categoriaRepository, usuarioRepository, espacioRepository, null, null, null);
+    }
+
+    public EventoService(
+            EventoRepository eventoRepository,
+            CategoriaRepository categoriaRepository,
+            UsuarioRepository usuarioRepository,
+            EspacioRepository espacioRepository,
+            NotificacionEventoService notificaciones
+    ) {
+        this(eventoRepository, categoriaRepository, usuarioRepository, espacioRepository, notificaciones, null, null);
     }
 
     @Autowired
@@ -57,13 +76,17 @@ public class EventoService {
             CategoriaRepository categoriaRepository,
             UsuarioRepository usuarioRepository,
             EspacioRepository espacioRepository,
-            NotificacionEventoService notificaciones
+            NotificacionEventoService notificaciones,
+            TipoEntradaRepository tipoEntradaRepository,
+            InscripcionRepository inscripcionRepository
     ) {
         this.eventoRepository = eventoRepository;
         this.categoriaRepository = categoriaRepository;
         this.usuarioRepository = usuarioRepository;
         this.espacioRepository = espacioRepository;
         this.notificaciones = notificaciones;
+        this.tipoEntradaRepository = tipoEntradaRepository;
+        this.inscripcionRepository = inscripcionRepository;
     }
 
     @Transactional(readOnly = true)
@@ -127,7 +150,9 @@ public class EventoService {
         if (solicitud.responsables() != null) {
              evento.asignarResponsables(obtenerResponsablesValidos(solicitud.responsables(), organizacion));
         }
-        return convertirEvento(eventoRepository.save(evento), organizacion);
+        Evento eventoGuardado = eventoRepository.save(evento);
+        guardarTiposEntrada(eventoGuardado, solicitud.tiposEntrada(), organizacion);
+        return convertirEvento(eventoGuardado, organizacion);
     }
 
     @Transactional
@@ -164,6 +189,9 @@ public class EventoService {
             if (reprogramado || cambioEspacio || cancelado) {
                 notificaciones.notificarCambioEvento(evento, organizacion, reprogramado, cambioEspacio, cancelado);
             }
+        }
+        if (solicitud.tiposEntrada() != null) {
+            guardarTiposEntrada(evento, solicitud.tiposEntrada(), organizacion);
         }
         return convertirEvento(evento, organizacion);
     }
@@ -293,6 +321,27 @@ public class EventoService {
     private EventoRespuesta convertirEvento(Evento evento) { return convertirEvento(evento, null); }
     private EventoRespuesta convertirEvento(Evento evento, Organizacion organizacion) {
         CategoriaRespuesta categoria = convertirCategoria(evento.getCategoria());
+        List<TipoEntradaDTO> tiposEntrada = List.of();
+        if (tipoEntradaRepository != null) {
+            tiposEntrada = tipoEntradaRepository.findByEventoIdAndActivoTrueOrderByPrecioAsc(evento.getId())
+                    .stream()
+                    .map(te -> {
+                        long vendidas = inscripcionRepository != null
+                                ? inscripcionRepository.countByTipoEntradaIdAndEstado(te.getId(), EstadoInscripcion.CONFIRMADA)
+                                : 0;
+                        int disp = Math.max(0, (te.getCupoMaximo() != null ? te.getCupoMaximo() : 0) - (int) vendidas);
+                        return new TipoEntradaDTO(
+                                te.getId(),
+                                te.getNombre(),
+                                te.getPrecio(),
+                                te.getCupoMaximo(),
+                                te.getDescripcion(),
+                                (int) vendidas,
+                                disp
+                        );
+                    })
+                    .toList();
+        }
         return new EventoRespuesta(
                 evento.getId(),
                 evento.getNombre(),
@@ -308,8 +357,135 @@ public class EventoService {
                 evento.getResponsables().stream()
                         .sorted(Comparator.comparing(Usuario::getApellidos).thenComparing(Usuario::getNombres))
                         .map(usuario -> convertirResponsable(usuario, organizacion))
-                        .toList()
+                        .toList(),
+                tiposEntrada
         );
+    }
+
+    private void guardarTiposEntrada(Evento evento, List<TipoEntradaDTO> dtos, Organizacion organizacion) {
+        if (tipoEntradaRepository == null) return;
+        if (dtos == null || dtos.isEmpty()) {
+            List<TipoEntrada> existentes = tipoEntradaRepository.findByEventoIdAndActivoTrueOrderByPrecioAsc(evento.getId());
+            if (existentes.isEmpty()) {
+                tipoEntradaRepository.save(new TipoEntrada(
+                        organizacion,
+                        evento,
+                        "General",
+                        BigDecimal.ZERO,
+                        evento.getAforoMaximo() != null ? evento.getAforoMaximo() : 100,
+                        "Entrada General"
+                ));
+            }
+            return;
+        }
+
+        java.util.Set<String> nombresVistos = new java.util.HashSet<>();
+        java.util.Set<Long> idsConservados = new java.util.HashSet<>();
+        int sumaCupos = 0;
+
+        for (TipoEntradaDTO dto : dtos) {
+            if (dto.nombre() == null || dto.nombre().isBlank()) {
+                throw new IllegalArgumentException("El nombre de cada categoria de entrada es obligatorio");
+            }
+            String nombreLimpio = dto.nombre().trim();
+            if (nombreLimpio.length() > 100) {
+                throw new IllegalArgumentException("El nombre de la categoria '" + nombreLimpio + "' no debe superar 100 caracteres");
+            }
+            if (!nombresVistos.add(nombreLimpio.toLowerCase(java.util.Locale.ROOT))) {
+                throw new IllegalArgumentException("No puede haber categorias de entrada duplicadas: '" + nombreLimpio + "'");
+            }
+            BigDecimal precio = dto.precio() != null ? dto.precio() : BigDecimal.ZERO;
+            if (precio.compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("El precio de la categoria '" + nombreLimpio + "' no puede ser negativo");
+            }
+            if (dto.cupoMaximo() == null || dto.cupoMaximo() <= 0) {
+                throw new IllegalArgumentException("El cupo maximo de la categoria '" + nombreLimpio + "' debe ser mayor que cero");
+            }
+            sumaCupos += dto.cupoMaximo();
+        }
+
+        if (evento.getAforoMaximo() != null && sumaCupos > evento.getAforoMaximo()) {
+            throw new IllegalArgumentException(
+                    "La suma de cupos de las entradas (" + sumaCupos + ") no puede superar el aforo maximo del evento (" + evento.getAforoMaximo() + ")"
+            );
+        }
+
+        List<TipoEntrada> existentesActivos = tipoEntradaRepository.findByEventoIdAndActivoTrueOrderByPrecioAsc(evento.getId());
+
+        for (TipoEntradaDTO dto : dtos) {
+            String nombreLimpio = dto.nombre().trim();
+            BigDecimal precio = dto.precio() != null ? dto.precio() : BigDecimal.ZERO;
+            TipoEntrada te = null;
+            if (dto.id() != null) {
+                te = tipoEntradaRepository.findByIdAndEventoId(dto.id(), evento.getId()).orElse(null);
+            }
+            if (te == null) {
+                te = new TipoEntrada(
+                        organizacion,
+                        evento,
+                        nombreLimpio,
+                        precio,
+                        dto.cupoMaximo(),
+                        normalizarTexto(dto.descripcion())
+                );
+            } else {
+                long vendidas = inscripcionRepository != null
+                        ? inscripcionRepository.countByTipoEntradaIdAndEstado(te.getId(), EstadoInscripcion.CONFIRMADA)
+                        : 0;
+                if (dto.cupoMaximo() < vendidas) {
+                    throw new IllegalArgumentException(
+                            "El cupo maximo de '" + nombreLimpio + "' (" + dto.cupoMaximo() + ") no puede ser menor a las " + vendidas + " entradas ya vendidas"
+                    );
+                }
+                te.setNombre(nombreLimpio);
+                te.setPrecio(precio);
+                te.setCupoMaximo(dto.cupoMaximo());
+                te.setDescripcion(normalizarTexto(dto.descripcion()));
+                te.setActivo(true);
+            }
+            TipoEntrada guardado = tipoEntradaRepository.save(te);
+            if (guardado != null && guardado.getId() != null) {
+                idsConservados.add(guardado.getId());
+            }
+        }
+
+        for (TipoEntrada previo : existentesActivos) {
+            if (previo.getId() != null && !idsConservados.contains(previo.getId())) {
+                long vendidas = inscripcionRepository != null
+                        ? inscripcionRepository.countByTipoEntradaIdAndEstado(previo.getId(), EstadoInscripcion.CONFIRMADA)
+                        : 0;
+                if (vendidas > 0) {
+                    throw new IllegalArgumentException(
+                            "No se puede eliminar la categoria '" + previo.getNombre() + "' porque ya tiene " + vendidas + " inscripciones confirmadas"
+                    );
+                }
+                previo.setActivo(false);
+                tipoEntradaRepository.save(previo);
+            }
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public List<TipoEntradaDTO> listarTiposEntrada(Long idEvento) {
+        if (tipoEntradaRepository == null) return List.of();
+        return tipoEntradaRepository.findByEventoIdAndActivoTrueOrderByPrecioAsc(idEvento)
+                .stream()
+                .map(te -> {
+                    long vendidas = inscripcionRepository != null
+                            ? inscripcionRepository.countByTipoEntradaIdAndEstado(te.getId(), EstadoInscripcion.CONFIRMADA)
+                            : 0;
+                    int disp = Math.max(0, (te.getCupoMaximo() != null ? te.getCupoMaximo() : 0) - (int) vendidas);
+                    return new TipoEntradaDTO(
+                            te.getId(),
+                            te.getNombre(),
+                            te.getPrecio(),
+                            te.getCupoMaximo(),
+                            te.getDescripcion(),
+                            (int) vendidas,
+                            disp
+                    );
+                })
+                .toList();
     }
 
     private String nombreCategoria(Evento evento) {

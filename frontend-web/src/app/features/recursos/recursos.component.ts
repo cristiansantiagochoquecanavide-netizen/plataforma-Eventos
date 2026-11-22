@@ -95,6 +95,7 @@ export class RecursosComponent implements OnInit {
     estado: ['DISPONIBLE' as EstadoRecurso, Validators.required],
     ubicacion: ['', Validators.maxLength(150)],
     descripcion: ['', Validators.maxLength(255)],
+    costoUnitario: [0, [Validators.required, Validators.min(0)]],
   });
 
   readonly formularioAsignacion = new FormBuilder().nonNullable.group({
@@ -226,6 +227,7 @@ export class RecursosComponent implements OnInit {
       estado: 'DISPONIBLE',
       ubicacion: '',
       descripcion: '',
+      costoUnitario: 0,
     });
     this.modalAbierto.set(true);
   }
@@ -243,6 +245,7 @@ export class RecursosComponent implements OnInit {
       estado: recurso.estado,
       ubicacion: recurso.ubicacion || '',
       descripcion: recurso.descripcion || '',
+      costoUnitario: recurso.costoUnitario ?? 0,
     });
     this.modalAbierto.set(true);
   }
@@ -265,6 +268,7 @@ export class RecursosComponent implements OnInit {
       estado: 'DISPONIBLE',
       ubicacion: '',
       descripcion: '',
+      costoUnitario: 0,
     });
   }
 
@@ -298,6 +302,7 @@ export class RecursosComponent implements OnInit {
           estado: valor.estado,
           ubicacion: valor.ubicacion || null,
           descripcion: valor.descripcion || null,
+          costoUnitario: Number(valor.costoUnitario) || 0,
         })
         .subscribe({
           next: () => {
@@ -323,6 +328,7 @@ export class RecursosComponent implements OnInit {
           cantidadTotal: valor.cantidadTotal,
           ubicacion: valor.ubicacion || null,
           descripcion: valor.descripcion || null,
+          costoUnitario: Number(valor.costoUnitario) || 0,
         })
         .subscribe({
           next: () => {

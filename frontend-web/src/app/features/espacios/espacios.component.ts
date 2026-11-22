@@ -22,6 +22,7 @@ export class EspaciosComponent implements OnInit {
     nombre: ['', [Validators.required, Validators.maxLength(120)]],
     ubicacion: ['', [Validators.required, Validators.maxLength(255)]],
     capacidad: [1, [Validators.required, Validators.min(1)]],
+    costoAlquiler: [0, [Validators.required, Validators.min(0)]],
   });
 
   constructor(private readonly espaciosService: EspaciosService, private readonly toast: ToastService) {}
@@ -37,14 +38,19 @@ export class EspaciosComponent implements OnInit {
 
   nuevo() {
     this.seleccionado.set(null);
-    this.formulario.reset({ nombre: '', ubicacion: '', capacidad: 1 });
+    this.formulario.reset({ nombre: '', ubicacion: '', capacidad: 1, costoAlquiler: 0 });
     this.error.set('');
     this.modalAbierto.set(true);
   }
 
   editar(espacio: Espacio) {
     this.seleccionado.set(espacio);
-    this.formulario.reset({ nombre: espacio.nombre, ubicacion: espacio.ubicacion, capacidad: espacio.capacidad });
+    this.formulario.reset({
+      nombre: espacio.nombre,
+      ubicacion: espacio.ubicacion,
+      capacidad: espacio.capacidad,
+      costoAlquiler: espacio.costoAlquiler ?? 0,
+    });
     this.error.set('');
     this.modalAbierto.set(true);
   }

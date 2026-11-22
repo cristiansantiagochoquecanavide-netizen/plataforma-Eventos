@@ -17,6 +17,8 @@ import com.plataformaeventos.usuarios.modelo.Usuario;
 import com.plataformaeventos.usuarios.repositorio.UsuarioRepository;
 import com.plataformaeventos.organizaciones.modelo.Organizacion;
 import com.plataformaeventos.notificaciones.servicio.NotificacionEventoService;
+import com.plataformaeventos.eventos.modelo.TipoEntrada;
+import com.plataformaeventos.eventos.repositorio.TipoEntradaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +39,7 @@ public class InscripcionService {
     private final UsuarioRepository usuarioRepository;
     private final AsistenciaRepository asistenciaRepository;
     private final NotificacionEventoService notificaciones;
+    private final TipoEntradaRepository tipoEntradaRepository;
 
     public InscripcionService(
             InscripcionRepository inscripcionRepository,
@@ -44,7 +47,17 @@ public class InscripcionService {
             UsuarioRepository usuarioRepository,
             AsistenciaRepository asistenciaRepository
     ) {
-        this(inscripcionRepository, eventoRepository, usuarioRepository, asistenciaRepository, null);
+        this(inscripcionRepository, eventoRepository, usuarioRepository, asistenciaRepository, null, null);
+    }
+
+    public InscripcionService(
+            InscripcionRepository inscripcionRepository,
+            EventoRepository eventoRepository,
+            UsuarioRepository usuarioRepository,
+            AsistenciaRepository asistenciaRepository,
+            NotificacionEventoService notificaciones
+    ) {
+        this(inscripcionRepository, eventoRepository, usuarioRepository, asistenciaRepository, notificaciones, null);
     }
 
     @Autowired
@@ -53,23 +66,30 @@ public class InscripcionService {
             EventoRepository eventoRepository,
             UsuarioRepository usuarioRepository,
             AsistenciaRepository asistenciaRepository,
-            NotificacionEventoService notificaciones
+            NotificacionEventoService notificaciones,
+            TipoEntradaRepository tipoEntradaRepository
     ) {
         this.inscripcionRepository = inscripcionRepository;
         this.eventoRepository = eventoRepository;
         this.usuarioRepository = usuarioRepository;
         this.asistenciaRepository = asistenciaRepository;
         this.notificaciones = notificaciones;
+        this.tipoEntradaRepository = tipoEntradaRepository;
     }
 
     @Transactional
     public InscripcionRespuesta inscribir(Long idEvento, String correoUsuario) {
-        return inscribir(idEvento, correoUsuario, null);
+        return inscribir(idEvento, correoUsuario, null, null);
+    }
+
+    @Transactional
+    public InscripcionRespuesta inscribir(Long idEvento, String correoUsuario, Organizacion organizacion) {
+        return inscribir(idEvento, correoUsuario, null, organizacion);
     }
 
     @Transactional
     @com.plataformaeventos.audit.servicio.OperacionAuditable(modulo = "INSCRIPCIONES", entidad = "INSCRIPCION", accion = "CREAR")
-    public InscripcionRespuesta inscribir(Long idEvento, String correoUsuario, Organizacion organizacion) {
+    public InscripcionRespuesta inscribir(Long idEvento, String correoUsuario, Long idTipoEntrada, Organizacion organizacion) {
         Usuario participante = buscarUsuario(correoUsuario);
         Evento evento = (organizacion == null ? eventoRepository.findById(idEvento) : inscripcionRepository.bloquearEvento(idEvento, organizacion.getId()))
                 .orElseThrow(() -> new ExcepcionNoEncontrado("Evento no encontrado con identificador " + idEvento));
@@ -83,6 +103,33 @@ public class InscripcionService {
             throw new IllegalStateException("No es posible inscribirse a un evento que ya ha finalizado");
         }
 
+        TipoEntrada tipoEntrada = null;
+        if (idTipoEntrada != null && tipoEntradaRepository != null) {
+            tipoEntrada = tipoEntradaRepository.findByIdAndEventoId(idTipoEntrada, idEvento)
+                    .orElseThrow(() -> new ExcepcionNoEncontrado("Tipo de entrada no encontrado para este evento"));
+            if (!Boolean.TRUE.equals(tipoEntrada.getActivo())) {
+                throw new IllegalStateException("La categoria de entrada seleccionada no se encuentra activa");
+            }
+            long vendidasTipo = inscripcionRepository.countByTipoEntradaIdAndEstado(tipoEntrada.getId(), EstadoInscripcion.CONFIRMADA);
+            if (tipoEntrada.getCupoMaximo() != null && vendidasTipo >= tipoEntrada.getCupoMaximo()) {
+                throw new IllegalStateException("Las entradas de categoría " + tipoEntrada.getNombre() + " se encuentran agotadas");
+            }
+        } else if (tipoEntradaRepository != null) {
+            List<TipoEntrada> tipos = tipoEntradaRepository.findByEventoIdAndActivoTrueOrderByPrecioAsc(idEvento);
+            if (!tipos.isEmpty()) {
+                for (TipoEntrada candidato : tipos) {
+                    long vendidasTipo = inscripcionRepository.countByTipoEntradaIdAndEstado(candidato.getId(), EstadoInscripcion.CONFIRMADA);
+                    if (candidato.getCupoMaximo() == null || vendidasTipo < candidato.getCupoMaximo()) {
+                        tipoEntrada = candidato;
+                        break;
+                    }
+                }
+                if (tipoEntrada == null) {
+                    throw new IllegalStateException("Todas las categorías de entrada para este evento se encuentran agotadas");
+                }
+            }
+        }
+
         var inscripcionExistente = organizacion == null ? inscripcionRepository.findByEventoIdAndParticipanteId(idEvento, participante.getId()) : inscripcionRepository.findByEventoIdAndParticipanteIdAndOrganizacionId(idEvento, participante.getId(), organizacion.getId());
         if (inscripcionExistente.isPresent()) {
             Inscripcion existente = inscripcionExistente.get();
@@ -92,6 +139,7 @@ public class InscripcionService {
             validarCuposDisponibles(evento, organizacion);
             String nuevoCodigo = generarCodigoQr(idEvento, participante.getId());
             existente.reactivar(nuevoCodigo);
+            if (tipoEntrada != null) existente.setTipoEntrada(tipoEntrada);
             if (organizacion != null) existente.asignarOrganizacion(organizacion);
             Inscripcion guardada = inscripcionRepository.save(existente);
             if (notificaciones != null && organizacion != null) notificaciones.programarConfirmacion(guardada, organizacion);
@@ -101,6 +149,7 @@ public class InscripcionService {
         validarCuposDisponibles(evento, organizacion);
         String codigoQr = generarCodigoQr(idEvento, participante.getId());
         Inscripcion nuevaInscripcion = new Inscripcion(evento, participante, codigoQr);
+        if (tipoEntrada != null) nuevaInscripcion.setTipoEntrada(tipoEntrada);
         if (organizacion != null) nuevaInscripcion.asignarOrganizacion(organizacion);
         Inscripcion guardada = inscripcionRepository.save(nuevaInscripcion);
         if (notificaciones != null && organizacion != null) notificaciones.programarConfirmacion(guardada, organizacion);

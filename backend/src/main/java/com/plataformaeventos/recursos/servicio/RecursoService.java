@@ -73,6 +73,7 @@ public class RecursoService {
                 limpiarTexto(solicitud.ubicacion()),
                 limpiarTexto(solicitud.descripcion())
         );
+        aplicarCostoUnitario(recurso, solicitud.costoUnitario());
         recurso.asignarOrganizacion(organizacion);
 
         return convertirARespuesta(recursoRepository.save(recurso));
@@ -105,6 +106,7 @@ public class RecursoService {
         recurso.setEstado(solicitud.estado());
         recurso.setUbicacion(limpiarTexto(solicitud.ubicacion()));
         recurso.setDescripcion(limpiarTexto(solicitud.descripcion()));
+        aplicarCostoUnitario(recurso, solicitud.costoUnitario());
 
         return convertirARespuesta(recursoRepository.save(recurso));
     }
@@ -137,6 +139,17 @@ public class RecursoService {
         return texto.trim();
     }
 
+    private void aplicarCostoUnitario(Recurso recurso, java.math.BigDecimal costo) {
+        if (costo != null) {
+            if (costo.compareTo(java.math.BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("El costo unitario del recurso no puede ser negativo");
+            }
+            recurso.setCostoUnitario(costo);
+        } else if (recurso.getCostoUnitario() == null) {
+            recurso.setCostoUnitario(java.math.BigDecimal.ZERO);
+        }
+    }
+
     private RecursoRespuesta convertirARespuesta(Recurso recurso) {
         return new RecursoRespuesta(
                 recurso.getId(),
@@ -148,6 +161,7 @@ public class RecursoService {
                 recurso.getEstado(),
                 recurso.getUbicacion(),
                 recurso.getDescripcion(),
+                recurso.getCostoUnitario(),
                 recurso.getFechaCreacion(),
                 recurso.getFechaActualizacion()
         );

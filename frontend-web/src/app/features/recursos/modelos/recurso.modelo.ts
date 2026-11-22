@@ -11,6 +11,7 @@ export interface Recurso {
   estado: EstadoRecurso;
   ubicacion: string | null;
   descripcion: string | null;
+  costoUnitario?: number;
   fechaCreacion?: string;
   fechaActualizacion?: string;
 }
@@ -22,6 +23,7 @@ export interface CrearRecursoSolicitud {
   cantidadTotal: number;
   ubicacion?: string | null;
   descripcion?: string | null;
+  costoUnitario?: number;
 }
 
 export interface ActualizarRecursoSolicitud {
@@ -33,6 +35,7 @@ export interface ActualizarRecursoSolicitud {
   estado: EstadoRecurso;
   ubicacion?: string | null;
   descripcion?: string | null;
+  costoUnitario?: number;
 }
 
 export interface CambiarEstadoRecursoSolicitud {

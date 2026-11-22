@@ -31,13 +31,16 @@ public class EspacioService {
 
     @Transactional
     public EspacioRespuesta crear(GuardarEspacioSolicitud solicitud) {
-        return convertir(espacioRepository.save(new Espacio(
-                solicitud.nombre().trim(), solicitud.ubicacion().trim(), solicitud.capacidad())));
+        Espacio espacio = new Espacio(
+                solicitud.nombre().trim(), solicitud.ubicacion().trim(), solicitud.capacidad());
+        aplicarCostoAlquiler(espacio, solicitud.costoAlquiler());
+        return convertir(espacioRepository.save(espacio));
     }
     @Transactional
     @com.plataformaeventos.audit.servicio.OperacionAuditable(modulo = "ESPACIOS", entidad = "ESPACIO", accion = "CREAR")
     public EspacioRespuesta crear(GuardarEspacioSolicitud solicitud, Organizacion organizacion) {
         Espacio espacio = new Espacio(solicitud.nombre().trim(), solicitud.ubicacion().trim(), solicitud.capacidad());
+        aplicarCostoAlquiler(espacio, solicitud.costoAlquiler());
         espacio.asignarOrganizacion(organizacion);
         return convertir(espacioRepository.save(espacio));
     }
@@ -47,6 +50,7 @@ public class EspacioService {
         Espacio espacio = espacioRepository.findById(id)
                 .orElseThrow(() -> new ExcepcionNoEncontrado("Espacio no encontrado"));
         espacio.actualizarDatos(solicitud.nombre().trim(), solicitud.ubicacion().trim(), solicitud.capacidad());
+        aplicarCostoAlquiler(espacio, solicitud.costoAlquiler());
         return convertir(espacio);
     }
     @Transactional
@@ -55,10 +59,28 @@ public class EspacioService {
         Espacio espacio = espacioRepository.findByIdAndOrganizacionId(id, organizacion.getId())
                 .orElseThrow(() -> new ExcepcionNoEncontrado("Espacio no encontrado"));
         espacio.actualizarDatos(solicitud.nombre().trim(), solicitud.ubicacion().trim(), solicitud.capacidad());
+        aplicarCostoAlquiler(espacio, solicitud.costoAlquiler());
         return convertir(espacio);
     }
 
+    private void aplicarCostoAlquiler(Espacio espacio, java.math.BigDecimal costo) {
+        if (costo != null) {
+            if (costo.compareTo(java.math.BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("El costo de alquiler no puede ser negativo");
+            }
+            espacio.setCostoAlquiler(costo);
+        } else if (espacio.getCostoAlquiler() == null) {
+            espacio.setCostoAlquiler(java.math.BigDecimal.ZERO);
+        }
+    }
+
     private EspacioRespuesta convertir(Espacio espacio) {
-        return new EspacioRespuesta(espacio.getId(), espacio.getNombre(), espacio.getUbicacion(), espacio.getCapacidad());
+        return new EspacioRespuesta(
+                espacio.getId(),
+                espacio.getNombre(),
+                espacio.getUbicacion(),
+                espacio.getCapacidad(),
+                espacio.getCostoAlquiler()
+        );
     }
 }

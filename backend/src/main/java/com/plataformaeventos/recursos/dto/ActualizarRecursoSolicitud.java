@@ -2,10 +2,13 @@ package com.plataformaeventos.recursos.dto;
 
 import com.plataformaeventos.recursos.modelo.EstadoRecurso;
 import com.plataformaeventos.recursos.modelo.TipoRecurso;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+
+import java.math.BigDecimal;
 
 public record ActualizarRecursoSolicitud(
         @NotBlank(message = "El codigo del recurso es obligatorio")
@@ -34,6 +37,21 @@ public record ActualizarRecursoSolicitud(
         String ubicacion,
 
         @Size(max = 255, message = "La descripcion no debe superar 255 caracteres")
-        String descripcion
+        String descripcion,
+
+        @DecimalMin(value = "0.00", message = "El costo unitario no puede ser negativo")
+        BigDecimal costoUnitario
 ) {
+    public ActualizarRecursoSolicitud(
+            String codigo,
+            String nombre,
+            TipoRecurso tipo,
+            Integer cantidadTotal,
+            Integer cantidadDisponible,
+            EstadoRecurso estado,
+            String ubicacion,
+            String descripcion
+    ) {
+        this(codigo, nombre, tipo, cantidadTotal, cantidadDisponible, estado, ubicacion, descripcion, BigDecimal.ZERO);
+    }
 }

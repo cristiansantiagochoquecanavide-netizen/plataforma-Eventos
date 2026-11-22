@@ -93,6 +93,7 @@
             <th>Código / Nombre</th>
             <th>Tipo</th>
             <th>Stock (Disp / Total)</th>
+            <th>Costo Unit. (Bs)</th>
             <th>Estado</th>
             <th>Ubicación</th>
             <th style="text-align: right;">Acciones</th>
@@ -129,6 +130,9 @@
                 <td>
                   <strong style="color: var(--brand); font-size: 1.05rem;">{{ recurso.cantidadDisponible }}</strong>
                   <span style="color: var(--muted);"> / {{ recurso.cantidadTotal }}</span>
+                </td>
+                <td>
+                  <strong>{{ (recurso.costoUnitario ?? 0).toFixed(2) }} Bs</strong>
                 </td>
                 <td>
                   <span
@@ -347,6 +351,14 @@
             <input type="number" formControlName="cantidadTotal" min="0" />
             @if (campoConError('cantidadTotal')) {
               <small class="field-error">{{ mensajeCampo('cantidadTotal') }}</small>
+            }
+          </label>
+
+          <label [class.invalid]="campoConError('costoUnitario')">
+            Costo Unitario de Uso (Bs) *
+            <input type="number" formControlName="costoUnitario" min="0" step="0.5" placeholder="0.00" />
+            @if (campoConError('costoUnitario')) {
+              <small class="field-error">{{ mensajeCampo('costoUnitario') }}</small>
             }
           </label>
 

@@ -1,11 +1,11 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { EventosService } from './servicios/eventos.service';
 import { obtenerMensajeError } from '../../core/mensajes-error';
 import { Evento } from './modelos/evento.modelo';
 
-@Component({ selector: 'app-consulta-eventos', imports: [DatePipe, FormsModule], templateUrl: './consulta-eventos.component.html', changeDetection: ChangeDetectionStrategy.OnPush })
+@Component({ selector: 'app-consulta-eventos', imports: [DatePipe, DecimalPipe, FormsModule], templateUrl: './consulta-eventos.component.html', changeDetection: ChangeDetectionStrategy.OnPush })
 export class ConsultaEventosComponent implements OnInit {
   readonly eventos = signal<Evento[]>([]);
   readonly categorias = signal<string[]>([]);

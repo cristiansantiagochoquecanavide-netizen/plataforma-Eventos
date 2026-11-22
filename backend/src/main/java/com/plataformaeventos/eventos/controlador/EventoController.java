@@ -70,6 +70,16 @@ public class EventoController {
         return ResponseEntity.ok(eventoService.obtenerEvento(idEvento, contexto.resolver(auth, request)));
     }
 
+    @GetMapping("/{idEvento}/tipos-entrada")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'EVENTO_VER')")
+    @Operation(summary = "Listar tipos de entrada de un evento")
+    @ApiResponse(responseCode = "200", description = "Tipos de entrada consultados")
+    public ResponseEntity<List<com.plataformaeventos.eventos.dto.TipoEntradaDTO>> listarTiposEntrada(
+            @PathVariable Long idEvento
+    ) {
+        return ResponseEntity.ok(eventoService.listarTiposEntrada(idEvento));
+    }
+
     @PostMapping
     @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'EVENTO_CREAR')")
     @Operation(summary = "Crear evento")

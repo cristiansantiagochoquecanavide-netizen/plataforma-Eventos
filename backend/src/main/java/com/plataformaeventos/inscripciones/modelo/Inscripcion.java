@@ -1,6 +1,7 @@
 package com.plataformaeventos.inscripciones.modelo;
 
 import com.plataformaeventos.eventos.modelo.Evento;
+import com.plataformaeventos.eventos.modelo.TipoEntrada;
 import com.plataformaeventos.usuarios.modelo.Usuario;
 import com.plataformaeventos.organizaciones.modelo.Organizacion;
 import jakarta.persistence.Column;
@@ -16,6 +17,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 @Entity
@@ -53,7 +55,24 @@ public class Inscripcion {
     @Column(name = "categoria_entrada", length = 80)
     private String categoriaEntrada;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_tipo_entrada")
+    private TipoEntrada tipoEntrada;
+
+    @Column(name = "monto_pagado", nullable = false, precision = 10, scale = 2)
+    private BigDecimal montoPagado = BigDecimal.ZERO;
+
     public String getCategoriaEntrada() { return categoriaEntrada; }
+    public TipoEntrada getTipoEntrada() { return tipoEntrada; }
+    public void setTipoEntrada(TipoEntrada tipoEntrada) { 
+        this.tipoEntrada = tipoEntrada;
+        if (tipoEntrada != null) {
+            this.categoriaEntrada = tipoEntrada.getNombre();
+            this.montoPagado = tipoEntrada.getPrecio() != null ? tipoEntrada.getPrecio() : BigDecimal.ZERO;
+        }
+    }
+    public BigDecimal getMontoPagado() { return montoPagado != null ? montoPagado : BigDecimal.ZERO; }
+    public void setMontoPagado(BigDecimal montoPagado) { this.montoPagado = montoPagado != null ? montoPagado : BigDecimal.ZERO; }
     public void clasificarEntrada(String categoria) {
         String valor = categoria == null ? null : categoria.strip();
         if (valor != null && (valor.length() > 80 || valor.chars().anyMatch(Character::isISOControl)))

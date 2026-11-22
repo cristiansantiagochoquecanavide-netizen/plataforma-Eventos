@@ -35,6 +35,9 @@ public class Espacio {
     @Column(nullable = false)
     private Integer capacidad;
 
+    @Column(name = "costo_alquiler", nullable = false, precision = 10, scale = 2)
+    private java.math.BigDecimal costoAlquiler = java.math.BigDecimal.ZERO;
+
     @Column(name = "fecha_creacion", nullable = false)
     private OffsetDateTime fechaCreacion;
 
@@ -68,6 +71,8 @@ public class Espacio {
     public String getNombre() { return nombre; }
     public String getUbicacion() { return ubicacion; }
     public Integer getCapacidad() { return capacidad; }
+    public java.math.BigDecimal getCostoAlquiler() { return costoAlquiler != null ? costoAlquiler : java.math.BigDecimal.ZERO; }
+    public void setCostoAlquiler(java.math.BigDecimal costoAlquiler) { this.costoAlquiler = costoAlquiler != null ? costoAlquiler : java.math.BigDecimal.ZERO; }
 
     public void actualizarDatos(String nombre, String ubicacion, Integer capacidad) {
         this.nombre = nombre;

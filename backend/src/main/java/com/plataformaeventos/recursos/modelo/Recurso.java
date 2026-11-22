@@ -47,6 +47,9 @@ public class Recurso {
     @Column(nullable = false, length = 20)
     private EstadoRecurso estado;
 
+    @Column(name = "costo_unitario", nullable = false, precision = 10, scale = 2)
+    private java.math.BigDecimal costoUnitario = java.math.BigDecimal.ZERO;
+
     @Column(length = 150)
     private String ubicacion;
 
@@ -154,6 +157,14 @@ public class Recurso {
 
     public void setEstado(EstadoRecurso estado) {
         this.estado = estado;
+    }
+
+    public java.math.BigDecimal getCostoUnitario() {
+        return costoUnitario != null ? costoUnitario : java.math.BigDecimal.ZERO;
+    }
+
+    public void setCostoUnitario(java.math.BigDecimal costoUnitario) {
+        this.costoUnitario = costoUnitario != null ? costoUnitario : java.math.BigDecimal.ZERO;
     }
 
     public String getUbicacion() {
