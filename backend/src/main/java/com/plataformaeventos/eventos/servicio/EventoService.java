@@ -7,6 +7,7 @@ import com.plataformaeventos.espacios.modelo.Espacio;
 import com.plataformaeventos.espacios.repositorio.EspacioRepository;
 import com.plataformaeventos.eventos.dto.AsignarResponsablesSolicitud;
 import com.plataformaeventos.eventos.dto.EspacioEventoRespuesta;
+import com.plataformaeventos.eventos.dto.EventoRecomendadoRespuesta;
 import com.plataformaeventos.eventos.dto.EventoRespuesta;
 import com.plataformaeventos.eventos.dto.GuardarEventoSolicitud;
 import com.plataformaeventos.eventos.dto.ResponsableEventoRespuesta;
@@ -14,6 +15,8 @@ import com.plataformaeventos.eventos.modelo.EstadoEvento;
 import com.plataformaeventos.eventos.modelo.Evento;
 import com.plataformaeventos.eventos.repositorio.EventoRepository;
 import com.plataformaeventos.excepciones.ExcepcionNoEncontrado;
+import com.plataformaeventos.inscripciones.modelo.EstadoInscripcion;
+import com.plataformaeventos.inscripciones.repositorio.InscripcionRepository;
 import com.plataformaeventos.roles.modelo.Rol;
 import com.plataformaeventos.usuarios.modelo.EstadoUsuario;
 import com.plataformaeventos.usuarios.modelo.Usuario;
@@ -26,14 +29,20 @@ import com.plataformaeventos.inscripciones.repositorio.InscripcionRepository;
 import com.plataformaeventos.organizaciones.modelo.Organizacion;
 import com.plataformaeventos.notificaciones.servicio.NotificacionEventoService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -50,6 +59,7 @@ public class EventoService {
     private final NotificacionEventoService notificaciones;
     private final TipoEntradaRepository tipoEntradaRepository;
     private final InscripcionRepository inscripcionRepository;
+    private final RestClient restClient;
 
     public EventoService(
             EventoRepository eventoRepository,
@@ -57,7 +67,7 @@ public class EventoService {
             UsuarioRepository usuarioRepository,
             EspacioRepository espacioRepository
     ) {
-        this(eventoRepository, categoriaRepository, usuarioRepository, espacioRepository, null, null, null);
+        this(eventoRepository, categoriaRepository, usuarioRepository, espacioRepository, null, null, null, null);
     }
 
     public EventoService(
@@ -67,7 +77,7 @@ public class EventoService {
             EspacioRepository espacioRepository,
             NotificacionEventoService notificaciones
     ) {
-        this(eventoRepository, categoriaRepository, usuarioRepository, espacioRepository, notificaciones, null, null);
+        this(eventoRepository, categoriaRepository, usuarioRepository, espacioRepository, notificaciones, null, null, null);
     }
 
     @Autowired
@@ -76,9 +86,10 @@ public class EventoService {
             CategoriaRepository categoriaRepository,
             UsuarioRepository usuarioRepository,
             EspacioRepository espacioRepository,
-            NotificacionEventoService notificaciones,
+            @Autowired(required = false) NotificacionEventoService notificaciones,
             TipoEntradaRepository tipoEntradaRepository,
-            InscripcionRepository inscripcionRepository
+            @Autowired(required = false) InscripcionRepository inscripcionRepository,
+            @Value("${servicio.ia.url:http://servicio-ia:8000}") String servicioIaUrl
     ) {
         this.eventoRepository = eventoRepository;
         this.categoriaRepository = categoriaRepository;
@@ -87,6 +98,8 @@ public class EventoService {
         this.notificaciones = notificaciones;
         this.tipoEntradaRepository = tipoEntradaRepository;
         this.inscripcionRepository = inscripcionRepository;
+        String url = (servicioIaUrl != null && !servicioIaUrl.isBlank()) ? servicioIaUrl : "http://servicio-ia:8000";
+        this.restClient = RestClient.builder().baseUrl(url).build();
     }
 
     @Transactional(readOnly = true)
@@ -545,5 +558,128 @@ public class EventoService {
         }
         if (evento.getEspacio() == null) return null;
         return evento.getEspacio().getId() + ":" + evento.getEspacio().getNombre() + ":" + evento.getEspacio().getUbicacion();
+    }
+
+    @Transactional(readOnly = true)
+    public List<EventoRecomendadoRespuesta> obtenerRecomendacionesIa(String correoUsuario, Organizacion organizacion) {
+        if (organizacion == null) {
+            return List.of();
+        }
+        Long orgId = organizacion.getId();
+        Usuario usuario = usuarioRepository.findByCorreo(correoUsuario).orElse(null);
+        Long usuarioId = usuario != null ? usuario.getId() : null;
+
+        // 1. Obtener eventos de la organizacion que no esten cancelados
+        List<Evento> eventosOrg = eventoRepository.findByOrganizacionIdAndEstadoNotOrderByFechaInicioAsc(orgId, EstadoEvento.CANCELADO);
+        if (eventosOrg.isEmpty()) {
+            return List.of();
+        }
+
+        // 2. Extraer historial de participacion del usuario en la organizacion
+        List<String> historialCategorias = new ArrayList<>();
+        List<String> historialTitulos = new ArrayList<>();
+        Set<Long> eventosInscritosIds = new HashSet<>();
+
+        if (usuarioId != null && inscripcionRepository != null) {
+            List<com.plataformaeventos.inscripciones.modelo.Inscripcion> inscripciones =
+                    inscripcionRepository.findByParticipanteIdAndOrganizacionIdConEvento(usuarioId, orgId);
+            for (var ins : inscripciones) {
+                if (ins.getEvento() != null) {
+                    eventosInscritosIds.add(ins.getEvento().getId());
+                    historialTitulos.add(ins.getEvento().getNombre());
+                    if (ins.getEvento().getCategoria() != null && ins.getEvento().getCategoria().getNombre() != null) {
+                        historialCategorias.add(ins.getEvento().getCategoria().getNombre());
+                    }
+                }
+            }
+        }
+
+        // Eventos a los cuales el usuario todavia no se ha inscrito
+        List<Evento> disponibles = eventosOrg.stream()
+                .filter(e -> !eventosInscritosIds.contains(e.getId()))
+                .toList();
+
+        List<Evento> candidatos = disponibles.isEmpty() ? eventosOrg : disponibles;
+
+        // 3. Preparar payload para servicio IA
+        List<Map<String, Object>> eventosPayload = candidatos.stream().map(e -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id_evento", e.getId());
+            map.put("titulo", e.getNombre());
+            map.put("descripcion", e.getDescripcion() != null ? e.getDescripcion() : "");
+            map.put("categoria", e.getCategoria() != null ? e.getCategoria().getNombre() : "General");
+            return map;
+        }).toList();
+
+        Map<String, Object> iaRequest = Map.of(
+                "id_usuario", usuarioId != null ? usuarioId : 0L,
+                "intereses", List.of(),
+                "historial_categorias", historialCategorias.stream().distinct().toList(),
+                "historial_eventos_titulos", historialTitulos,
+                "eventos_disponibles", eventosPayload
+        );
+
+        Map<Long, Double> afinidades = new HashMap<>();
+        Map<Long, String> razones = new HashMap<>();
+        Map<Long, List<String>> etiquetasMap = new HashMap<>();
+
+        try {
+            if (restClient != null) {
+                Map<String, Object> respuestaIa = restClient.post()
+                        .uri("/api/ia/eventos/recomendar")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(iaRequest)
+                        .retrieve()
+                        .body(Map.class);
+
+                if (respuestaIa != null && respuestaIa.containsKey("recomendaciones")) {
+                    List<Map<String, Object>> recs = (List<Map<String, Object>>) respuestaIa.get("recomendaciones");
+                    for (Map<String, Object> rec : recs) {
+                        Long idEv = ((Number) rec.get("id_evento")).longValue();
+                        Double score = rec.get("score") != null ? ((Number) rec.get("score")).doubleValue() : 0.8;
+                        String razon = (String) rec.get("razon");
+                        List<String> etiqs = (List<String>) rec.getOrDefault("etiquetas", List.of());
+                        afinidades.put(idEv, score);
+                        razones.put(idEv, razon);
+                        etiquetasMap.put(idEv, etiqs);
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            System.err.println("Fallback local IA recomendaciones: " + ex.getMessage());
+        }
+
+        // 4. Mapear respuesta DTO ordenada por afinidad
+        List<EventoRecomendadoRespuesta> resultado = new ArrayList<>();
+        for (Evento e : candidatos) {
+            Double afinidad = afinidades.getOrDefault(e.getId(), 0.75);
+            String motivo = razones.getOrDefault(e.getId(), "Evento destacado de la organización según tus posibles intereses.");
+            List<String> etiqs = etiquetasMap.getOrDefault(e.getId(), List.of("Destacado", "Recomendado"));
+
+            long inscritos = inscripcionRepository != null
+                    ? inscripcionRepository.countByEventoIdAndOrganizacionIdAndEstado(e.getId(), orgId, EstadoInscripcion.CONFIRMADA)
+                    : 0;
+
+            String nombreCat = e.getCategoria() != null ? e.getCategoria().getNombre() : "General";
+            String ubicacion = e.getEspacio() != null ? e.getEspacio().getNombre() : (e.getLugarPrincipal() != null ? e.getLugarPrincipal() : "Por definir");
+
+            resultado.add(new EventoRecomendadoRespuesta(
+                    e.getId(),
+                    e.getNombre(),
+                    e.getDescripcion(),
+                    e.getFechaInicio(),
+                    e.getFechaFin(),
+                    ubicacion,
+                    nombreCat,
+                    e.getAforoMaximo(),
+                    (int) inscritos,
+                    afinidad,
+                    motivo,
+                    etiqs
+            ));
+        }
+
+        resultado.sort((a, b) -> Double.compare(b.afinidad(), a.afinidad()));
+        return resultado;
     }
 }

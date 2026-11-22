@@ -1,6 +1,7 @@
 package com.plataformaeventos.eventos.controlador;
 
 import com.plataformaeventos.eventos.dto.AsignarResponsablesSolicitud;
+import com.plataformaeventos.eventos.dto.EventoRecomendadoRespuesta;
 import com.plataformaeventos.eventos.dto.EventoRespuesta;
 import com.plataformaeventos.eventos.dto.GuardarEventoSolicitud;
 import com.plataformaeventos.eventos.dto.ResponsableEventoRespuesta;
@@ -51,6 +52,16 @@ public class EventoController {
             @RequestParam(required = false) String categoria, Authentication auth, HttpServletRequest request
     ) {
         return ResponseEntity.ok(eventoService.listarEventos(termino, categoria, contexto.resolver(auth, request)));
+    }
+
+    @GetMapping("/recomendados")
+    @PreAuthorize("@contextoOrganizacion.tieneAutoridad(authentication, #request, 'EVENTO_VER') or isAuthenticated()")
+    @Operation(summary = "Obtener eventos recomendados con IA para el participante")
+    @ApiResponse(responseCode = "200", description = "Eventos recomendados consultados")
+    public ResponseEntity<List<EventoRecomendadoRespuesta>> obtenerRecomendados(
+            Authentication auth, HttpServletRequest request
+    ) {
+        return ResponseEntity.ok(eventoService.obtenerRecomendacionesIa(auth.getName(), contexto.resolver(auth, request)));
     }
 
     @GetMapping("/responsables-disponibles")

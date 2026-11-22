@@ -9,6 +9,8 @@ import 'core/theme/app_theme.dart';
 import 'core/ui_privileges/ui_privilege_service.dart';
 import 'core/ui_privileges/ui_privilege_widgets.dart';
 import 'features/asistencia/qr_attendance_page.dart';
+import 'features/recomendaciones/recomendaciones_model.dart';
+import 'features/recomendaciones/recomendaciones_page.dart';
 
 const _apiUrl = String.fromEnvironment(
   'API_URL',
@@ -794,6 +796,22 @@ class _HomeShellState extends State<HomeShell> {
               onGoToInscriptions: () {
                 final index = destinations.indexWhere(
                   (item) => item.page is MyInscriptionsPage,
+                );
+                if (index >= 0) setState(() => _currentIndex = index);
+              },
+            ),
+          ));
+          destinations.add((
+            destination: const NavigationDestination(
+              icon: Icon(Icons.auto_awesome_outlined),
+              selectedIcon: Icon(Icons.auto_awesome_rounded),
+              label: 'Para Ti (IA)',
+            ),
+            page: RecomendacionesIaPage(
+              session: widget.session,
+              onGoToEventos: () {
+                final index = destinations.indexWhere(
+                  (item) => item.page is EventsPage,
                 );
                 if (index >= 0) setState(() => _currentIndex = index);
               },
@@ -4273,6 +4291,21 @@ class ApiClient {
     final data = _data(response);
     return (data as List<dynamic>)
         .map((item) => EventModel.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<EventoRecomendadoModel>> listRecommendedEvents(
+    SessionTokens tokens, {
+    int? organizationId,
+  }) async {
+    final response = await _get(
+      '/eventos/recomendados',
+      tokens,
+      organizationId: organizationId,
+    );
+    final data = _data(response);
+    return (data as List<dynamic>)
+        .map((item) => EventoRecomendadoModel.fromJson(item as Map<String, dynamic>))
         .toList();
   }
 

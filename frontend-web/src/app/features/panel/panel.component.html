@@ -7,6 +7,7 @@
       @if (sesion.esAdministradorSaas()) {
         <a class="saas-return" routerLink="/saas/organizaciones">← Volver a consola SaaS</a>
       }
+      <a routerLink="/dashboard" routerLinkActive="active">Dashboard de Indicadores</a>
       <a routerLink="/perfil" routerLinkActive="active" [appUiPrivilegeVisible]="'profile.menu'">Mi perfil</a>
       @if (sesion.puedeVerCredencialesPropias()) {
         <a routerLink="/mis-credenciales" routerLinkActive="active">Mis credenciales QR</a>
@@ -14,6 +15,7 @@
       @if (sesion.puedeVerHistorialParticipacion()) {
         <a routerLink="/mi-historial" routerLinkActive="active" [appUiPrivilegeVisible]="'inscriptions.list'">Mi historial</a>
       }
+      <a routerLink="/mis-certificados" routerLinkActive="active">Mis certificados</a>
       @if (sesion.tieneAccesoUsuarios()) {
         <a routerLink="/usuarios" routerLinkActive="active" [appUiPrivilegeVisible]="'users.menu'">Usuarios</a>
       }

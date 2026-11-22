@@ -102,7 +102,7 @@ class ModuloFinancieroValidacionTest {
     void eventoServiceRechazaEntradasInvalidasODuplicadasOSuperandoAforo() {
         EventoService eventoService = new EventoService(
                 eventoRepository, categoriaRepository, usuarioRepository, espacioRepository,
-                null, tipoEntradaRepository, inscripcionRepository
+                null, tipoEntradaRepository, inscripcionRepository, null
         );
 
         Organizacion org = mock(Organizacion.class);
