@@ -17,6 +17,16 @@ export interface ResponsableEvento {
   roles: string[];
 }
 
+export interface TipoEntrada {
+  id?: number;
+  nombre: string;
+  precio: number;
+  cupoMaximo: number;
+  descripcion?: string;
+  entradasVendidas?: number;
+  cuposDisponibles?: number;
+}
+
 export interface Evento {
   id: number;
   nombre: string;
@@ -30,6 +40,7 @@ export interface Evento {
   aforoMaximo: number | null;
   estado: EstadoEvento;
   responsables: ResponsableEvento[];
+  tiposEntrada?: TipoEntrada[];
 }
 
 export interface GuardarEventoSolicitud {
@@ -43,4 +54,5 @@ export interface GuardarEventoSolicitud {
   aforoMaximo: number;
   estado: EstadoEvento;
   responsables?: number[];
+  tiposEntrada?: TipoEntrada[];
 }

@@ -48,6 +48,39 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
     long countByEventoIdAndEstado(Long idEvento, EstadoInscripcion estado);
     long countByEventoIdAndOrganizacionIdAndEstado(Long idEvento, Long organizacionId, EstadoInscripcion estado);
 
+    long countByTipoEntradaIdAndEstado(Long tipoEntradaId, EstadoInscripcion estado);
+
+    @Query("SELECT COALESCE(SUM(i.montoPagado), 0) FROM Inscripcion i WHERE i.evento.id = :eventoId AND i.estado = com.plataformaeventos.inscripciones.modelo.EstadoInscripcion.CONFIRMADA")
+    java.math.BigDecimal sumMontoPagadoByEventoId(@Param("eventoId") Long eventoId);
+
+    @Query("SELECT COALESCE(SUM(i.montoPagado), 0) FROM Inscripcion i WHERE i.organizacion.id = :orgId AND i.estado = com.plataformaeventos.inscripciones.modelo.EstadoInscripcion.CONFIRMADA")
+    java.math.BigDecimal sumMontoPagadoByOrganizacionId(@Param("orgId") Long orgId);
+
+    @Query("""
+            SELECT i.evento.id,
+                   COALESCE(te.nombre, i.categoriaEntrada, 'General'),
+                   COALESCE(te.precio, 0),
+                   COUNT(i),
+                   COALESCE(SUM(i.montoPagado), 0),
+                   COALESCE(MAX(te.cupoMaximo), 0)
+            FROM Inscripcion i
+            LEFT JOIN i.tipoEntrada te
+            WHERE i.organizacion.id = :organizacionId
+              AND i.estado = com.plataformaeventos.inscripciones.modelo.EstadoInscripcion.CONFIRMADA
+            GROUP BY i.evento.id, COALESCE(te.nombre, i.categoriaEntrada, 'General'), COALESCE(te.precio, 0)
+            ORDER BY i.evento.id ASC, COALESCE(te.precio, 0) ASC
+            """)
+    List<Object[]> resumirVentasPorTipoEntradaOrganizacion(@Param("organizacionId") Long organizacionId);
+
+    @Query("""
+            SELECT i.evento.id, COUNT(a.id)
+            FROM com.plataformaeventos.asistencias.modelo.Asistencia a
+            JOIN a.inscripcion i
+            WHERE a.organizacion.id = :organizacionId
+            GROUP BY i.evento.id
+            """)
+    List<Object[]> contarAsistenciasPorEventoOrganizacion(@Param("organizacionId") Long organizacionId);
+
     Optional<Inscripcion> findByIdAndParticipanteId(Long idInscripcion, Long idParticipante);
 
     @Query("SELECT i FROM Inscripcion i JOIN FETCH i.participante u JOIN FETCH i.evento e LEFT JOIN FETCH e.categoria LEFT JOIN FETCH e.espacio WHERE i.id = :id AND i.participante.id = :usuario AND (:org IS NULL OR i.organizacion.id = :org)")

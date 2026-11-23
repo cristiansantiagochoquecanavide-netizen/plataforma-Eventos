@@ -156,6 +156,8 @@ services:
       context: ./servicio-ia
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      REPORTES_OPENAI_API_KEY: ${REPORTES_OPENAI_API_KEY:-}
+      REPORTES_OPENAI_MODEL: ${REPORTES_OPENAI_MODEL:-gpt-4o-mini}
     ports:
       - "${SERVICIO_IA_PORT:-8000}:8000"
     healthcheck:

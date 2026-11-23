@@ -1,12 +1,14 @@
 package com.plataformaeventos.eventos.dto;
 
 import com.plataformaeventos.eventos.modelo.EstadoEvento;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Set;
 
 public record GuardarEventoSolicitud(
@@ -37,6 +39,22 @@ public record GuardarEventoSolicitud(
 
         EstadoEvento estado,
 
-        Set<@NotNull(message = "El responsable es obligatorio") Long> responsables
+        Set<@NotNull(message = "El responsable es obligatorio") Long> responsables,
+
+        List<@Valid TipoEntradaDTO> tiposEntrada
 ) {
+    public GuardarEventoSolicitud(
+            String nombre,
+            String descripcion,
+            OffsetDateTime fechaInicio,
+            OffsetDateTime fechaFin,
+            String lugarPrincipal,
+            Long idCategoria,
+            Long idEspacio,
+            Integer aforoMaximo,
+            EstadoEvento estado,
+            Set<Long> responsables
+    ) {
+        this(nombre, descripcion, fechaInicio, fechaFin, lugarPrincipal, idCategoria, idEspacio, aforoMaximo, estado, responsables, null);
+    }
 }

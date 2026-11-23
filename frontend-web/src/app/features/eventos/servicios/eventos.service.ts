@@ -5,6 +5,7 @@ import {
   Evento,
   GuardarEventoSolicitud,
   ResponsableEvento,
+  TipoEntrada,
 } from '../modelos/evento.modelo';
 
 @Injectable({ providedIn: 'root' })
@@ -37,5 +38,9 @@ export class EventosService {
 
   listarResponsablesDisponiblesEvento() {
     return this.http.get<ResponsableEvento[]>(`${this.url}/eventos/responsables-disponibles`);
+  }
+
+  listarTiposEntrada(idEvento: number) {
+    return this.http.get<TipoEntrada[]>(`${this.url}/eventos/${idEvento}/tipos-entrada`);
   }
 }

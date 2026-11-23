@@ -52,10 +52,11 @@ public class InscripcionController {
     @ApiResponse(responseCode = "404", description = "Evento o usuario no encontrado", content = @Content)
     public ResponseEntity<InscripcionRespuesta> inscribirse(
             @PathVariable Long idEvento,
+            @RequestParam(required = false) Long idTipoEntrada,
             Authentication autenticacion, HttpServletRequest request
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(inscripcionService.inscribir(idEvento, autenticacion.getName(), contextoOrganizacion.resolver(autenticacion, request)));
+                .body(inscripcionService.inscribir(idEvento, autenticacion.getName(), idTipoEntrada, contextoOrganizacion.resolver(autenticacion, request)));
     }
 
     @GetMapping("/mis-inscripciones")

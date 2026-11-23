@@ -4,6 +4,7 @@ import com.plataformaeventos.categorias.modelo.Categoria;
 import com.plataformaeventos.espacios.modelo.Espacio;
 import com.plataformaeventos.usuarios.modelo.Usuario;
 import com.plataformaeventos.organizaciones.modelo.Organizacion;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -16,12 +17,15 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Entity
@@ -81,6 +85,9 @@ public class Evento {
             inverseJoinColumns = @JoinColumn(name = "id_usuario")
     )
     private Set<Usuario> responsables = new HashSet<>();
+
+    @OneToMany(mappedBy = "evento", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TipoEntrada> tiposEntrada = new ArrayList<>();
 
     protected Evento() {
     }
@@ -214,5 +221,13 @@ public class Evento {
 
     public void asignarResponsables(Set<Usuario> responsables) {
         this.responsables = new HashSet<>(responsables);
+    }
+
+    public List<TipoEntrada> getTiposEntrada() {
+        return tiposEntrada;
+    }
+
+    public void setTiposEntrada(List<TipoEntrada> tiposEntrada) {
+        this.tiposEntrada = tiposEntrada;
     }
 }

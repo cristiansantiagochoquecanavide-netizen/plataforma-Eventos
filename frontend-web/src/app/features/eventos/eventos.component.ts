@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { of, switchMap } from 'rxjs';
 import { EventosService } from './servicios/eventos.service';
 import { CategoriasService } from '../categorias/servicios/categorias.service';
@@ -30,7 +30,7 @@ type CampoEvento =
 
 @Component({
   selector: 'app-eventos',
-  imports: [DatePipe, ReactiveFormsModule, UiPrivilegeVisibleDirective, UiPrivilegeEnabledDirective, UiPrivilegeEditableDirective],
+  imports: [DatePipe, FormsModule, ReactiveFormsModule, UiPrivilegeVisibleDirective, UiPrivilegeEnabledDirective, UiPrivilegeEditableDirective],
   templateUrl: './eventos.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -46,6 +46,42 @@ export class EventosComponent implements OnInit {
   readonly error = signal('');
   readonly mensaje = signal('');
   readonly intentoEnvio = signal(false);
+  readonly tiposEntradaForm = signal<{ id?: number; nombre: string; precio: number; cupoMaximo: number; descripcion?: string; entradasVendidas?: number }[]>([
+    { nombre: 'General', precio: 0, cupoMaximo: 100, descripcion: 'Entrada General', entradasVendidas: 0 },
+  ]);
+
+  totalCuposEntradas(): number {
+    return this.tiposEntradaForm().reduce(
+      (acc, t) => acc + (Number(t.cupoMaximo) > 0 ? Number(t.cupoMaximo) : 0),
+      0,
+    );
+  }
+
+  agregarTipoEntrada() {
+    const actuales = new Set(this.tiposEntradaForm().map((t) => t.nombre.trim().toLowerCase()));
+    const sugeridos = ['General', 'VIP', 'Super VIP', 'Preferencial', 'Estudiante'];
+    const siguienteNombre =
+      sugeridos.find((s) => !actuales.has(s.toLowerCase())) ??
+      `Categoría ${this.tiposEntradaForm().length + 1}`;
+    const precioDefault = siguienteNombre === 'General' ? 0 : siguienteNombre === 'VIP' ? 150 : 300;
+    this.tiposEntradaForm.update((lista) => [
+      ...lista,
+      { nombre: siguienteNombre, precio: precioDefault, cupoMaximo: 20, descripcion: '', entradasVendidas: 0 },
+    ]);
+  }
+
+  eliminarTipoEntrada(index: number) {
+    const lista = this.tiposEntradaForm();
+    if (lista.length <= 1) return;
+    const item = lista[index];
+    if (item && (item.entradasVendidas ?? 0) > 0) {
+      const msg = `No se puede eliminar "${item.nombre}" porque ya tiene ${item.entradasVendidas} entrada(s) vendida(s).`;
+      this.error.set(msg);
+      this.toast.error(msg);
+      return;
+    }
+    this.tiposEntradaForm.update((actuales) => actuales.filter((_, i) => i !== index));
+  }
   readonly puedeCrear = computed(() => this.sesion.puedeCrearEventos());
   readonly puedeEditar = computed(() => this.sesion.puedeEditarEventos());
   readonly puedeAsignarResponsables = computed(() =>
@@ -174,6 +210,22 @@ export class EventosComponent implements OnInit {
       aforoMaximo: evento.aforoMaximo,
       estado: evento.estado,
     });
+    if (evento.tiposEntrada && evento.tiposEntrada.length > 0) {
+      this.tiposEntradaForm.set(
+        evento.tiposEntrada.map((t) => ({
+          id: t.id,
+          nombre: t.nombre,
+          precio: t.precio,
+          cupoMaximo: t.cupoMaximo,
+          descripcion: t.descripcion ?? '',
+          entradasVendidas: t.entradasVendidas ?? 0,
+        }))
+      );
+    } else {
+      this.tiposEntradaForm.set([
+        { nombre: 'General', precio: 0, cupoMaximo: evento.aforoMaximo || 100, descripcion: 'Entrada General', entradasVendidas: 0 },
+      ]);
+    }
   }
 
   nuevo() {
@@ -181,6 +233,9 @@ export class EventosComponent implements OnInit {
     this.intentoEnvio.set(false);
     this.eventoSeleccionado.set(null);
     this.responsablesSeleccionados.set(new Set());
+    this.tiposEntradaForm.set([
+      { nombre: 'General', precio: 0, cupoMaximo: 100, descripcion: 'Entrada General' },
+    ]);
     this.formulario.reset({
       nombre: '',
       descripcion: '',
@@ -237,6 +292,13 @@ export class EventosComponent implements OnInit {
       return;
     }
 
+    const errorEntradas = this.validarTiposEntrada(valor.aforoMaximo);
+    if (errorEntradas) {
+      this.error.set(errorEntradas);
+      this.toast.error(errorEntradas);
+      return;
+    }
+
     this.limpiarAvisos();
     this.guardando.set(true);
     const responsables = Array.from(this.responsablesSeleccionados());
@@ -250,6 +312,13 @@ export class EventosComponent implements OnInit {
       idEspacio: valor.idEspacio!,
       aforoMaximo: valor.aforoMaximo!,
       estado: valor.estado,
+      tiposEntrada: this.tiposEntradaForm().map((t) => ({
+        id: t.id,
+        nombre: t.nombre.trim(),
+        precio: Number(t.precio),
+        cupoMaximo: Math.trunc(Number(t.cupoMaximo)),
+        descripcion: (t.descripcion || '').trim(),
+      })),
     };
     const solicitud = evento
       ? this.eventosService
@@ -324,6 +393,50 @@ export class EventosComponent implements OnInit {
   private obtenerHoraISO(fecha: Date): string {
     const desplazamiento = fecha.getTimezoneOffset() * 60000;
     return new Date(fecha.getTime() - desplazamiento).toISOString().slice(11, 16);
+  }
+
+  private validarTiposEntrada(aforoMaximo: number | null): string | null {
+    const tipos = this.tiposEntradaForm();
+    if (!tipos.length) {
+      return 'Debes configurar al menos una categoría de entrada.';
+    }
+    const nombresVistos = new Set<string>();
+    let sumaCupos = 0;
+
+    for (let i = 0; i < tipos.length; i++) {
+      const t = tipos[i];
+      const nombre = (t.nombre ?? '').trim();
+      if (!nombre) {
+        return `El nombre de la categoría de entrada #${i + 1} es obligatorio.`;
+      }
+      if (nombre.length > 100) {
+        return `El nombre "${nombre}" no puede superar los 100 caracteres.`;
+      }
+      const clave = nombre.toLowerCase();
+      if (nombresVistos.has(clave)) {
+        return `La categoría "${nombre}" está duplicada.`;
+      }
+      nombresVistos.add(clave);
+
+      const precio = Number(t.precio);
+      if (Number.isNaN(precio) || precio < 0) {
+        return `El precio de "${nombre}" debe ser mayor o igual a 0 Bs.`;
+      }
+      const cupo = Number(t.cupoMaximo);
+      if (!Number.isInteger(cupo) || cupo < 1) {
+        return `El cupo máximo de "${nombre}" debe ser un número entero mayor a 0.`;
+      }
+      const vendidas = t.entradasVendidas ?? 0;
+      if (cupo < vendidas) {
+        return `El cupo de "${nombre}" (${cupo}) no puede ser menor a las ${vendidas} entradas ya vendidas.`;
+      }
+      sumaCupos += cupo;
+    }
+
+    if (aforoMaximo != null && aforoMaximo > 0 && sumaCupos > aforoMaximo) {
+      return `La suma de cupos de las entradas (${sumaCupos}) supera el aforo máximo del evento (${aforoMaximo}).`;
+    }
+    return null;
   }
 
   private limpiarAvisos() {

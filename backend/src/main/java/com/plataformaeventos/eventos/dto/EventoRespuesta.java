@@ -17,6 +17,7 @@ public record EventoRespuesta(
         EspacioEventoRespuesta espacio,
         Integer aforoMaximo,
         String estado,
-        List<ResponsableEventoRespuesta> responsables
+        List<ResponsableEventoRespuesta> responsables,
+        List<TipoEntradaDTO> tiposEntrada
 ) {
 }

@@ -1,9 +1,12 @@
 package com.plataformaeventos.espacios.dto;
 
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+
+import java.math.BigDecimal;
 
 public record GuardarEspacioSolicitud(
         @NotBlank(message = "El nombre del espacio es obligatorio")
@@ -16,6 +19,12 @@ public record GuardarEspacioSolicitud(
 
         @NotNull(message = "La capacidad es obligatoria")
         @Positive(message = "La capacidad debe ser mayor que cero")
-        Integer capacidad
+        Integer capacidad,
+
+        @DecimalMin(value = "0.00", message = "El costo de alquiler no puede ser negativo")
+        BigDecimal costoAlquiler
 ) {
+    public GuardarEspacioSolicitud(String nombre, String ubicacion, Integer capacidad) {
+        this(nombre, ubicacion, capacidad, BigDecimal.ZERO);
+    }
 }
