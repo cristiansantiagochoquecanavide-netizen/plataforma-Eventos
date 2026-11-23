@@ -58,7 +58,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-desarrollo_secreto_local_de_al_menos_32_caracteres_12345}
       JWT_ACCESO_EXPIRACION_MINUTOS: ${JWT_ACCESO_EXPIRACION_MINUTOS:-15}
       JWT_REFRESH_EXPIRACION_DIAS: ${JWT_REFRESH_EXPIRACION_DIAS:-7}
-      ADMIN_CORREO: ${ADMIN_CORREO:-AdminEventos@gmail.com}
+      ADMIN_CORREO: ${ADMIN_CORREO:-AdminSaaS@gmail.com}
       ADMIN_CLAVE: ${ADMIN_CLAVE:-Admin123}
       DEMO_SEED_ENABLED: ${DEMO_SEED_ENABLED:-false}
       SERVICIO_IA_URL: ${SERVICIO_IA_URL:-http://servicio-ia:8000}
