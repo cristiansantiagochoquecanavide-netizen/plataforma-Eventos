@@ -190,6 +190,20 @@ class _LoginPageState extends State<LoginPage> {
       await widget.session.login(_email.text, _password.text);
     } on ApiException catch (error) {
       if (mounted) setState(() => _error = error.message);
+    } on TimeoutException {
+      if (mounted) {
+        setState(
+          () => _error =
+              'El servidor tardó demasiado en responder. Verifica que el teléfono esté conectado a la misma red Wi-Fi que el equipo.',
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _error =
+              'No se pudo conectar con el servidor. Verifica la conexión e inténtalo de nuevo.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -770,6 +784,7 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
+  final _shellKey = GlobalKey<ScaffoldState>();
   int _currentIndex = 0;
 
   @override
@@ -878,6 +893,52 @@ class _HomeShellState extends State<HomeShell> {
           page: MobileHelpPage(session: widget.session),
         ));
 
+        final tieneTareasStaff =
+            widget.session.puedeRegistrarAsistencia ||
+            privileges.visible('staff-applications.menu') ||
+            privileges.visible('staff-assignments.menu');
+        final prioridades = tieneTareasStaff
+            ? const [
+                'Eventos',
+                'Acceso',
+                'Staff',
+                'Entradas',
+                'Historial',
+                'Perfil',
+                'Ayuda',
+              ]
+            : const [
+                'Eventos',
+                'Para Ti (IA)',
+                'Entradas',
+                'Historial',
+                'Staff',
+                'Acceso',
+                'Perfil',
+                'Ayuda',
+              ];
+        final primaryIndices = <int>[];
+        for (final label in prioridades) {
+          final index = destinations.indexWhere(
+            (item) => item.destination.label == label,
+          );
+          if (index >= 0 && !primaryIndices.contains(index)) {
+            primaryIndices.add(index);
+            if (primaryIndices.length == 3) break;
+          }
+        }
+        for (
+          var index = 0;
+          primaryIndices.length < 3 && index < destinations.length;
+          index++
+        ) {
+          if (!primaryIndices.contains(index)) primaryIndices.add(index);
+        }
+        final secondaryIndices = [
+          for (var index = 0; index < destinations.length; index++)
+            if (!primaryIndices.contains(index)) index,
+        ];
+
         final selectedIndex = destinations.isEmpty
             ? 0
             : _currentIndex.clamp(0, destinations.length - 1);
@@ -886,14 +947,159 @@ class _HomeShellState extends State<HomeShell> {
             if (mounted) setState(() => _currentIndex = selectedIndex);
           });
         }
-
+        final selectedPrimaryIndex = primaryIndices.indexOf(selectedIndex);
         return Scaffold(
+          key: _shellKey,
+          drawer: secondaryIndices.isEmpty
+              ? null
+              : Drawer(
+                  child: SafeArea(
+                    child: Column(
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [AppColors.forest, AppColors.navy],
+                            ),
+                            borderRadius: BorderRadius.vertical(
+                              bottom: Radius.circular(24),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(
+                                        alpha: .12,
+                                      ),
+                                      borderRadius: BorderRadius.circular(15),
+                                    ),
+                                    child: const Icon(
+                                      Icons.event_available_rounded,
+                                      color: AppColors.amber,
+                                      size: 23,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Text(
+                                    'eventos.',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 21,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                widget.session.activeOrganization?.name ??
+                                    'Tu espacio de eventos',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              const Text(
+                                'Accesos y herramientas',
+                                style: TextStyle(
+                                  color: Color(0xffd6e8df),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'MÁS FUNCIONES',
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    color: AppColors.muted,
+                                    letterSpacing: 1.1,
+                                  ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            itemCount: secondaryIndices.length,
+                            itemBuilder: (context, itemIndex) {
+                              final destinationIndex =
+                                  secondaryIndices[itemIndex];
+                              final item = destinations[destinationIndex];
+                              final selected =
+                                  destinationIndex == selectedIndex;
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: ListTile(
+                                  selected: selected,
+                                  selectedColor: AppColors.primary,
+                                  selectedTileColor: AppColors.sage,
+                                  leading: item.destination.icon,
+                                  title: Text(
+                                    item.destination.label,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: selected
+                                          ? FontWeight.w800
+                                          : FontWeight.w600,
+                                    ),
+                                  ),
+                                  onTap: () {
+                                    Navigator.of(context).pop();
+                                    setState(
+                                      () => _currentIndex = destinationIndex,
+                                    );
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const Divider(height: 1),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                          child: ListTile(
+                            leading: const Icon(Icons.logout_rounded),
+                            title: const Text('Cerrar sesión'),
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              widget.session.logout();
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
           body: SafeArea(
             top: true,
             bottom: false,
             child: Column(
               children: [
-                OrganizationSwitcher(session: widget.session),
+                OrganizationSwitcher(
+                  session: widget.session,
+                  onOpenMenu: () => _shellKey.currentState?.openDrawer(),
+                ),
                 if (privileges.isLoading)
                   const LinearProgressIndicator(minHeight: 2),
                 Expanded(
@@ -917,20 +1123,93 @@ class _HomeShellState extends State<HomeShell> {
               ],
             ),
           ),
-          bottomNavigationBar: destinations.length < 2
+          bottomNavigationBar: primaryIndices.isEmpty
               ? null
-              : NavigationBar(
-                  selectedIndex: selectedIndex,
-                  onDestinationSelected: (index) =>
-                      setState(() => _currentIndex = index),
-                  destinations: destinations
-                      .map((item) => item.destination)
-                      .toList(),
+              : Material(
+                  color: AppColors.paper,
+                  child: SafeArea(
+                    top: false,
+                    child: SizedBox(
+                      height: 66,
+                      child: Row(
+                        children: [
+                          for (
+                            var index = 0;
+                            index < primaryIndices.length;
+                            index++
+                          )
+                            Expanded(
+                              child: _PrimaryNavigationItem(
+                                destination: destinations[primaryIndices[index]]
+                                    .destination,
+                                selected: selectedPrimaryIndex == index,
+                                onTap: () => setState(
+                                  () => _currentIndex = primaryIndices[index],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
         );
       },
     );
   }
+}
+
+class _PrimaryNavigationItem extends StatelessWidget {
+  const _PrimaryNavigationItem({
+    required this.destination,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final NavigationDestination destination;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(18),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+            decoration: BoxDecoration(
+              color: selected ? AppColors.sage : Colors.transparent,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: IconTheme(
+              data: IconThemeData(
+                color: selected ? AppColors.forest : AppColors.muted,
+                size: 21,
+              ),
+              child: selected
+                  ? (destination.selectedIcon ?? destination.icon)
+                  : destination.icon,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            destination.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: selected ? AppColors.forest : AppColors.muted,
+              fontSize: 11,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class MobileHelpPage extends StatelessWidget {
@@ -1590,9 +1869,14 @@ class _StaffPageState extends State<StaffPage> {
 }
 
 class OrganizationSwitcher extends StatelessWidget {
-  const OrganizationSwitcher({required this.session, super.key});
+  const OrganizationSwitcher({
+    required this.session,
+    required this.onOpenMenu,
+    super.key,
+  });
 
   final SessionController session;
+  final VoidCallback onOpenMenu;
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
@@ -1605,91 +1889,115 @@ class OrganizationSwitcher extends StatelessWidget {
       return Material(
         color: AppColors.canvas,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 58),
-            padding: const EdgeInsets.fromLTRB(12, 7, 10, 7),
-            decoration: BoxDecoration(
-              color: AppColors.paper,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.line),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: AppColors.sage,
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  child: const Icon(
-                    Icons.apartment_rounded,
-                    size: 20,
-                    color: AppColors.forest,
+          padding: const EdgeInsets.fromLTRB(12, 7, 12, 5),
+          child: Row(
+            children: [
+              IconButton.filledTonal(
+                onPressed: onOpenMenu,
+                tooltip: 'Abrir menú',
+                icon: const Icon(Icons.menu_rounded),
+                style: IconButton.styleFrom(
+                  backgroundColor: AppColors.sage,
+                  foregroundColor: AppColors.forest,
+                  minimumSize: const Size(46, 46),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
                   ),
                 ),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: 58),
+                  padding: const EdgeInsets.fromLTRB(11, 7, 9, 7),
+                  decoration: BoxDecoration(
+                    color: AppColors.paper,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: AppColors.line),
+                  ),
+                  child: Row(
                     children: [
-                      const Text(
-                        'ORGANIZACIÓN ACTIVA',
-                        style: TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.05,
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: AppColors.sage,
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        child: const Icon(
+                          Icons.apartment_rounded,
+                          size: 20,
+                          color: AppColors.forest,
                         ),
                       ),
-                      DropdownButtonHideUnderline(
-                        child: DropdownButton<int>(
-                          isExpanded: true,
-                          isDense: true,
-                          value: active?.id,
-                          icon: const Icon(Icons.expand_more_rounded, size: 20),
-                          style: const TextStyle(
-                            color: AppColors.ink,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          selectedItemBuilder: (context) => session
-                              .organizations
-                              .map(
-                                (organization) => Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    organization.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                      const SizedBox(width: 11),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'ORGANIZACIÓN ACTIVA',
+                              style: TextStyle(
+                                color: AppColors.muted,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.05,
+                              ),
+                            ),
+                            DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                isExpanded: true,
+                                isDense: true,
+                                value: active?.id,
+                                icon: const Icon(
+                                  Icons.expand_more_rounded,
+                                  size: 20,
                                 ),
-                              )
-                              .toList(),
-                          items: session.organizations
-                              .map(
-                                (organization) => DropdownMenuItem<int>(
-                                  value: organization.id,
-                                  child: Text(
-                                    organization.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                                style: const TextStyle(
+                                  color: AppColors.ink,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
                                 ),
-                              )
-                              .toList(),
-                          onChanged: (id) {
-                            if (id != null) session.selectOrganization(id);
-                          },
+                                selectedItemBuilder: (context) => session
+                                    .organizations
+                                    .map(
+                                      (organization) => Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: Text(
+                                          organization.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                                items: session.organizations
+                                    .map(
+                                      (organization) => DropdownMenuItem<int>(
+                                        value: organization.id,
+                                        child: Text(
+                                          organization.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (id) {
+                                  if (id != null)
+                                    session.selectOrganization(id);
+                                },
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       );
@@ -2020,43 +2328,7 @@ class _EventsPageState extends State<EventsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Explorar eventos'),
-        actions: [
-          if (widget.session.uiPrivileges.visible('inscriptions.list'))
-            IconButton(
-              onPressed: () {
-                if (widget.onGoToInscriptions != null) {
-                  widget.onGoToInscriptions!();
-                } else {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          MyInscriptionsPage(session: widget.session),
-                    ),
-                  );
-                }
-              },
-              icon: const Icon(Icons.confirmation_number_outlined),
-              tooltip: 'Mis inscripciones',
-            ),
-          if (widget.session.uiPrivileges.visible('profile.menu'))
-            IconButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => ProfilePage(session: widget.session),
-                ),
-              ),
-              icon: const Icon(Icons.person_outline_rounded),
-              tooltip: 'Mi perfil',
-            ),
-          IconButton(
-            onPressed: () => widget.session.logout(),
-            icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Cerrar sesion',
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Explorar eventos')),
       body: RefreshIndicator(
         onRefresh: _loadEvents,
         child: ListView(
@@ -3976,6 +4248,11 @@ class SessionController extends ChangeNotifier {
         ),
       );
 
+  Future<List<EventoRecomendadoModel>> listRecommendedEvents() => _authorized(
+    (tokens, organizationId) =>
+        _api.listRecommendedEvents(tokens, organizationId: organizationId),
+  );
+
   Future<InscripcionModel> inscribirAEvento(int idEvento) => _authorized(
     (tokens, organizationId) =>
         _api.inscribirAEvento(tokens, idEvento, organizationId: organizationId),
@@ -4123,6 +4400,7 @@ class SessionController extends ChangeNotifier {
 class ApiClient {
   ApiClient(this.baseUrl);
   final String baseUrl;
+  static const _requestTimeout = Duration(seconds: 12);
 
   Future<AttendanceModel> registrarAsistencia(
     SessionTokens tokens,
@@ -4155,20 +4433,24 @@ class ApiClient {
   }
 
   Future<SessionTokens> login(String email, String password) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/autenticacion/iniciar-sesion'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'correo': email, 'clave': password}),
-    );
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/autenticacion/iniciar-sesion'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'correo': email, 'clave': password}),
+        )
+        .timeout(_requestTimeout);
     return SessionTokens.fromJson(_data(response));
   }
 
   Future<SessionTokens> refresh(String token) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/autenticacion/refrescar'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'tokenRefresco': token}),
-    );
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/autenticacion/refrescar'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'tokenRefresco': token}),
+        )
+        .timeout(_requestTimeout);
     return SessionTokens.fromJson(_data(response));
   }
 
@@ -4284,10 +4566,9 @@ class ApiClient {
     if (term.trim().isNotEmpty) query['termino'] = term.trim();
     if (category.isNotEmpty) query['categoria'] = category;
     final uri = Uri.parse('$baseUrl/eventos').replace(queryParameters: query);
-    final response = await http.get(
-      uri,
-      headers: _headers(tokens, organizationId: organizationId),
-    );
+    final response = await http
+        .get(uri, headers: _headers(tokens, organizationId: organizationId))
+        .timeout(_requestTimeout);
     final data = _data(response);
     return (data as List<dynamic>)
         .map((item) => EventModel.fromJson(item as Map<String, dynamic>))
@@ -4305,7 +4586,10 @@ class ApiClient {
     );
     final data = _data(response);
     return (data as List<dynamic>)
-        .map((item) => EventoRecomendadoModel.fromJson(item as Map<String, dynamic>))
+        .map(
+          (item) =>
+              EventoRecomendadoModel.fromJson(item as Map<String, dynamic>),
+        )
         .toList();
   }
 
@@ -4458,10 +4742,12 @@ class ApiClient {
     String path,
     SessionTokens tokens, {
     int? organizationId,
-  }) => http.get(
-    Uri.parse('$baseUrl$path'),
-    headers: _headers(tokens, organizationId: organizationId),
-  );
+  }) => http
+      .get(
+        Uri.parse('$baseUrl$path'),
+        headers: _headers(tokens, organizationId: organizationId),
+      )
+      .timeout(_requestTimeout);
   Future<http.Response> _send(
     String method,
     String path,
@@ -4477,7 +4763,10 @@ class ApiClient {
         method == 'PATCH') {
       request.body = jsonEncode(body);
     }
-    return http.Client().send(request).then(http.Response.fromStream);
+    return http.Client()
+        .send(request)
+        .then(http.Response.fromStream)
+        .timeout(_requestTimeout);
   }
 
   Future<http.Response> _publicSend(
@@ -4488,7 +4777,10 @@ class ApiClient {
     final request = http.Request(method, Uri.parse('$baseUrl$path'))
       ..headers['Content-Type'] = 'application/json'
       ..body = jsonEncode(body);
-    return http.Client().send(request).then(http.Response.fromStream);
+    return http.Client()
+        .send(request)
+        .then(http.Response.fromStream)
+        .timeout(_requestTimeout);
   }
 
   Map<String, String> _headers(SessionTokens tokens, {int? organizationId}) => {
