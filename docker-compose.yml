@@ -139,6 +139,9 @@ services:
   frontend-web:
     build:
       context: ./frontend-web
+    environment:
+      PORT: 80
+      BACKEND_HOSTPORT: backend:8080
     ports:
       - "${FRONTEND_PORT:-4200}:80"
     depends_on:

@@ -1,0 +1,89 @@
+databases:
+  - name: eventos-db
+    databaseName: eventos
+    user: eventos_app
+    plan: free
+    region: oregon
+    ipAllowList: []
+
+services:
+  - type: web
+    name: plataforma-eventos-web
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./frontend-web/Dockerfile
+    dockerContext: ./frontend-web
+    healthCheckPath: /
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: BACKEND_HOSTPORT
+        fromService:
+          type: pserv
+          name: plataforma-eventos-api
+          property: hostport
+
+  - type: pserv
+    name: plataforma-eventos-api
+    runtime: docker
+    plan: 0.5c-512mb
+    region: oregon
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    envVars:
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: eventos-db
+          property: host
+      - key: POSTGRES_PORT
+        value: "5432"
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: eventos-db
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: eventos-db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: eventos-db
+          property: password
+      - key: PUERTO_BACKEND
+        value: "8080"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_CORREO
+        sync: false
+      - key: ADMIN_CLAVE
+        generateValue: true
+      - key: AUDIT_DEVELOPER_KEY_BASE64
+        generateValue: true
+      - key: CORS_ORIGENES
+        fromService:
+          type: web
+          name: plataforma-eventos-web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: URL_FRONTEND_WEB
+        fromService:
+          type: web
+          name: plataforma-eventos-web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: SERVICIO_IA_HOSTPORT
+        fromService:
+          type: pserv
+          name: plataforma-eventos-ia
+          property: hostport
+      - key: DEMO_SEED_ENABLED
+        value: "false"
+      - key: STRIPE_ENABLED
+        value: "false"
+
+  - type: pserv
+    name: plataforma-eventos-ia
+    runtime: docker
+    plan: 0.5c-512mb
+    region: oregon
+    dockerfilePath: ./servicio-ia/Dockerfile
+    dockerContext: ./servicio-ia

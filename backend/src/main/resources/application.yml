@@ -70,7 +70,7 @@ demo:
 
 servicio:
   ia:
-    url: ${SERVICIO_IA_URL:http://servicio-ia:8000}
+    url: ${SERVICIO_IA_URL:http://${SERVICIO_IA_HOSTPORT:servicio-ia:8000}}
 
 saas:
   stripe:
