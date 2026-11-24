@@ -44,7 +44,7 @@ notificaciones:
     inicio-ms: ${NOTIFICACIONES_INICIO_MS:20000}
 
 server:
-  port: ${PUERTO_BACKEND:8080}
+  port: ${PUERTO_BACKEND:${PORT:8080}}
 
 management:
   health:
@@ -70,7 +70,8 @@ demo:
 
 servicio:
   ia:
-    url: ${SERVICIO_IA_URL:http://${SERVICIO_IA_HOSTPORT:servicio-ia:8000}}
+    url: ${SERVICIO_IA_URL:http://servicio-ia:8000}
+    api-key: ${SERVICIO_IA_API_KEY:}
 
 saas:
   stripe:

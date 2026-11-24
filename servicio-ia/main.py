@@ -1,9 +1,11 @@
 import os
 import json
+import hmac
 import urllib.request
 import urllib.error
 from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, HTTPException, Header, Depends, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
@@ -24,6 +26,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def proteger_api_interna(request: Request, call_next):
+    clave_configurada = (os.getenv("SERVICIO_IA_API_KEY") or "").strip()
+    if clave_configurada and request.url.path != "/api/salud":
+        clave_recibida = request.headers.get("X-Internal-Service-Key", "")
+        if not hmac.compare_digest(clave_recibida, clave_configurada):
+            return JSONResponse(status_code=401, content={"detail": "No autorizado"})
+    return await call_next(request)
 
 # Modelos Pydantic para Requests y Responses
 class InterpretarConsultaSolicitud(BaseModel):

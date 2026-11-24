@@ -80,7 +80,6 @@ public class EventoService {
         this(eventoRepository, categoriaRepository, usuarioRepository, espacioRepository, notificaciones, null, null, null);
     }
 
-    @Autowired
     public EventoService(
             EventoRepository eventoRepository,
             CategoriaRepository categoriaRepository,
@@ -91,6 +90,22 @@ public class EventoService {
             @Autowired(required = false) InscripcionRepository inscripcionRepository,
             @Value("${servicio.ia.url:http://servicio-ia:8000}") String servicioIaUrl
     ) {
+        this(eventoRepository, categoriaRepository, usuarioRepository, espacioRepository, notificaciones,
+                tipoEntradaRepository, inscripcionRepository, servicioIaUrl, "");
+    }
+
+    @Autowired
+    public EventoService(
+            EventoRepository eventoRepository,
+            CategoriaRepository categoriaRepository,
+            UsuarioRepository usuarioRepository,
+            EspacioRepository espacioRepository,
+            @Autowired(required = false) NotificacionEventoService notificaciones,
+            TipoEntradaRepository tipoEntradaRepository,
+            @Autowired(required = false) InscripcionRepository inscripcionRepository,
+            @Value("${servicio.ia.url:http://servicio-ia:8000}") String servicioIaUrl,
+            @Value("${servicio.ia.api-key:}") String servicioIaApiKey
+    ) {
         this.eventoRepository = eventoRepository;
         this.categoriaRepository = categoriaRepository;
         this.usuarioRepository = usuarioRepository;
@@ -99,7 +114,11 @@ public class EventoService {
         this.tipoEntradaRepository = tipoEntradaRepository;
         this.inscripcionRepository = inscripcionRepository;
         String url = (servicioIaUrl != null && !servicioIaUrl.isBlank()) ? servicioIaUrl : "http://servicio-ia:8000";
-        this.restClient = RestClient.builder().baseUrl(url).build();
+        RestClient.Builder restClientBuilder = RestClient.builder().baseUrl(url);
+        if (servicioIaApiKey != null && !servicioIaApiKey.isBlank()) {
+            restClientBuilder.defaultHeader("X-Internal-Service-Key", servicioIaApiKey);
+        }
+        this.restClient = restClientBuilder.build();
     }
 
     @Transactional(readOnly = true)

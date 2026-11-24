@@ -49,7 +49,8 @@ public class ReportePersonalizadoService {
             RecursoRepository recursoRepository,
             ParticipanteRepository participanteRepository,
             BalanceFinancieroService balanceFinancieroService,
-            @Value("${servicio.ia.url:http://servicio-ia:8000}") String servicioIaUrl
+            @Value("${servicio.ia.url:http://servicio-ia:8000}") String servicioIaUrl,
+            @Value("${servicio.ia.api-key:}") String servicioIaApiKey
     ) {
         this.eventoRepository = eventoRepository;
         this.inscripcionRepository = inscripcionRepository;
@@ -61,10 +62,13 @@ public class ReportePersonalizadoService {
         HttpClient httpClient = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
                 .build();
-        this.restClient = RestClient.builder()
+        RestClient.Builder restClientBuilder = RestClient.builder()
                 .baseUrl(servicioIaUrl)
-                .requestFactory(new JdkClientHttpRequestFactory(httpClient))
-                .build();
+                .requestFactory(new JdkClientHttpRequestFactory(httpClient));
+        if (servicioIaApiKey != null && !servicioIaApiKey.isBlank()) {
+            restClientBuilder.defaultHeader("X-Internal-Service-Key", servicioIaApiKey);
+        }
+        this.restClient = restClientBuilder.build();
     }
 
     public ReporteMetricasRespuesta obtenerMetricasOrganizacion(
